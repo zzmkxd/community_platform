@@ -48,8 +48,7 @@ public class TokenInterceptor implements HandlerInterceptor {
     }
 
     private boolean isPublicURI(String requestURI) {
-        String[] split = requestURI.split("/");
-        return split.length > 2 && "public".equals(split[3]);
+        return requestURI.contains("/public/") || requestURI.contains("/auth/");
     }
 
     private String getToken(HttpServletRequest request) {

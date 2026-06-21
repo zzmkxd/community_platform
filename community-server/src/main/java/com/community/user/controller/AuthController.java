@@ -10,6 +10,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -29,7 +31,7 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ApiResult<String> refresh(@RequestBody String token) {
-        return ApiResult.success(authService.refreshToken(token));
+    public ApiResult<String> refresh(@RequestBody Map<String, String> body) {
+        return ApiResult.success(authService.refreshToken(body.get("token")));
     }
 }
