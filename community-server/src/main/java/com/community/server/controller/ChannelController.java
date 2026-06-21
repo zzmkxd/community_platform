@@ -6,6 +6,7 @@ import com.community.server.domain.vo.ChannelVO;
 import com.community.server.service.ChannelService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -46,8 +47,8 @@ public class ChannelController {
     }
 
     @DeleteMapping("/{chanId}")
-    public ApiResult<Void> delete(@PathVariable Long serverId, @PathVariable Long chanId) {
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long serverId, @PathVariable Long chanId) {
         channelService.deleteChannel(serverId, chanId);
-        return ApiResult.success();
     }
 }

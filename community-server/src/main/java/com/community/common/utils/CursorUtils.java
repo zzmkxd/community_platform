@@ -1,7 +1,6 @@
 package com.community.common.utils;
 
 import cn.hutool.core.collection.CollectionUtil;
-import com.alanpoi.analysis.lambda.LambdaUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;

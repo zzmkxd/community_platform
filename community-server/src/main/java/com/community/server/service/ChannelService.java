@@ -10,7 +10,7 @@ public interface ChannelService {
     // ---- Category ----
     CategoryVO createCategory(Long serverId, String name, Integer sortOrder);
 
-    void updateCategory(Long serverId, Long categoryId, String name);
+    CategoryVO updateCategory(Long serverId, Long categoryId, String name);
 
     void deleteCategory(Long serverId, Long categoryId);
 

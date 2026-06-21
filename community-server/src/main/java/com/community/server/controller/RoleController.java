@@ -5,20 +5,23 @@ import com.community.server.domain.vo.RoleVO;
 import com.community.server.service.RoleService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/servers/{serverId}/roles")
+@RequestMapping("/api/v1/servers/{serverId}")
 @RequiredArgsConstructor
 @Tag(name = "角色")
 public class RoleController {
 
     private final RoleService roleService;
 
-    @PostMapping
+    // ---- Role CRUD ----
+
+    @PostMapping("/roles")
     public ApiResult<RoleVO> create(@PathVariable Long serverId, @RequestBody Map<String, Object> body) {
         return ApiResult.success(roleService.createRole(serverId,
                 (String) body.get("name"),
@@ -27,12 +30,12 @@ public class RoleController {
                 body.get("position") != null ? ((Number) body.get("position")).intValue() : 0));
     }
 
-    @GetMapping
+    @GetMapping("/roles")
     public ApiResult<List<RoleVO>> getRoles(@PathVariable Long serverId) {
         return ApiResult.success(roleService.getRoles(serverId));
     }
 
-    @PutMapping("/{roleId}")
+    @PutMapping("/roles/{roleId}")
     public ApiResult<RoleVO> update(@PathVariable Long serverId, @PathVariable Long roleId,
                                      @RequestBody Map<String, Object> body) {
         return ApiResult.success(roleService.updateRole(serverId, roleId,
@@ -41,9 +44,26 @@ public class RoleController {
                 body.get("permissions") != null ? ((Number) body.get("permissions")).longValue() : null));
     }
 
-    @DeleteMapping("/{roleId}")
-    public ApiResult<Void> delete(@PathVariable Long serverId, @PathVariable Long roleId) {
+    @DeleteMapping("/roles/{roleId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long serverId, @PathVariable Long roleId) {
         roleService.deleteRole(serverId, roleId);
-        return ApiResult.success();
+    }
+
+    // ---- Member-Role Assignment ----
+
+    @PostMapping("/members/{userId}/roles")
+    public ApiResult<List<RoleVO>> assignRoles(@PathVariable Long serverId, @PathVariable Long userId,
+                                               @RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        List<Number> roleIdsRaw = (List<Number>) body.get("roleIds");
+        List<Long> roleIds = roleIdsRaw != null ? roleIdsRaw.stream().map(Number::longValue).toList() : List.of();
+        return ApiResult.success(roleService.assignRoles(serverId, userId, roleIds));
+    }
+
+    @DeleteMapping("/members/{userId}/roles/{roleId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeRole(@PathVariable Long serverId, @PathVariable Long userId, @PathVariable Long roleId) {
+        roleService.removeRole(serverId, userId, roleId);
     }
 }

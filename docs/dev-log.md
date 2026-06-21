@@ -150,6 +150,58 @@ git remote add origin <url>
 
 ---
 
+## Phase 0.1: 代码审计与修复 (2026-06-22)
+
+对照计划文档 (`docs/plan/`) 进行全量代码审计，发现并修复以下问题：
+
+### 致命缺陷 (1 项)
+| # | 问题 | 文件 | 修复 |
+|---|------|------|------|
+| 1 | FileController 类级 `@RequestMapping("/api/v1/upload")` + 方法级 `/api/v1/files/` 导致路径叠加为 `/api/v1/upload/api/v1/files/` | FileController.java | 类级改为 `@RequestMapping("/api/v1")`，方法路径改为 `/upload/*` 和 `/files/*` |
+
+### API 契约违规 (5 项)
+| # | 问题 | 修复 |
+|---|------|------|
+| 2 | CategoryController.update 返回 void，计划要求 `→ CategoryVO` | `ChannelService.updateCategory` 返回值改为 `CategoryVO` |
+| 3 | ReactionController POST/DELETE 都调用 `toggleReaction`，语义错误 | 拆分为 `addReaction` 和 `removeReaction` 两个独立方法 |
+| 4 | DELETE 端点返回 200 + body，计划要求 `→ 204` | 8 个 DELETE 端点全部改为 `@ResponseStatus(HttpStatus.NO_CONTENT)` + void |
+| 5 | Reaction DELETE 返回 200 + body | 改为 204 + void |
+
+### 缺失端点 (5 项)
+| # | 问题 | 修复 |
+|---|------|------|
+| 6 | ChannelPermissionController 完全缺失 (PUT/GET/DELETE 3 个端点) | 新建 Controller + Service + VO 共 4 个文件 |
+| 7 | RoleController 缺失成员-角色分配端点 (POST/DELETE) | RoleController 新增 2 个端点 |
+
+### 代码质量 (4 项)
+| # | 问题 | 文件 | 修复 |
+|---|------|------|------|
+| 8 | 未使用的 import `com.alanpoi.analysis.lambda.LambdaUtils` | CursorUtils.java | 删除 |
+| 9 | `@MapperScan("com.community.**.dao")` 无法匹配 `*.dao.mapper` 子包 | CommunityApplication.java | 改为 `com.community.**.dao.mapper` |
+| 10 | ThreadController 无类级 `@RequestMapping`，方法使用硬编码全路径 | ThreadController.java | 添加 `@RequestMapping("/api/v1")`，路径相对化 |
+| 11 | `mybatis-plus-jsqlparser` 缺失依赖导致 `PaginationInnerInterceptor` 编译失败 | community-server/pom.xml | 添加依赖 |
+
+### 通过验证的项目
+- 6 个枚举值全部与计划一致 (PermissionBit 14 bits, MessageTypeEnum 5 types, ChannelTypeEnum, MemberStatusEnum, ThreadStatusEnum, FileStatusEnum)
+- 13 个实体类全部存在且字段匹配
+- WSReqTypeEnum 10 个类型码正确
+- WSRespTypeEnum 18 个类型码正确
+- 11 个 API 路径模式正确（除 FileController 外）
+- 项目结构符合计划 Phase 1 单体架构
+
+### 新增文件
+- `server/domain/vo/ChannelPermissionVO.java`
+- `server/service/ChannelPermissionService.java`
+- `server/service/impl/ChannelPermissionServiceImpl.java`
+- `server/controller/ChannelPermissionController.java`
+
+### 编译验证
+```bash
+mvn clean compile -pl community-server  # BUILD SUCCESS, 141 source files
+```
+
+---
+
 ## 参考
 
 - MallChat 源项目: `E:\Learn_zone\Code_zone\IDEA_code\Mall\MallChat\`

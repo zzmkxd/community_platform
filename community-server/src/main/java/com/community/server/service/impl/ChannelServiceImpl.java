@@ -16,7 +16,7 @@ public class ChannelServiceImpl implements ChannelService {
     }
 
     @Override
-    public void updateCategory(Long serverId, Long categoryId, String name) {
+    public CategoryVO updateCategory(Long serverId, Long categoryId, String name) {
         throw new UnsupportedOperationException("TODO");
     }
 

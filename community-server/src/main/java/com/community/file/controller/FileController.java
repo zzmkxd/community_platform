@@ -10,14 +10,14 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/upload")
+@RequestMapping("/api/v1")
 @RequiredArgsConstructor
 @Tag(name = "文件")
 public class FileController {
 
     private final FileService fileService;
 
-    @PostMapping("/presigned")
+    @PostMapping("/upload/presigned")
     public ApiResult<Map<String, Object>> getPresignedUrl(@RequestBody Map<String, Object> body) {
         String fileName = (String) body.get("fileName");
         Long fileSize = ((Number) body.get("fileSize")).longValue();
@@ -26,19 +26,19 @@ public class FileController {
         return ApiResult.success(Map.of("uploadUrl", vo.getDownloadUrl(), "fileId", vo.getId()));
     }
 
-    @PostMapping("/confirm")
+    @PostMapping("/upload/confirm")
     public ApiResult<FileVO> confirm(@RequestBody Map<String, Object> body) {
         Long fileId = ((Number) body.get("fileId")).longValue();
         return ApiResult.success(fileService.confirmUpload(fileId));
     }
 
-    @GetMapping("/api/v1/files/{fileId}")
+    @GetMapping("/files/{fileId}")
     public ApiResult<FileVO> getFile(@PathVariable Long fileId) {
         // TODO
         throw new UnsupportedOperationException("TODO");
     }
 
-    @GetMapping("/api/v1/files/{fileId}/download")
+    @GetMapping("/files/{fileId}/download")
     public ApiResult<Map<String, String>> download(@PathVariable Long fileId) {
         return ApiResult.success(Map.of("downloadUrl", fileService.getDownloadUrl(fileId)));
     }

@@ -6,6 +6,7 @@ import com.community.server.domain.vo.ServerVO;
 import com.community.server.service.ServerService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -42,8 +43,8 @@ public class ServerController {
     }
 
     @DeleteMapping("/{serverId}")
-    public ApiResult<Void> delete(@PathVariable Long serverId) {
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long serverId) {
         serverService.deleteServer(serverId);
-        return ApiResult.success();
     }
 }

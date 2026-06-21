@@ -12,20 +12,21 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
+@RequestMapping("/api/v1")
 @RequiredArgsConstructor
 @Tag(name = "话题")
 public class ThreadController {
 
     private final ThreadService threadService;
 
-    @PostMapping("/api/v1/channels/{channelId}/threads")
+    @PostMapping("/channels/{channelId}/threads")
     public ApiResult<ThreadVO> create(@PathVariable Long channelId, @RequestBody Map<String, Object> body) {
         Long rootMsgId = ((Number) body.get("rootMsgId")).longValue();
         String name = (String) body.get("name");
         return ApiResult.success(threadService.createThread(channelId, rootMsgId, name));
     }
 
-    @GetMapping("/api/v1/channels/{channelId}/threads")
+    @GetMapping("/channels/{channelId}/threads")
     public ApiResult<CursorPageBaseResp<ThreadVO>> getThreads(
             @PathVariable Long channelId,
             @RequestParam(required = false) String cursor,
@@ -33,12 +34,12 @@ public class ThreadController {
         return ApiResult.success(threadService.getThreads(channelId, cursor, pageSize));
     }
 
-    @GetMapping("/api/v1/threads/{threadId}")
+    @GetMapping("/threads/{threadId}")
     public ApiResult<ThreadVO> getThread(@PathVariable Long threadId) {
         return ApiResult.success(threadService.getThread(threadId));
     }
 
-    @GetMapping("/api/v1/threads/{threadId}/messages")
+    @GetMapping("/threads/{threadId}/messages")
     public ApiResult<CursorPageBaseResp<MessageVO>> getThreadMessages(
             @PathVariable Long threadId,
             @RequestParam(required = false) String cursor,
@@ -46,7 +47,7 @@ public class ThreadController {
         return ApiResult.success(threadService.getThreadMessages(threadId, cursor, pageSize));
     }
 
-    @PutMapping("/api/v1/threads/{threadId}")
+    @PutMapping("/threads/{threadId}")
     public ApiResult<ThreadVO> update(@PathVariable Long threadId, @RequestBody Map<String, String> body) {
         return ApiResult.success(threadService.updateThread(threadId, body.get("name"), body.get("status")));
     }

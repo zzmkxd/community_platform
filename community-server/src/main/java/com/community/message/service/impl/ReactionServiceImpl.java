@@ -10,7 +10,12 @@ import java.util.List;
 public class ReactionServiceImpl implements ReactionService {
 
     @Override
-    public List<ReactionVO> toggleReaction(Long msgId, String emoji) {
+    public List<ReactionVO> addReaction(Long msgId, String emoji) {
+        throw new UnsupportedOperationException("TODO");
+    }
+
+    @Override
+    public List<ReactionVO> removeReaction(Long msgId, String emoji) {
         throw new UnsupportedOperationException("TODO");
     }
 

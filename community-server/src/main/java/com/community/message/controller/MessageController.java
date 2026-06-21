@@ -6,6 +6,7 @@ import com.community.message.domain.vo.MessageVO;
 import com.community.message.service.MessageService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -52,8 +53,8 @@ public class MessageController {
     }
 
     @DeleteMapping("/{msgId}")
-    public ApiResult<Void> delete(@PathVariable Long channelId, @PathVariable Long msgId) {
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long channelId, @PathVariable Long msgId) {
         messageService.deleteMessage(channelId, msgId);
-        return ApiResult.success();
     }
 }

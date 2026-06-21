@@ -7,6 +7,7 @@ import com.community.server.domain.vo.MemberVO;
 import com.community.server.service.MemberService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -31,9 +32,9 @@ public class MemberController {
     }
 
     @DeleteMapping("/{userId}")
-    public ApiResult<Void> leaveOrKick(@PathVariable Long serverId, @PathVariable Long userId) {
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void leaveOrKick(@PathVariable Long serverId, @PathVariable Long userId) {
         memberService.leaveOrKick(serverId, userId);
-        return ApiResult.success();
     }
 
     @PutMapping("/me/nickname")

@@ -5,6 +5,7 @@ import com.community.server.domain.vo.EmojiVO;
 import com.community.server.service.EmojiService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -32,8 +33,8 @@ public class EmojiController {
     }
 
     @DeleteMapping("/{emojiId}")
-    public ApiResult<Void> delete(@PathVariable Long serverId, @PathVariable Long emojiId) {
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long serverId, @PathVariable Long emojiId) {
         emojiService.deleteEmoji(serverId, emojiId);
-        return ApiResult.success();
     }
 }
