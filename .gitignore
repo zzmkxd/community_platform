@@ -1,0 +1,41 @@
+# Maven
+target/
+/**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+.flattened-pom.xml
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Env (gitignored — 本地开发配置)
+application-local.properties
+application-local.yml
+
+# Docker
+.env
+docker-compose.override.yml
+
+# Git
+*.orig
+
+# JVM crash logs
+hs_err_pid*
