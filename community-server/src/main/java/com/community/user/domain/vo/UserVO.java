@@ -11,6 +11,9 @@ public class UserVO {
     @Schema(description = "用户 ID")
     private Long id;
 
+    @Schema(description = "JWT Token (注册/登录时返回)")
+    private String token;
+
     @Schema(description = "用户名")
     private String username;
 

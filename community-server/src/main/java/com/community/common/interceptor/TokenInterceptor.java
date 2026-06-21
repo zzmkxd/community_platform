@@ -2,14 +2,13 @@ package com.community.common.interceptor;
 
 import com.community.common.exception.BusinessErrorEnum;
 import com.community.common.exception.BusinessException;
-import com.community.common.utils.JwtUtils;
 import com.community.common.utils.RequestHolder;
 import com.community.common.domain.dto.RequestInfo;
+import com.community.user.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.MDC;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -26,12 +25,12 @@ public class TokenInterceptor implements HandlerInterceptor {
     public static final String AUTHORIZATION_SCHEMA = "Bearer ";
     public static final String ATTRIBUTE_UID = "uid";
 
-    private final JwtUtils jwtUtils;
+    private final AuthService authService;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String token = getToken(request);
-        Long uid = jwtUtils.getUidOrNull(token);
+        Long uid = authService.getValidUid(token);
         if (uid != null) {
             RequestHolder.set(buildRequestInfo(request, uid));
             return true;

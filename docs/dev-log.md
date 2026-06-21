@@ -202,6 +202,63 @@ mvn clean compile -pl community-server  # BUILD SUCCESS, 141 source files
 
 ---
 
+## Phase 1: 最小可运行闭环 — User 模块 (2026-06-22)
+
+### 目标
+实现注册/登录/JWT 认证链路，使项目可启动并通过 curl 测试。
+
+### DDL
+- `docs/ddl.sql` — 全 13 张表 DDL，utf8mb4 字符集，含索引与注释
+
+### 依赖变更
+| 依赖 | 说明 |
+|------|------|
+| `spring-security-crypto` | BCrypt 密码加密 |
+| `mybatis-plus-jsqlparser` | PaginationInnerInterceptor（Phase 0.1 补加） |
+
+### 实现的功能
+
+**AuthServiceImpl** — 注册 / 登录 / Token 刷新 / Redis Session 管理
+- `register`: 用户名唯一性校验 → BCrypt 加密 → 持久化 → JWT 签发 → Redis 存储 token (5 天 TTL)
+- `login`: 用户名查用户 → BCrypt 密码比对 → JWT 签发 → Redis 存储
+- `refreshToken`: 校验旧 token → 删除旧 Redis → 签发新 token
+- `getValidUid`: JWT 验签 + Redis 存在性双重校验 (单设备登录 — 新登录挤旧)
+
+**UserServiceImpl** — 个人信息 / 编辑 / 公开查询
+- `getMe`: RequestHolder 获取 uid → 查 DB → 返回 UserVO
+- `updateMe`: RequestHolder → 查 DB → 更新昵称/头像/邮箱 → 返回 UserVO
+- `getUserById`: 直接查 DB 返回公开信息
+
+**TokenInterceptor 升级**
+- 从 `JwtUtils` 直接校验改为注入 `AuthService.getValidUid()`
+- 多了 Redis 层校验，实现单设备登录控制
+
+**UserVO 扩展**
+- 新增 `token` 字段，注册/登录响应携带 JWT
+
+### 修改/新增文件
+
+| 文件 | 操作 |
+|------|------|
+| `docs/ddl.sql` | 新增 — 13 张表完整 DDL |
+| `user/domain/vo/UserVO.java` | 修改 — 新增 token 字段 |
+| `user/service/impl/AuthServiceImpl.java` | 重写 — 完整实现 |
+| `user/service/impl/UserServiceImpl.java` | 重写 — 完整实现 |
+| `common/interceptor/TokenInterceptor.java` | 修改 — JwtUtils → AuthService |
+| `community-server/pom.xml` | 修改 — 新增 spring-security-crypto + mybatis-plus-jsqlparser |
+
+### 编译验证
+```bash
+mvn clean compile -pl community-server  # BUILD SUCCESS, 141 source files
+```
+
+### 下一步
+1. 启动 Docker 基础设施 (MySQL, Redis)
+2. 执行 `docs/ddl.sql` 建表
+3. 启动 Spring Boot → curl 测试 register/login 接口
+
+---
+
 ## 参考
 
 - MallChat 源项目: `E:\Learn_zone\Code_zone\IDEA_code\Mall\MallChat\`
