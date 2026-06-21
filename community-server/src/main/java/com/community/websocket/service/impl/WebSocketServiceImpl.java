@@ -1,74 +1,110 @@
 package com.community.websocket.service.impl;
 
+import cn.hutool.core.collection.CollectionUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.json.JSONUtil;
 import com.community.common.constant.RedisKey;
-import com.community.common.utils.JwtUtils;
+import com.community.common.domain.dto.WSChannelExtraDTO;
 import com.community.common.utils.RedisUtils;
 import com.community.common.websocket.WSRespTypeEnum;
 import com.community.common.websocket.dto.WSBaseResp;
+import com.community.user.dao.UserDao;
+import com.community.user.domain.entity.User;
+import com.community.user.service.AuthService;
 import com.community.websocket.NettyUtil;
 import com.community.websocket.service.WebSocketService;
+import com.community.websocket.service.adapter.WSAdapter;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import me.chanjar.weixin.mp.api.WxMpService;
+import me.chanjar.weixin.mp.bean.result.WxMpQrCodeTicket;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class WebSocketServiceImpl implements WebSocketService {
 
-    private final JwtUtils jwtUtils;
+    private static final Duration EXPIRE_TIME = Duration.ofHours(1);
+    private static final Long MAX_MUM_SIZE = 10000L;
+    private static final String LOGIN_CODE = "loginCode";
 
-    /** userId → Channel */
-    private static final ConcurrentHashMap<Long, Channel> USER_CHANNEL_MAP = new ConcurrentHashMap<>();
+    /** 所有请求登录的code与channel关系 */
+    private static final Cache<Integer, Channel> WAIT_LOGIN_MAP = Caffeine.newBuilder()
+            .expireAfterWrite(EXPIRE_TIME)
+            .maximumSize(MAX_MUM_SIZE)
+            .build();
+
+    /** 所有已连接的websocket连接列表和一些额外参数 */
+    private static final ConcurrentHashMap<Channel, WSChannelExtraDTO> ONLINE_WS_MAP = new ConcurrentHashMap<>();
+
+    /** 所有在线的用户和对应的socket */
+    private static final ConcurrentHashMap<Long, CopyOnWriteArrayList<Channel>> ONLINE_UID_MAP = new ConcurrentHashMap<>();
+
+    private final WxMpService wxMpService;
+    private final AuthService authService;
+    private final UserDao userDao;
 
     @Override
     public void connect(Channel channel) {
+        ONLINE_WS_MAP.put(channel, new WSChannelExtraDTO());
         log.info("WS connected: {}", channel.id());
     }
 
     @Override
     public void authorize(Channel channel, String token) {
-        Long uid = jwtUtils.getUidOrNull(token);
-        if (uid == null) {
-            sendToChannel(channel, WSRespTypeEnum.ERROR, "Token invalid");
-            channel.close();
-            return;
+        boolean verifySuccess = authService.verify(token);
+        if (verifySuccess) {
+            Long uid = authService.getValidUid(token);
+            User user = userDao.getById(uid);
+            loginSuccess(channel, user, token);
+        } else {
+            sendMsg(channel, WSAdapter.buildInvalidateTokenResp());
         }
-        NettyUtil.setAttr(channel, NettyUtil.UID, uid);
-        USER_CHANNEL_MAP.put(uid, channel);
-        sendToChannel(channel, WSRespTypeEnum.LOGIN_SUCCESS, "authenticated");
-        log.info("WS authorized: uid={}", uid);
     }
 
     @Override
     public void handleLogin(Channel channel) {
-        // 兼容 MallChat 的 LOGIN 请求类型
-        Long uid = NettyUtil.getAttr(channel, NettyUtil.UID);
-        if (uid != null) {
-            sendToChannel(channel, WSRespTypeEnum.LOGIN_SUCCESS, "ok");
+        try {
+            Integer code = generateLoginCode(channel);
+            WxMpQrCodeTicket wxMpQrCodeTicket = wxMpService.getQrcodeService()
+                    .qrCodeCreateTmpTicket(code, (int) EXPIRE_TIME.getSeconds());
+            sendMsg(channel, WSAdapter.buildLoginResp(wxMpQrCodeTicket));
+        } catch (Exception e) {
+            log.error("handleLogin error", e);
         }
     }
 
     @Override
     public void removed(Channel channel) {
+        WSChannelExtraDTO wsChannelExtraDTO = ONLINE_WS_MAP.remove(channel);
+        Optional<Long> uidOptional = Optional.ofNullable(wsChannelExtraDTO)
+                .map(WSChannelExtraDTO::getUid);
+        offline(channel, uidOptional);
+
         Long uid = NettyUtil.getAttr(channel, NettyUtil.UID);
         if (uid != null) {
-            USER_CHANNEL_MAP.remove(uid);
-            // 清理订阅关系
             RedisUtils.del(RedisKey.WS_USER + uid);
-            log.info("WS removed: uid={}", uid);
+            RedisUtils.del(RedisKey.WS_SUB_CHANNEL + uid);
+            RedisUtils.del(RedisKey.WS_SUB_THREAD + uid);
         }
+        log.info("WS removed: uid={}", uid);
     }
 
     @Override
     public void subscribeChannel(Channel channel, String data) {
         Long uid = NettyUtil.getAttr(channel, NettyUtil.UID);
-        // data 格式: {"channelId": 1}  或直接是 channelId
         Long channelId = parseId(data, "channelId");
         if (uid != null && channelId != null) {
             RedisUtils.sAdd(RedisKey.WS_SUB_CHANNEL + channelId, String.valueOf(uid));
@@ -104,9 +140,31 @@ public class WebSocketServiceImpl implements WebSocketService {
     }
 
     @Override
+    public Boolean scanLoginSuccess(Integer loginCode, Long uid) {
+        Channel channel = WAIT_LOGIN_MAP.getIfPresent(loginCode);
+        if (Objects.isNull(channel)) {
+            return Boolean.FALSE;
+        }
+        User user = userDao.getById(uid);
+        WAIT_LOGIN_MAP.invalidate(loginCode);
+        String token = authService.login(uid);
+        loginSuccess(channel, user, token);
+        return Boolean.TRUE;
+    }
+
+    @Override
+    public Boolean scanSuccess(Integer loginCode) {
+        Channel channel = WAIT_LOGIN_MAP.getIfPresent(loginCode);
+        if (Objects.nonNull(channel)) {
+            sendMsg(channel, WSAdapter.buildScanSuccessResp());
+            return Boolean.TRUE;
+        }
+        return Boolean.FALSE;
+    }
+
+    @Override
     public void pushToChannel(Long channelId, Object message) {
         // TODO: 从 Redis Set 读取订阅者，逐个 pushToUser
-        // RedisUtils.sMembers(RedisKey.WS_SUB_CHANNEL + channelId)
     }
 
     @Override
@@ -116,14 +174,77 @@ public class WebSocketServiceImpl implements WebSocketService {
 
     @Override
     public void pushToUser(Long userId, Object message) {
-        Channel channel = USER_CHANNEL_MAP.get(userId);
-        if (channel != null && channel.isActive()) {
-            WSBaseResp resp = WSBaseResp.of(WSRespTypeEnum.MESSAGE_CREATE.getType(), message);
-            channel.writeAndFlush(new TextWebSocketFrame(JSONUtil.toJsonStr(resp)));
+        WSBaseResp<?> resp;
+        if (message instanceof WSBaseResp<?>) {
+            resp = (WSBaseResp<?>) message;
+        } else {
+            resp = WSBaseResp.of(WSRespTypeEnum.MESSAGE_CREATE.getType(), message);
         }
+        sendToUid(resp, userId);
+    }
+
+    @Override
+    public void sendToAllOnline(WSBaseResp<?> wsBaseResp, Long skipUid) {
+        ONLINE_WS_MAP.forEach((channel, ext) -> {
+            if (Objects.nonNull(skipUid) && Objects.equals(ext.getUid(), skipUid)) {
+                return;
+            }
+            sendMsg(channel, wsBaseResp);
+        });
+    }
+
+    @Override
+    public void sendToUid(WSBaseResp<?> wsBaseResp, Long uid) {
+        CopyOnWriteArrayList<Channel> channels = ONLINE_UID_MAP.get(uid);
+        if (CollectionUtil.isEmpty(channels)) {
+            log.info("用户: {} 不在线", uid);
+            return;
+        }
+        channels.forEach(channel -> sendMsg(channel, wsBaseResp));
     }
 
     // ---- private helpers ----
+
+    private Integer generateLoginCode(Channel channel) {
+        int inc;
+        do {
+            inc = RedisUtils.inc(RedisKey.LOGIN_CODE, 1).intValue();
+        } while (WAIT_LOGIN_MAP.asMap().containsKey(inc));
+        WAIT_LOGIN_MAP.put(inc, channel);
+        return inc;
+    }
+
+    private void loginSuccess(Channel channel, User user, String token) {
+        online(channel, user.getId());
+        boolean hasPower = true; // TODO: 接入角色系统后改为真实权限检查
+        sendMsg(channel, WSAdapter.buildLoginSuccessResp(user, token, hasPower));
+    }
+
+    private void online(Channel channel, Long uid) {
+        getOrInitChannelExt(channel).setUid(uid);
+        ONLINE_UID_MAP.putIfAbsent(uid, new CopyOnWriteArrayList<>());
+        ONLINE_UID_MAP.get(uid).add(channel);
+        NettyUtil.setAttr(channel, NettyUtil.UID, uid);
+    }
+
+    private void offline(Channel channel, Optional<Long> uidOptional) {
+        if (uidOptional.isPresent()) {
+            CopyOnWriteArrayList<Channel> channels = ONLINE_UID_MAP.get(uidOptional.get());
+            if (CollectionUtil.isNotEmpty(channels)) {
+                channels.removeIf(ch -> Objects.equals(ch, channel));
+            }
+            if (CollectionUtil.isEmpty(channels)) {
+                ONLINE_UID_MAP.remove(uidOptional.get());
+            }
+        }
+    }
+
+    private WSChannelExtraDTO getOrInitChannelExt(Channel channel) {
+        WSChannelExtraDTO wsChannelExtraDTO =
+                ONLINE_WS_MAP.getOrDefault(channel, new WSChannelExtraDTO());
+        WSChannelExtraDTO old = ONLINE_WS_MAP.putIfAbsent(channel, wsChannelExtraDTO);
+        return ObjectUtil.isNull(old) ? wsChannelExtraDTO : old;
+    }
 
     private Long parseId(String data, String key) {
         try {
@@ -138,8 +259,7 @@ public class WebSocketServiceImpl implements WebSocketService {
         }
     }
 
-    private void sendToChannel(Channel channel, WSRespTypeEnum type, Object data) {
-        WSBaseResp resp = WSBaseResp.of(type.getType(), data);
-        channel.writeAndFlush(new TextWebSocketFrame(JSONUtil.toJsonStr(resp)));
+    private void sendMsg(Channel channel, WSBaseResp<?> wsBaseResp) {
+        channel.writeAndFlush(new TextWebSocketFrame(JSONUtil.toJsonStr(wsBaseResp)));
     }
 }

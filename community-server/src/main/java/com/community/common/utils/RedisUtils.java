@@ -83,4 +83,10 @@ public class RedisUtils {
     public static Long inc(String key, long delta) {
         return redisTemplate.opsForValue().increment(key, delta);
     }
+
+    // ---- TTL ----
+
+    public static Long getExpire(String key, TimeUnit timeUnit) {
+        return redisTemplate.getExpire(key, timeUnit);
+    }
 }

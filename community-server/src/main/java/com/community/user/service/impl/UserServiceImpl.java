@@ -4,6 +4,7 @@ import com.community.common.exception.BusinessErrorEnum;
 import com.community.common.exception.BusinessException;
 import com.community.common.utils.RequestHolder;
 import com.community.user.dao.UserDao;
+import com.community.user.domain.dto.AccountBindReq;
 import com.community.user.domain.entity.User;
 import com.community.user.domain.vo.UserVO;
 import com.community.user.service.UserService;
@@ -47,6 +48,35 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public void bindWeChat(AccountBindReq req) {
+        Long uid = RequestHolder.get().getUid();
+        User user = userDao.getById(uid);
+        if (user == null) {
+            throw new BusinessException(BusinessErrorEnum.USER_NOT_FOUND);
+        }
+
+        String openId = req.getOpenId();
+        if (openId == null && req.getCode() != null) {
+            throw new BusinessException(BusinessErrorEnum.WECHAT_NOT_CONFIGURED);
+        }
+        if (openId == null) {
+            throw new BusinessException(BusinessErrorEnum.WECHAT_NOT_CONFIGURED);
+        }
+
+        // 检查 openId 是否已被其他用户绑定
+        boolean bound = userDao.lambdaQuery()
+                .eq(User::getOpenId, openId)
+                .ne(User::getId, uid)
+                .exists();
+        if (bound) {
+            throw new BusinessException(BusinessErrorEnum.OPEN_ID_ALREADY_BOUND);
+        }
+
+        user.setOpenId(openId);
+        userDao.updateById(user);
+    }
+
+    @Override
     public UserVO getUserById(Long id) {
         User user = userDao.getById(id);
         if (user == null) {
@@ -64,6 +94,8 @@ public class UserServiceImpl implements UserService {
         vo.setEmail(user.getEmail());
         vo.setSex(user.getSex());
         vo.setStatus(user.getStatus());
+        vo.setOpenId(user.getOpenId());
+        vo.setUnionId(user.getUnionId());
         vo.setCreateTime(user.getCreateTime());
         return vo;
     }

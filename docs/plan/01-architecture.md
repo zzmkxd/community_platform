@@ -25,11 +25,13 @@
 
 | 功能 | 说明 | MallChat 参考 |
 |------|------|--------------|
-| 注册 | 用户名 + 密码 + 邮箱，BCrypt 加密 | 新增（MallChat 只有微信 OAuth） |
-| 登录 | 返回 JWT，5 天过期，Redis 存 Token | `JwtUtils` + `LoginServiceImpl` |
+| 微信扫码登录 | 主路径。公众号 OAuth 扫码 → 创建/查找 User → JWT | `WxPortalController` + `WxMsgService` + `WebSocketServiceImpl` |
+| 用户名/密码登录 | seed data 测试通道。DDL 预置账号，无注册端点 | `JwtUtils` + `AuthService.login()` |
 | Token 校验 | 拦截器从 Header 提取，查 Redis 验证 | `TokenInterceptor` 模式 |
-| 个人资料 | 修改昵称/头像/邮箱 | 新增 |
+| 个人资料 | 微信同步 + 后续可修改 | 新增 |
 | RequestHolder | ThreadLocal 持有当前用户 uid + IP | 完全复用 |
+
+> 设计决策 (2026-06-22)：主路径为微信 OAuth，用户名/密码仅 seed data 测试用。新用户只通过微信扫码创建。
 
 ## 1.2 社群模块
 
@@ -62,7 +64,7 @@ Server (服务器/社群)
 
 | 功能 | 说明 | MallChat 参考 |
 |------|------|--------------|
-| 发消息 | Text/Image/File/System 四种类型 | `MsgHandlerFactory` 策略模式 |
+| 发消息 | Text/Image/File/System/Sound 五种类型 | `MsgHandlerFactory` 策略模式 |
 | 消息列表 | 频道内光标分页（`?cursor=&pageSize=50`） | `CursorPageBaseResp` |
 | 编辑消息 | 仅作者，标记 `edited` | 新增 |
 | 删除消息 | 作者或管理员 | 新增 |
@@ -71,6 +73,7 @@ Server (服务器/社群)
 | 消息搜索 | ES 全文搜索（频道维度 + 服务器全局） | 新增 |
 | Markdown | 消息内容存 Markdown，前端渲染 | 新增 |
 | @提及 | `@username` 解析为 uid 存入 extra JSON | 新增 |
+| 语音消息 | 录音上传后发 SoundMsgDTO，时长+URL 存入 extra | 复用 MallChat `SoundMsgHandler` |
 
 ## 1.4 文件模块
 
@@ -139,6 +142,7 @@ Docker Compose:  v2
 |------------------------|---------------|---------|
 | `chat/service/strategy/msg/MsgHandlerFactory.java` | `message/service/strategy/msg/` | 照搬自注册模式 |
 | `chat/service/strategy/msg/AbstractMsgHandler.java` | `message/service/strategy/msg/` | 照搬模板方法骨架 |
+| `chat/service/strategy/msg/SoundMsgHandler.java` | `message/service/strategy/msg/` | 照搬（语音消息） |
 | `chat/service/strategy/mark/MsgMarkFactory.java` | `message/service/strategy/reaction/` | 改为 Reaction 策略 |
 | `common/service/cache/AbstractRedisStringCache.java` | `common/cache/` | 直接移植 |
 | `common/common/event/MessageSendEvent.java` | `message/event/` | 改为 ChannelMessageSendEvent |

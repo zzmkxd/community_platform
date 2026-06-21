@@ -13,6 +13,8 @@ public enum BusinessErrorEnum implements ErrorEnum {
     USERNAME_DUPLICATE(1003, "用户名已存在"),
     TOKEN_INVALID(1004, "Token 无效或已过期"),
     TOKEN_EXPIRED(1005, "Token 已过期，请重新登录"),
+    WECHAT_NOT_CONFIGURED(1006, "微信登录暂不可用 (Phase 2+)"),
+    OPEN_ID_ALREADY_BOUND(1007, "该微信已被其他用户绑定"),
 
     // ---- 服务器模块 ----
     SERVER_NOT_FOUND(2001, "服务器不存在"),

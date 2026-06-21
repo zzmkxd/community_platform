@@ -1,5 +1,6 @@
 package com.community.websocket.service;
 
+import com.community.common.websocket.dto.WSBaseResp;
 import io.netty.channel.Channel;
 
 public interface WebSocketService {
@@ -10,7 +11,7 @@ public interface WebSocketService {
     /** JWT 认证 */
     void authorize(Channel channel, String token);
 
-    /** 处理登录请求 */
+    /** 处理登录请求（生成二维码） */
     void handleLogin(Channel channel);
 
     /** 连接断开 */
@@ -28,6 +29,12 @@ public interface WebSocketService {
     /** 取消订阅话题 */
     void unsubscribeThread(Channel channel, String data);
 
+    /** 扫码登录成功 */
+    Boolean scanLoginSuccess(Integer loginCode, Long uid);
+
+    /** 通知前端扫码成功 */
+    Boolean scanSuccess(Integer loginCode);
+
     /** 向指定频道订阅者推送消息 */
     void pushToChannel(Long channelId, Object message);
 
@@ -36,4 +43,10 @@ public interface WebSocketService {
 
     /** 向指定用户推送消息 */
     void pushToUser(Long userId, Object message);
+
+    /** 向所有在线用户推送（可跳过指定用户） */
+    void sendToAllOnline(WSBaseResp<?> wsBaseResp, Long skipUid);
+
+    /** 向指定用户推送 */
+    void sendToUid(WSBaseResp<?> wsBaseResp, Long uid);
 }

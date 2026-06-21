@@ -19,4 +19,10 @@ public interface RedisKey {
 
     /** 用户WebSocket连接 key: ws:user:{userId} */
     String WS_USER = "ws:user:";
+
+    /** 微信 openId → loginCode 映射 */
+    String OPEN_ID_STRING = "openId:";
+
+    /** 微信登录码自增计数器 */
+    String LOGIN_CODE = "loginCode";
 }

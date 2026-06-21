@@ -7,7 +7,7 @@ community-server/src/main/java/com/community/
   ├── CommunityApplication.java     # 唯一启动类
   ├── common/                       # 共享基础设施
   │   ├── config/                   # RedisConfig, MybatisPlusConfig, ThreadPoolConfig
-  │   ├── interceptor/              # TokenInterceptor, CollectorInterceptor
+  │   ├── interceptor/              # TokenInterceptor, CollectorInterceptor（BlackInterceptor 暂不移植）
   │   ├── exception/               # BusinessException, GlobalExceptionHandler
   │   ├── annotation/              # @FrequencyControl, @RedissonLock, @SecureInvoke
   │   ├── aspect/                  # AOP 切面
@@ -93,7 +93,7 @@ websocket/                →  websocket-server         无数据库
 
 ## 六、DDL 设计要点
 
-全部 13 张表在一个 schema `community_platform` 中。关键设计决策：
+全部 **15 张表**（含 invite、channel_read_state）在一个 schema `community_platform` 中。关键设计决策：
 
 1. **Server 和 Channel 的关系**：Channel 通过 `server_id` 直连 Server，同时可选关联 `category_id`。排序依赖 `sort_order` 字段。
 2. **权限位图**：使用 `BIGINT` 存位掩码，13 个权限位，MySQL 位运算：`permissions & 0x4 = 0x4` 判断 SEND_MESSAGES。
@@ -102,3 +102,25 @@ websocket/                →  websocket-server         无数据库
 5. **Reaction 唯一约束**：`(message_id, user_id, emoji)` 联合唯一，确保同一用户对同一消息只能添加一次同一 emoji。
 6. **Message 的 extra JSON**：利用 MySQL 的 JSON 类型存储附件 ID 列表、URL 预览、@提及列表等扩展信息。
 7. **软删除策略**：Server/Channel 使用 status 字段标记删除状态（物理保留，逻辑删除），Message 使用 status 字段（0=正常 1=删除 2=编辑过）。
+8. **Invite 邀请链接**：包含唯一 `code`（UUID 短码），可设过期时间和最大使用次数。关联 `server_id` + `inviter_id`。用户通过邀请链接加入时，校验 code 有效性 → 创建 member 记录 → 分配 @everyone 角色。
+9. **Channel read state 已读追踪**：`channel_read_state` 表记录用户在每个频道的最后已读消息 ID。唯一约束 `(user_id, channel_id)`。用户拉取消息时自动更新 `last_read_msg_id`。
+10. **补充表**：`sensitive_word` 表存储敏感词库（AC 自动机词典），`wx_msg` 表存储微信原始消息记录（可选审计）。
+11. **在线状态不存 DB**：用户在线/离线状态仅在 Redis 中维护，不写入 `user` 表。
+12. **MQ 主题常量**：所有 RocketMQ Topic 和 Consumer Group 常量统一在 `common/constant/MQConstant.java` 中定义。
+13. **Channel type 枚举**：当前仅 `TEXT=0`，`VOICE=1` 预留。
+14. **User 表支持双模式**：`username/password/email` 仅用于 seed data 测试账号（无注册端点），`open_id` (UK) 用于微信 OAuth 扫码创建的用户。两种用户形态互补，通过 NULL 值区分。
+
+---
+
+## 补充：MallChat 计划中尚待加入的组件
+
+以下组件来自 MallChat plan (`05-dev-phases-0-4.md`)，在社区平台现有代码骨架中尚未实现，Phase 3-4 推进时补全：
+
+| 包 | 待加入组件 | 对应 Phase |
+|----|----------|-----------|
+| user/ | WxPortalController, WxMsgService, LoginService | Phase 2+ (微信登录可选) |
+| server/ | InviteController, InviteService, InviteDao, Invite entity | Phase 3 |
+| message/ | SoundMsgHandler, MentionParser, ChannelReadStateService, ChannelReadStateDao, PushService | Phase 4 |
+| common/ | MQConstant.java, sensitive/ (AC 自动机) | Phase 1/4 |
+
+> 详见 [08-microservice-upgrade-path.md](./08-microservice-upgrade-path.md) 微服务拆分操作手册。

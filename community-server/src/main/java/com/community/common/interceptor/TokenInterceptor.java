@@ -33,6 +33,7 @@ public class TokenInterceptor implements HandlerInterceptor {
         Long uid = authService.getValidUid(token);
         if (uid != null) {
             RequestHolder.set(buildRequestInfo(request, uid));
+            authService.renewalTokenIfNecessary(token);
             return true;
         }
         if (!isPublicURI(request.getRequestURI())) {
@@ -48,7 +49,10 @@ public class TokenInterceptor implements HandlerInterceptor {
     }
 
     private boolean isPublicURI(String requestURI) {
-        return requestURI.contains("/public/") || requestURI.contains("/auth/");
+        return requestURI.contains("/public/")
+                || requestURI.contains("/auth/")
+                || requestURI.contains("/wx/portal/")
+                || requestURI.matches(".*/users/\\d+$");
     }
 
     private String getToken(HttpServletRequest request) {

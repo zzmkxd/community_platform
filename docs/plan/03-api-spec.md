@@ -2,13 +2,24 @@
 
 ## 3.1 鉴权相关 (user/)
 
+登录方式：主路径为微信 OAuth 扫码。用户名/密码仅作 seed data 测试通道（无注册端点，DDL 预置账号）。
+
 ```
-POST   /api/v1/auth/register       { username, password, email } → { userId, token }
+=== 登录 (seed data 测试通道) ===
 POST   /api/v1/auth/login          { username, password }         → { userId, token, nickname }
+
+=== Token ===
 POST   /api/v1/auth/refresh        { token }                      → { token }
+
+=== 用户 ===
 GET    /api/v1/users/me                                           → UserVO
 PUT    /api/v1/users/me             { nickname?, avatar?, email? } → UserVO
 GET    /api/v1/users/{id}                                         → UserVO (public)
+
+=== 微信回调（公开路径 /api/v1/public/wx，Phase 2+ 可选移植）===
+GET    /api/v1/public/wx                       → 微信服务器验证（signature/timestamp/nonce/echostr）
+POST   /api/v1/public/wx                       → 微信事件推送（SCAN/SUBSCRIBE 扫码事件）
+GET    /api/v1/public/wx/callBack?code=         → OAuth2 授权回调（code 换 accessToken → 用户信息 → 签发 JWT）
 ```
 
 ## 3.2 服务器/频道相关 (server/)
@@ -17,6 +28,7 @@ GET    /api/v1/users/{id}                                         → UserVO (pu
 === Server ===
 POST   /api/v1/servers                     { name, description? }           → ServerVO
 GET    /api/v1/servers                                                        → [ServerVO]  (我的服务器列表)
+GET    /api/v1/servers/discover?cursor=&pageSize=30                           → CursorPage<ServerVO>  (公开可加入的服务器，join_mode=FREE)
 GET    /api/v1/servers/{serverId}                                             → ServerVO (含 categories + channels)
 PUT    /api/v1/servers/{serverId}          { name?, description?, icon? }     → ServerVO
 DELETE /api/v1/servers/{serverId}                                              → 204
@@ -38,6 +50,7 @@ GET    /api/v1/servers/{serverId}/members?cursor=&pageSize=50    → CursorPage<
 POST   /api/v1/servers/{serverId}/members                        → MemberVO  (加入服务器)
 DELETE /api/v1/servers/{serverId}/members/{userId}               → 204        (踢出/离开)
 PUT    /api/v1/servers/{serverId}/members/me/nickname  { nickname } → MemberVO
+POST   /api/v1/servers/{serverId}/transfer   { targetUserId }    → ServerVO  (转让 owner，仅当前 owner 可操作)
 
 === Role ===
 POST   /api/v1/servers/{serverId}/roles            { name, color?, permissions, position? } → RoleVO
@@ -56,6 +69,10 @@ DELETE /api/v1/channels/{channelId}/permissions/{permId}                        
 POST   /api/v1/servers/{serverId}/emojis      { name, imageFile }   → EmojiVO
 GET    /api/v1/servers/{serverId}/emojis                             → [EmojiVO]
 DELETE /api/v1/servers/{serverId}/emojis/{emojiId}                   → 204
+
+=== Invite ===
+POST   /api/v1/servers/{serverId}/invites     { maxUses?, expireHours? }  → InviteVO
+POST   /api/v1/invites/{code}/join                                         → MemberVO
 ```
 
 ## 3.3 消息相关 (message/)
@@ -79,6 +96,9 @@ PUT    /api/v1/threads/{threadId}              { name?, status? }               
 POST   /api/v1/messages/{msgId}/reactions?emoji=👍                                   → { emoji, userId, totalCount }
 DELETE /api/v1/messages/{msgId}/reactions?emoji=👍                                   → { emoji, userId, totalCount }
 GET    /api/v1/messages/{msgId}/reactions                                             → [ { emoji, count, users[], reacted } ]
+
+=== Unread ===
+GET    /api/v1/servers/{serverId}/unread                                            → [ { channelId, unreadCount, lastReadMsgId } ]
 
 === Search ===
 GET    /api/v1/servers/{serverId}/search?q=&channelId=&from=&to=&page=              → CursorPage<MessageVO>

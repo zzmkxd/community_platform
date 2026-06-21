@@ -58,6 +58,15 @@ oss:
   secret-key: ${community.minio.secret-key}
   bucket-name: ${community.minio.bucket}
 
+wx:
+  mp:
+    callback: ${community.wx.callback}
+    configs:
+      - appId: ${community.wx.appId}
+        secret: ${community.wx.secret}
+        token: ${community.wx.token}
+        aesKey: ${community.wx.aesKey}
+
 community:
   jwt:
     secret: ${community.jwt.secret}

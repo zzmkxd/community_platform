@@ -10,7 +10,10 @@ import lombok.Getter;
 @Getter
 public enum WSRespTypeEnum {
 
-    LOGIN_SUCCESS(3, "登录成功"),
+    LOGIN_URL(1, "登录二维码返回"),
+    LOGIN_SCAN_SUCCESS(2, "用户扫描成功等待授权"),
+    LOGIN_SUCCESS(3, "用户登录成功返回用户信息"),
+    INVALIDATE_TOKEN(6, "使前端的token失效"),
     MESSAGE_CREATE(20, "新消息推送"),
     MESSAGE_UPDATE(21, "消息编辑推送"),
     MESSAGE_DELETE(22, "消息删除推送"),

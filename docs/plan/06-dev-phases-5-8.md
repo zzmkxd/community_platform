@@ -126,6 +126,30 @@
 
 ---
 
+### Phase 7+: 接口边界审计 + WebSocket 独立进程（可选）
+
+**目标**：验证包级接口隔离 + 可选拆分 Netty WebSocket 为独立进程。
+
+> 详细设计见 [04-migration.md](./04-migration.md) 5.2 节
+
+#### 7+.1 接口边界审计
+- [ ] 7+.1.1 检查所有 `import`：无跨包 DAO/Mapper 引用
+- [ ] 7+.1.2 检查所有 `import`：无跨包 Entity 引用
+- [ ] 7+.1.3 检查每个业务包的 service 子包：关键接口有完整定义
+- [ ] 7+.1.4 验证：`./mvnw clean compile` 全模块通过
+
+#### 7+.2 WebSocket 独立进程（可选，推荐）
+- [ ] 7+.2.1 创建 `community-websocket` 模块 — 仅含 Netty + PushConsumer，不依赖 Spring Web/Tomcat
+- [ ] 7+.2.2 创建 `NettyWsApplication` 启动类（`@SpringBootApplication`，排除 Web 自动配置）
+- [ ] 7+.2.3 主服务 `community-server` 共享 `community-common` JAR
+- [ ] 7+.2.4 两个进程通过 RocketMQ 通信（PUSH_TOPIC 已就绪，无需改代码）
+- [ ] 7+.2.5 验证：同时启动两个进程 → WS 连接 8090 → HTTP 请求 8080 → 消息推送正常
+- [ ] 7+.2.6 Git 提交：`feat(phase7+): 接口边界审计通过 + WebSocket 独立进程`
+
+**如不拆分 websocket**：在 `community-server` 中通过 `@Profile("local")` 控制 Netty 随主进程启动（默认行为），生产环境如需独立部署则激活 `@Profile("prod")`。
+
+---
+
 ### Phase 8: Spring Cloud 微服务拆分
 
 **目标**：单体 → 5 个微服务 + Gateway + Nacos。功能不变，架构升级。

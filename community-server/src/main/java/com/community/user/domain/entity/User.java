@@ -22,6 +22,10 @@ public class User {
 
     private String email;
 
+    private String openId;
+
+    private String unionId;
+
     private Integer sex;
 
     private Integer status;

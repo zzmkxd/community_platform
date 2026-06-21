@@ -85,45 +85,49 @@
 
 ---
 
-### Phase 2: 用户模块
+### Phase 2: 用户模块（seed data 登录 + 微信扫码）
 
-**目标**：跑通用户注册登录全链路，后续所有模块依赖此模块的 Token 鉴权
+**目标**：跑通用户登录鉴权全链路。主路径为微信 OAuth 扫码；用户名/密码仅 seed data 测试通道（DDL 预置账号）。
+
+> 设计决策 (2026-06-22)：删除注册端点。新用户只通过微信扫码自动创建。详见[[login-design-decision]]。
 
 #### 2.1 数据库
 - [ ] 2.1.1 执行 `user` 表 DDL（从 schema.sql 截取）
-- [ ] 2.1.2 确认表结构：id, username, password(bcrypt), nickname, avatar, email, status, create_time, update_time
+- [ ] 2.1.2 确认表结构：id, username(NULLABLE), password(NULLABLE), email(NULLABLE), open_id(UK NULLABLE), union_id(NULLABLE), nickname, avatar, sex, status, create_time, update_time
+- [ ] 2.1.3 DDL 预置 seed data：3~5 个 BCrypt 测试账号
 
 #### 2.2 DAO 层
 - [ ] 2.2.1 `UserMapper.java` — extends BaseMapper<User>
-- [ ] 2.2.2 `UserDao.java` — extends ServiceImpl<UserMapper, User>，按 username/email 查询
+- [ ] 2.2.2 `UserDao.java` — extends ServiceImpl<UserMapper, User>，按 username/openId 查询
 
 #### 2.3 Entity
-- [ ] 2.3.1 `User.java` — @TableName("user")，字段映射，createTime/updateTime 为 LocalDateTime
+- [ ] 2.3.1 `User.java` — @TableName("user")，字段映射
 
-#### 2.4 Service
-- [ ] 2.4.1 `AuthService.register()` — BCrypt 加密 → 入库 → 生成 JWT → Redis 存 Token
-- [ ] 2.4.2 `AuthService.login()` — 查用户 → BCrypt 验证 → JWT → Redis
+#### 2.4 Service（seed data 登录 + 微信登录共用）
+- [ ] 2.4.1 `AuthService.login(LoginReq)` — 查 User by username → BCrypt 验证 → JWT → Redis
+- [ ] 2.4.2 `AuthService.login(Long uid)` — 微信扫码后直接按 uid 签发 token
 - [ ] 2.4.3 `AuthService.refresh()` — 验证旧 Token → 签发新 Token
-- [ ] 2.4.4 `UserService.getMe()` — 查当前用户信息
-- [ ] 2.4.5 `UserService.updateMe()` — 更新昵称/头像/邮箱
-- [ ] 2.4.6 `UserService.getById()` — 公开查询用户
+- [ ] 2.4.4 `AuthService.verify()` — JWT 验签 + Redis token 值比对
+- [ ] 2.4.5 `AuthService.getValidUid()` — Token 有效返回 uid
+- [ ] 2.4.6 `AuthService.renewalTokenIfNecessary()` — @Async 异步续期
+- [ ] 2.4.7 `UserService.getMe()` — 查当前用户信息
+- [ ] 2.4.8 `UserService.updateMe()` — 更新昵称/头像/邮箱
+- [ ] 2.4.9 `UserService.getById()` — 公开查询用户
 
 #### 2.5 VO/DTO
-- [ ] 2.5.1 `RegisterReq` / `LoginReq` / `RefreshReq`
-- [ ] 2.5.2 `LoginResp` (userId, token, nickname)
-- [ ] 2.5.3 `UserVO` (id, username, nickname, avatar, email, createTime)
-- [ ] 2.5.4 `UserAdapter` — User entity ↔ UserVO 转换
+- [ ] 2.5.1 `LoginReq` / `LoginResp`
+- [ ] 2.5.2 `UserVO` (id, username, nickname, avatar, email, openId, createTime)
+- [ ] 2.5.3 `UserAdapter` — User entity ↔ UserVO 转换
 
 #### 2.6 Controller
-- [ ] 2.6.1 `AuthController` — /api/v1/auth/register, /login, /refresh
+- [ ] 2.6.1 `AuthController` — /api/v1/auth/login (POST), /api/v1/auth/refresh (POST)
 - [ ] 2.6.2 `UserController` — /api/v1/users/me (GET+PUT), /api/v1/users/{id} (GET)
 
 #### 2.7 验证
-- [ ] 2.7.1 `curl POST /api/v1/auth/register` → 返回 JWT + userId
-- [ ] 2.7.2 `curl POST /api/v1/auth/login` → 返回 JWT
-- [ ] 2.7.3 无 Token 访问 /api/v1/users/me → 401
-- [ ] 2.7.4 带 Token 访问 /api/v1/users/me → 200 + UserVO
-- [ ] 2.7.5 `./mvnw clean compile` ✅
+- [ ] 2.7.1 `curl POST /api/v1/auth/login` (seed data 账号) → 返回 JWT + userId
+- [ ] 2.7.2 无 Token 访问 /api/v1/users/me → 401
+- [ ] 2.7.3 带 Token 访问 /api/v1/users/me → 200 + UserVO
+- [ ] 2.7.4 `./mvnw clean compile` ✅
 
 **MallChat 参考**：`LoginServiceImpl.java`（JWT 签发）、`TokenInterceptor.java`（鉴权链路）、`JwtUtils.java`（auth0 java-jwt）
 
@@ -220,19 +224,23 @@
 - [ ] 4.1.1 `message` 表 DDL
 - [ ] 4.1.2 `thread` 表 DDL
 - [ ] 4.1.3 `reaction` 表 DDL
+- [ ] 4.1.4 `channel_read_state` 表 DDL
 
 #### 4.2 Entity + Mapper + DAO
 - [ ] 4.2.1 Message Entity + Mapper + Dao — 含 JSON extra 字段 + JacksonTypeHandler
 - [ ] 4.2.2 Thread Entity + Mapper + Dao
 - [ ] 4.2.3 Reaction Entity + Mapper + Dao
+- [ ] 4.2.4 ChannelReadState Entity + Mapper + Dao
 
 #### 4.3 消息策略链（核心）
 - [ ] 4.3.1 `AbstractMsgHandler<T>` — 模板方法 checkAndSaveMsg() + @PostConstruct 自注册
 - [ ] 4.3.2 `MsgHandlerFactory` — static Map<Integer, AbstractMsgHandler> + getStrategyNoNull()
-- [ ] 4.3.3 `TextMsgHandler` — checkMsg() 校验文本长度 + saveMsg() 空操作
-- [ ] 4.3.4 `ImageMsgHandler` — checkMsg() 校验文件关联 + saveMsg() 关联 file_attachment
-- [ ] 4.3.5 `FileMsgHandler` — 同上
-- [ ] 4.3.6 `SystemMsgHandler` — 系统消息（成员加入/离开/频道变更）
+- [ ] 4.3.3 `MentionParser.java` — 正则提取 @username → 查 user 表转 uid → 校验 @everyone/@here 权限 → 存入 extra JSON
+- [ ] 4.3.4 `TextMsgHandler` — checkMsg() 校验文本长度 + 调用 MentionParser + saveMsg() CommonMark Markdown 清洗/渲染
+- [ ] 4.3.5 `ImageMsgHandler` — checkMsg() 校验文件关联 + saveMsg() 关联 file_attachment
+- [ ] 4.3.6 `FileMsgHandler` — 同上
+- [ ] 4.3.7 `SoundMsgHandler` — checkMsg() 校验 audioUrl 非空 + second > 0；saveMsg() 写 extra.soundMsgDTO
+- [ ] 4.3.8 `SystemMsgHandler` — 系统消息（成员加入/离开/频道变更）
 
 #### 4.4 消息 CRUD
 - [ ] 4.4.1 `MessageService.sendMsg()` — 权限检查 → 频控 → 敏感词 → 策略链 → 持久化 → 发事件
@@ -241,6 +249,10 @@
 - [ ] 4.4.4 `MessageService.editMessage()` — 仅作者，标记 status=2（已编辑）
 - [ ] 4.4.5 `MessageService.deleteMessage()` — 作者或 MANAGE_MESSAGES 权限
 - [ ] 4.4.6 `MessageAdapter` — Entity ↔ MessageVO（含 UserVO、reactions、attachments 组装）
+
+#### 4.4b 已读追踪
+- [ ] 4.4.7 `ChannelReadStateService.updateReadState()` — 拉取消息时自动更新 last_read_msg_id（ON DUPLICATE KEY UPDATE）
+- [ ] 4.4.8 `ChannelReadStateService.getUnreadCounts()` — 按 server 聚合各频道未读计数
 
 #### 4.5 事件管道
 - [ ] 4.5.1 `ChannelMessageSendEvent` — Spring ApplicationEvent
@@ -253,7 +265,8 @@
 - [ ] 4.6.2 `ThreadService.getThreads()` — 频道内话题列表（按 last_active 降序）
 - [ ] 4.6.3 `ThreadService.getThreadMessages()` — 话题内消息分页
 - [ ] 4.6.4 `ThreadService.updateThread()` — 改名/归档/重开
-- [ ] 4.6.5 发消息时判断 thread_id：有值 → 只在 Thread 视图可见，不在频道主时间线
+- [ ] 4.6.5 `ThreadService.autoArchiveThreads()` — @Scheduled 定时任务（每小时），将 24h 无活动的 Thread 自动归档
+- [ ] 4.6.6 发消息时判断 thread_id：有值 → 只在 Thread 视图可见，不在频道主时间线
 
 #### 4.7 Reaction 系统
 - [ ] 4.7.1 `ReactionService.addReaction()` — 添加表情反应（需 ADD_REACTIONS 权限）
@@ -265,9 +278,11 @@
 - [ ] 4.8.1 `MessageController` — /api/v1/channels/{id}/messages (POST/GET/PUT/DELETE)
 - [ ] 4.8.2 `ThreadController` — /api/v1/channels/{id}/threads + /api/v1/threads/{id}
 - [ ] 4.8.3 `ReactionController` — /api/v1/messages/{id}/reactions
+- [ ] 4.8.4 `SearchController` — /api/v1/servers/{id}/search
 
 #### 4.9 VO/DTO
-- [ ] 4.9.1 `SendMsgReq` — content, msgType, threadId?, replyMsgId?, fileIds[]
+- [ ] 4.9.1 `SendMsgReq` — content, msgType, threadId?, replyMsgId?, fileIds[], soundMsgDTO?
+- [ ] 4.9.1b `SoundMsgDTO` — url, size, second（语音消息元数据，复用 MallChat 字段）
 - [ ] 4.9.2 `MessageVO` — id, channelId, threadId, fromUser, content, type, reactions[], attachments[], replyTo?, createTime, edited
 - [ ] 4.9.3 `ThreadVO` — id, channelId, rootMessage, name, messageCount, lastActive, status
 - [ ] 4.9.4 `ReactionVO` — emoji, count, users[], reacted(当前用户是否已添加)

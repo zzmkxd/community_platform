@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>社群平台 — 业务流程·实体关系·接口映射</title>
+<style>
+  :root {
+    --bg: #1a1a2e; --surface: #16213e; --surface2: #0f3460;
+    --accent: #e94560; --accent2: #533483; --gold: #f0a500;
+    --text: #eee; --text2: #bbb; --muted: #888;
+    --green: #00b894; --blue: #0984e3; --orange: #e17055;
+    --purple: #6c5ce7; --teal: #00cec9;
+  }
+  * { box-sizing:border-box; margin:0; padding:0 }
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); line-height:1.6 }
+  .container { max-width:1400px; margin:0 auto; padding:20px }
+  h1 { text-align:center; font-size:2rem; margin:20px 0 10px; color:var(--accent) }
+  h2 { font-size:1.4rem; margin:30px 0 15px; padding-bottom:8px; border-bottom:2px solid var(--accent2); color:var(--teal) }
+  h3 { font-size:1.1rem; margin:18px 0 10px; color:var(--gold) }
+  .subtitle { text-align:center; color:var(--muted); margin-bottom:30px }
+
+  /* Tabs */
+  .tabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:25px }
+  .tab { padding:8px 16px; background:var(--surface); border:1px solid var(--surface2); border-radius:6px; cursor:pointer; font-size:.9rem; color:var(--text2); transition:.2s }
+  .tab:hover { background:var(--surface2); color:#fff }
+  .tab.active { background:var(--accent); color:#fff; border-color:var(--accent) }
+  .tab-content { display:none }
+  .tab-content.active { display:block }
+
+  /* Flow */
+  .flow { background:var(--surface); border-radius:10px; padding:20px 24px; margin:16px 0; border-left:4px solid var(--accent) }
+  .flow.wx { border-left-color:var(--green) }
+  .flow.server { border-left-color:var(--blue) }
+  .flow.msg { border-left-color:var(--accent) }
+  .flow.perm { border-left-color:var(--orange) }
+  .flow.sub { border-left-color:var(--purple) }
+  .flow.file { border-left-color:var(--teal) }
+  .flow h3 { margin-top:0 }
+  .step { display:flex; align-items:flex-start; gap:12px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.05) }
+  .step:last-child { border-bottom:none }
+  .step-num { min-width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.75rem; font-weight:700; flex-shrink:0 }
+  .step-num.api { background:var(--accent); color:#fff }
+  .step-num.svc { background:var(--blue); color:#fff }
+  .step-num.mq  { background:var(--orange); color:#fff }
+  .step-num.ws  { background:var(--purple); color:#fff }
+  .step-num.db  { background:var(--teal); color:#111 }
+  .step-num.ext { background:var(--surface2); color:var(--text2) }
+  .step-body { flex:1 }
+  .step-title { font-weight:600 }
+  .step-detail { font-size:.85rem; color:var(--text2); margin-top:2px }
+  .code { font-family:'Cascadia Code','Fira Code',monospace; background:rgba(0,0,0,.3); padding:1px 6px; border-radius:3px; font-size:.82rem }
+  .code.block { display:block; padding:8px 12px; margin:6px 0; white-space:pre; overflow-x:auto }
+  .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:.72rem; font-weight:700 }
+  .badge.api { background:var(--accent); color:#fff }
+  .badge.svc { background:var(--blue); color:#fff }
+  .badge.mq  { background:var(--orange); color:#fff }
+  .badge.ws  { background:var(--purple); color:#fff }
+
+  /* ER */
+  .er-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px; margin:16px 0 }
+  .er-card { background:var(--surface); border-radius:10px; padding:16px; border-top:3px solid var(--accent2) }
+  .er-card.core { border-top-color:var(--accent) }
+  .er-card.user { border-top-color:var(--green) }
+  .er-card.msg { border-top-color:var(--gold) }
+  .er-card h4 { font-size:.95rem; margin-bottom:8px; color:#fff }
+  .er-card .table-name { font-family:'Cascadia Code',monospace; font-size:.78rem; color:var(--teal); margin-bottom:6px }
+  .er-card ul { list-style:none; font-size:.82rem }
+  .er-card li { padding:2px 0; color:var(--text2) }
+  .er-card .col { color:var(--teal); font-family:'Cascadia Code',monospace; font-size:.78rem }
+  .er-card .fk { color:var(--gold) }
+  .er-card .idx { color:var(--muted); font-size:.75rem; font-style:italic }
+
+  /* Relationship lines */
+  .rel-section { margin:20px 0 }
+  .rel-item { display:flex; align-items:center; gap:10px; padding:6px 12px; margin:4px 0; background:var(--surface2); border-radius:6px; font-size:.85rem }
+  .rel-item .from,.rel-item .to { font-family:'Cascadia Code',monospace; color:var(--teal) }
+  .rel-item .arrow { color:var(--accent); font-weight:700 }
+  .rel-item .cardinality { color:var(--muted); font-size:.78rem }
+
+  /* API table */
+  .api-table { width:100%; border-collapse:collapse; font-size:.85rem; margin:12px 0 }
+  .api-table th { background:var(--surface2); padding:10px 12px; text-align:left; font-weight:600; color:var(--teal) }
+  .api-table td { padding:8px 12px; border-bottom:1px solid rgba(255,255,255,.05) }
+  .api-table tr:hover td { background:rgba(255,255,255,.03) }
+  .api-table .method { font-weight:700; font-size:.78rem }
+  .api-table .method.post { color:var(--green) }
+  .api-table .method.get  { color:var(--blue) }
+  .api-table .method.put  { color:var(--orange) }
+  .api-table .method.del  { color:var(--accent) }
+
+  /* Legend */
+  .legend { display:flex; flex-wrap:wrap; gap:14px; margin:16px 0; font-size:.82rem }
+  .legend span { display:flex; align-items:center; gap:6px }
+
+  @media (max-width:768px) {
+    .er-grid { grid-template-columns:1fr }
+    .tabs { flex-direction:column }
+    .tab { text-align:center }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>社群平台 (Discord-like)</h1>
+<p class="subtitle">业务流程 · 实体关系 · 接口映射 — 基于 plan/02-business-flows.md</p>
+
+<!-- ============ TABS ============ -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('flows')">业务流程 (11 条)</div>
+  <div class="tab" onclick="switchTab('er')">实体关系 (15 表)</div>
+  <div class="tab" onclick="switchTab('api')">接口映射 (40+ 端点)</div>
+  <div class="tab" onclick="switchTab('ws')">WebSocket 协议</div>
+</div>
+
+<!-- ================================================================ -->
+<!-- TAB 1: BUSINESS FLOWS -->
+<!-- ================================================================ -->
+<div id="tab-flows" class="tab-content active">
+
+<!-- Flow 1: WeChat Login -->
+<div class="flow wx">
+<h3>2.1 微信扫码登录 <span class="badge ws">WebSocket</span> <span class="badge mq">RocketMQ</span></h3>
+<div class="step"><div class="step-num ext">1</div><div class="step-body"><div class="step-title">前端建立 WebSocket 连接</div><div class="step-detail">ws://host:8090/ws → Netty 握手 → <span class="code">HttpHeadersHandler</span> 提取 token/IP → <span class="code">WebSocketServerProtocolHandler</span> 升级</div></div></div>
+<div class="step"><div class="step-num ws">2</div><div class="step-body"><div class="step-title">前端请求登录二维码</div><div class="step-detail">发送 <span class="code">{"type":1}</span> → <span class="code">WebSocketService.handleLoginReq(channel)</span> → 生成 loginCode → <span class="code">WxMpService.qrCodeCreateTmpTicket()</span> → 返回 <span class="code">{"type":1, "loginUrl"}</span></div></div></div>
+<div class="step"><div class="step-num ext">3</div><div class="step-body"><div class="step-title">用户微信扫码</div><div class="step-detail">微信发送 SCAN/SUBSCRIBE 事件到 <span class="code">WxPortalController.post()</span> → <span class="code">WxMpMessageRouter</span> → <span class="code">ScanHandler.handle()</span></div></div></div>
+<div class="step"><div class="step-num svc">4</div><div class="step-body"><div class="step-title">处理扫码事件</div><div class="step-detail"><span class="code">WxMsgService.scan()</span> — 查/建 User → Redis 存 <span class="code">openid:{openId}→loginCode</span> → 回复微信授权链接</div></div></div>
+<div class="step"><div class="step-num mq">5</div><div class="step-body"><div class="step-title">广播扫码成功</div><div class="step-detail"><span class="code">ScanSuccessMessageDTO</span> → RocketMQ <span class="code">user_scan_send_msg</span> (BROADCAST) → <span class="code">ScanSuccessConsumer</span> → <span class="code">WebSocketService.scanSuccess()</span> → 前端收到 <span class="code">{"type":2}</span></div></div></div>
+<div class="step"><div class="step-num ext">6</div><div class="step-body"><div class="step-title">用户授权</div><div class="step-detail">点击授权链接 → OAuth2 回调 <span class="code">WxPortalController.callBack(?code=)</span> → 换 accessToken → 获取 <span class="code">WxOAuth2UserInfo</span></div></div></div>
+<div class="step"><div class="step-num svc">7</div><div class="step-body"><div class="step-title">授权处理</div><div class="step-detail"><span class="code">WxMsgService.authorize(userInfo)</span> — 更新用户信息 → Redis 取 loginCode → 发 <span class="code">LoginMessageDTO</span></div></div></div>
+<div class="step"><div class="step-num mq">8</div><div class="step-body"><div class="step-title">广播登录完成</div><div class="step-detail"><span class="code">MsgLoginConsumer</span> → <span class="code">WebSocketService.scanLoginSuccess()</span> → <span class="code">LoginService.login(uid)</span> 签发 JWT (5天) → 存 Redis <span class="code">userToken:uid_{uid}</span> → 前端收到 <span class="code">{"type":3, "uid/avatar/token/name"}</span></div></div></div>
+</div>
+
+<!-- Flow 2: Create Server -->
+<div class="flow server">
+<h3>2.2 创建服务器 <span class="badge api">REST</span></h3>
+<div class="step"><div class="step-num api">1</div><div class="step-body"><div class="step-title"><span class="code">POST /api/v1/servers</span> → ServerController.createServer()</div><div class="step-detail">请求体: <span class="code">{name, description?, icon?}</span></div></div></div>
+<div class="step"><div class="step-num svc">2</div><div class="step-body"><div class="step-title"><span class="code">ServerService.createServer()</span></div>
+<div class="step-detail">
+  <span class="code block">[1] INSERT server (name, owner_id, icon)
+[2] 自动初始化:
+    ├── INSERT category (server_id, name="文字频道", sort_order=0)
+    ├── INSERT channel (category_id, name="general", type=TEXT)
+    └── INSERT role (server_id, name="@everyone", permissions=&lt;@everyone 默认&gt;)
+[3] INSERT server_member (server_id, user_id=owner, nickname)
+[4] INSERT role (server_id, name="Server Owner", permissions=&lt;全部权限位&gt;, position=9999)
+    INSERT member_role (member_id, role_id=owner_role)
+    INSERT member_role (member_id, role_id=everyone_role)
+[5] publishEvent(ServerCreateEvent)</span></div></div></div>
+</div>
+
+<!-- Flow 3: Join Server -->
+<div class="flow server">
+<h3>2.3 加入服务器（三种方式）</h3>
+<div class="step"><div class="step-num api">1a</div><div class="step-body"><div class="step-title">自由加入</div><div class="step-detail"><span class="code">POST /api/v1/servers/{id}/members</span> → <span class="code">MemberController.joinServer()</span> → <span class="code">MemberService.joinServer()</span> — Server.join_mode=FREE 时生效</div></div></div>
+<div class="step"><div class="step-num api">1b</div><div class="step-body"><div class="step-title">邀请链接</div><div class="step-detail"><span class="code">POST /api/v1/servers/{id}/invites</span> 生成邀请 → <span class="code">POST /api/v1/invites/{code}/join</span> 使用 — 校验过期/次数/状态</div></div></div>
+<div class="step"><div class="step-num api">1c</div><div class="step-body"><div class="step-title">直接添加</div><div class="step-detail">需 INVITE_MEMBERS 权限 → <span class="code">MemberService.addMember()</span></div></div></div>
+<div class="step"><div class="step-num svc">2</div><div class="step-body"><div class="step-title">加入后初始化</div><div class="step-detail"><span class="code">MemberService.joinServer()</span> → INSERT server_member → INSERT member_role(@everyone) → publishEvent(MemberJoinEvent) → 系统消息 "#general: {username} 加入了服务器"</div></div></div>
+</div>
+
+<!-- Flow 4: Message Full Chain -->
+<div class="flow msg">
+<h3>2.4 发送消息全链路 <span class="badge api">REST</span> <span class="badge mq">RocketMQ</span> <span class="badge ws">WebSocket</span></h3>
+<div class="step"><div class="step-num api">1</div><div class="step-body"><div class="step-title">HTTP 鉴权</div><div class="step-detail"><span class="code">TokenInterceptor.preHandle()</span> — 提取 <span class="code">Authorization: Bearer &lt;token&gt;</span> → <span class="code">LoginService.getValidUid(token)</span> 查 Redis → 设置 request.uid</div></div></div>
+<div class="step"><div class="step-num api">2</div><div class="step-body"><div class="step-title">Controller 频控</div><div class="step-detail"><span class="code">POST /api/v1/channels/{id}/messages</span> → <span class="code">MessageController.sendMsg()</span> — @FrequencyControl(5s×3, 30s×5, 60s×10)</div></div></div>
+<div class="step"><div class="step-num svc">3</div><div class="step-body"><div class="step-title">Service 权限检查</div><div class="step-detail"><span class="code">MessageService.sendMsg()</span> → <span class="code">PermissionService.checkPermission(serverId, uid, channelId, SEND_MESSAGES)</span> — 成员身份 + RBAC 权限 + Thread-only 校验</div></div></div>
+<div class="step"><div class="step-num svc">4</div><div class="step-body"><div class="step-title">策略选择 + 处理器执行</div><div class="step-detail"><span class="code">MsgHandlerFactory.getStrategyNoNull(msgType)</span> → <span class="code">AbstractMsgHandler.checkAndSaveMsg()</span> — JSR303 → checkMsg() → saveMsg() — 含敏感词 AC 自动机过滤、URL 提取、@提及存储</div></div></div>
+<div class="step"><div class="step-num db">5</div><div class="step-body"><div class="step-title">持久化 + 发布事件</div><div class="step-detail"><span class="code">MessageAdapter.buildMsgSave()</span> → <span class="code">messageDao.save()</span> → <span class="code">publishEvent(ChannelMessageSendEvent)</span></div></div></div>
+<div class="step"><div class="step-num mq">6</div><div class="step-body"><div class="step-title">事务提交后投递 MQ</div><div class="step-detail"><span class="code">MessageSendListener.messageRoute()</span> @TransactionalEventListener(AFTER_COMMIT) → <span class="code">MQProducer.sendSecureMsg()</span> @SecureInvoke → RocketMQ <span class="code">MSG_SEND_TOPIC</span></div></div></div>
+<div class="step"><div class="step-num mq">7</div><div class="step-body"><div class="step-title">MQ 消费 + 构建 VO</div><div class="step-detail"><span class="code">MsgSendConsumer</span> — 从 DB 加载 Message → <span class="code">MessageAdapter.buildChannelMessageVO()</span> — 含 fromUser / reactions / attachments</div></div></div>
+<div class="step"><div class="step-num mq">8</div><div class="step-body"><div class="step-title">路由推送</div><div class="step-detail">threadId≠null → 推给 Thread 订阅者 | threadId=null → 推给 Channel 订阅者 | 含@提及 → 额外推送 → <span class="code">PushService.sendPushMsg()</span> → RocketMQ <span class="code">PUSH_TOPIC</span></div></div></div>
+<div class="step"><div class="step-num ws">9</div><div class="step-body"><div class="step-title">最终 WS 推送</div><div class="step-detail"><span class="code">PushConsumer</span> (BROADCAST) → <span class="code">WebSocketService.sendToUid()</span> → <span class="code">TextWebSocketFrame(JSON type=4)</span> → 客户端更新 UI</div></div></div>
+</div>
+
+<!-- Flow 5: Channel Subscription -->
+<div class="flow sub">
+<h3>2.5 频道订阅机制 <span class="badge ws">WebSocket</span></h3>
+<div class="step"><div class="step-num api">1</div><div class="step-body"><div class="step-title">获取服务器频道树</div><div class="step-detail"><span class="code">GET /api/v1/servers/{id}</span> → <span class="code">ServerController.getServerDetail()</span> → 返回 {server, categories: [{id, name, channels: [...]}], myRoles: [...]}</div></div></div>
+<div class="step"><div class="step-num ws">2</div><div class="step-body"><div class="step-title">订阅频道</div><div class="step-detail">发 <span class="code">{"type":10, "channelIds":[1,2,3]}</span> → <span class="code">WebSocketService.subscribeChannel(uid, channelId)</span> → Redis <span class="code">SADD ws:sub:channel:{id} {uid}</span> + 本地 Map → 回 <span class="code">{"type":11}</span></div></div></div>
+<div class="step"><div class="step-num ws">3</div><div class="step-body"><div class="step-title">切换频道</div><div class="step-detail">发 <span class="code">{"type":12, "channelIds":[5]}</span> 退订 → 发 <span class="code">{"type":10, "channelIds":[8]}</span> 订阅新频道</div></div></div>
+<div class="step"><div class="step-num ws">4</div><div class="step-body"><div class="step-title">离开服务器</div><div class="step-detail">发 <span class="code">{"type":12, "channelIds":[...全部]}</span> 批量退订全部已订阅频道</div></div></div>
+</div>
+
+<!-- Flow 6: Permission -->
+<div class="flow perm">
+<h3>2.6 权限解析流程 (RBAC) <span class="badge svc">Service</span></h3>
+<div class="step"><div class="step-num svc">1</div><div class="step-body"><div class="step-title">查询用户所有角色</div><div class="step-detail"><span class="code">PermissionService.checkPermission(serverId, userId, channelId, permissionBit)</span> → SQL: role JOIN member_role JOIN server_member WHERE user_id & server_id</div></div></div>
+<div class="step"><div class="step-num svc">2</div><div class="step-body"><div class="step-title">计算基础权限</div><div class="step-detail">effectivePermissions = role1.bits | role2.bits | ... (位 OR 运算)</div></div></div>
+<div class="step"><div class="step-num svc">3</div><div class="step-body"><div class="step-title">ADMINISTRATOR 短路</div><div class="step-detail">if <span class="code">(effectivePermissions & 0x0008) != 0</span> → 直接返回 true</div></div></div>
+<div class="step"><div class="step-num svc">4</div><div class="step-body"><div class="step-title">查询频道权限覆盖</div><div class="step-detail">SELECT * FROM channel_permission WHERE channel_id (target_type=0 → 角色级 / target_type=1 → 用户级)</div></div></div>
+<div class="step"><div class="step-num svc">5</div><div class="step-body"><div class="step-title">应用覆盖规则</div><div class="step-detail">effectivePermissions = <span class="code">(ep | allow_bits) & ~deny_bits</span> — 优先级: @everyone &lt; 自定义角色 &lt; 角色覆盖 &lt; 用户覆盖</div></div></div>
+<div class="step"><div class="step-num svc">6</div><div class="step-body"><div class="step-title">检查目标权限位</div><div class="step-detail">return <span class="code">(effectivePermissions & targetBit) != 0</span></div></div></div>
+</div>
+
+<!-- Flow 7: Thread -->
+<div class="flow msg">
+<h3>2.7 Thread 生命周期</h3>
+<div class="step"><div class="step-num api">1</div><div class="step-body"><div class="step-title">创建 Thread</div><div class="step-detail"><span class="code">POST /api/v1/channels/{id}/threads {rootMsgId, name?}</span> → <span class="code">ThreadController.createThread()</span> → <span class="code">ThreadService.createThread()</span> — 权限校验 → INSERT thread → publishEvent(ThreadCreateEvent) → WS type=15 通知</div></div></div>
+<div class="step"><div class="step-num api">2</div><div class="step-body"><div class="step-title">Thread 内回复</div><div class="step-detail"><span class="code">POST /api/v1/channels/{id}/messages {content, threadId}</span> → 消息带 thread_id → 只在 Thread 视图展示 → 推向 Thread 订阅者</div></div></div>
+<div class="step"><div class="step-num api">3</div><div class="step-body"><div class="step-title">Thread 归档</div><div class="step-detail"><span class="code">PUT /api/v1/threads/{id} {status:ARCHIVED}</span> → 可查看不可回复 → 24h 无活动自动归档</div></div></div>
+</div>
+
+<!-- Flow 8: Reaction -->
+<div class="flow msg">
+<h3>2.8 Reaction 添加/移除 (Toggle)</h3>
+<div class="step"><div class="step-num api">1</div><div class="step-body"><div class="step-title">添加反应</div><div class="step-detail"><span class="code">POST /api/v1/messages/{msgId}/reactions?emoji=👍</span> → <span class="code">ReactionController.addReaction()</span> → <span class="code">ReactionService.addReaction()</span></div></div></div>
+<div class="step"><div class="step-num svc">2</div><div class="step-body"><div class="step-title">Toggle 逻辑</div><div class="step-detail">权限检查(ADD_REACTIONS) → 查 (msgId, userId, emoji) 是否存在 → 存在则 DELETE / 不存在则 INSERT → 聚合查询 GROUP BY emoji</div></div></div>
+<div class="step"><div class="step-num ws">3</div><div class="step-body"><div class="step-title">推送变更</div><div class="step-detail">WS <span class="code">{"type":16, "data":{messageId, channelId, emoji, totalCount, users[], reacted}}</span></div></div></div>
+</div>
+
+<!-- Flow 9: File Upload -->
+<div class="flow file">
+<h3>2.9 文件上传 (MinIO 预签名)</h3>
+<div class="step"><div class="step-num api">1</div><div class="step-body"><div class="step-title">获取预签名 URL</div><div class="step-detail"><span class="code">POST /api/v1/upload/presigned {fileName, fileSize, mimeType}</span> → <span class="code">FileController.getPresignedUrl()</span> → <span class="code">FileService.getPresignedUrl()</span> — 校验大小/类型 → objectKey → MinIO presigned PUT (5min) → INSERT file_attachment(PENDING)</div></div></div>
+<div class="step"><div class="step-num ext">2</div><div class="step-body"><div class="step-title">前端直传 MinIO</div><div class="step-detail">前端 PUT 文件到 MinIO（不经后端，省带宽）</div></div></div>
+<div class="step"><div class="step-num api">3</div><div class="step-body"><div class="step-title">确认上传</div><div class="step-detail"><span class="code">POST /api/v1/upload/confirm {fileId}</span> → <span class="code">FileService.confirmUpload()</span> — MinIO.statObject() 确认 → UPDATE status=UPLOADED → 图片提取宽高</div></div></div>
+<div class="step"><div class="step-num api">4</div><div class="step-body"><div class="step-title">消息关联</div><div class="step-detail">发消息带 <span class="code">fileIds:[123]</span> → ImageMsgHandler.saveMsg() → UPDATE file_attachment.message_id</div></div></div>
+</div>
+
+<!-- Flow 10: Member Management -->
+<div class="flow server">
+<h3>2.10 成员管理</h3>
+<div class="step"><div class="step-num api">1</div><div class="step-body"><div class="step-title">分配角色</div><div class="step-detail"><span class="code">POST /api/v1/servers/{id}/members/{uid}/roles {roleIds}</span> → <span class="code">RoleController.assignRole()</span> → <span class="code">RoleService.assignRoles()</span> — MANAGE_ROLES 权限 + 操作者 position > 目标角色 position</div></div></div>
+<div class="step"><div class="step-num api">2</div><div class="step-body"><div class="step-title">踢出成员</div><div class="step-detail"><span class="code">DELETE /api/v1/servers/{id}/members/{uid}</span> → <span class="code">MemberController.kickMember()</span> → <span class="code">MemberService.kickMember()</span> — KICK_MEMBERS + position 校验</div></div></div>
+<div class="step"><div class="step-num api">3</div><div class="step-body"><div class="step-title">Owner 转让</div><div class="step-detail"><span class="code">POST /api/v1/servers/{id}/transfer {targetUserId}</span> → 仅 owner → 转让角色 → 原 owner 降级</div></div></div>
+</div>
+
+<!-- Flow 11: WS State Machine -->
+<div class="flow sub">
+<h3>2.11 WebSocket 状态机（前端视角）</h3>
+<div class="step"><div class="step-num ws">1</div><div class="step-body"><div class="step-title">[未连接] → [已连接]</div><div class="step-detail">ws://host:8090/ws → Netty 30s IdleStateHandler 心跳检测</div></div></div>
+<div class="step"><div class="step-num ws">2</div><div class="step-body"><div class="step-title">[已连接] → [已认证]</div><div class="step-detail">收到 <span class="code">{"type":3}</span> (LOGIN_SUCCESS) — 绑定 uid, avatar, token</div></div></div>
+<div class="step"><div class="step-num ws">3</div><div class="step-body"><div class="step-title">[已认证] → [订阅中]</div><div class="step-detail">进入服务器 → GET /api/v1/servers/{id} → 发 <span class="code">{"type":10}</span> 批量订阅 → 收 <span class="code">{"type":11}</span> ACK</div></div></div>
+<div class="step"><div class="step-num ws">4</div><div class="step-body"><div class="step-title">在频道中交互</div><div class="step-detail">收 type=4(MESSAGE) / type=16(REACTION) / type=17(TYPING) | 发 type=13(TYPING_START) / type=14(TYPING_STOP)</div></div></div>
+<div class="step"><div class="step-num ws">5</div><div class="step-body"><div class="step-title">Thread 模式</div><div class="step-detail">发 <span class="code">{"type":18}</span> (SUBSCRIBE_THREAD) / 发 <span class="code">{"type":19}</span> (UNSUBSCRIBE_THREAD)</div></div></div>
+<div class="step"><div class="step-num ws">6</div><div class="step-body"><div class="step-title">[断开]</div><div class="step-detail">Netty channelInactive() → 清理所有订阅 → <span class="code">UserOfflineEvent</span></div></div></div>
+</div>
+
+</div><!-- /tab-flows -->
+
+<!-- ================================================================ -->
+<!-- TAB 2: ENTITY RELATIONSHIPS -->
+<!-- ================================================================ -->
+<div id="tab-er" class="tab-content">
+
+<h2>实体关系总览</h2>
+
+<div class="rel-section">
+<h3>核心关系图</h3>
+<div class="rel-item"><span class="from">Server</span> <span class="arrow">1──N</span> <span class="to">Category</span> <span class="cardinality">server_id FK</span></div>
+<div class="rel-item"><span class="from">Server</span> <span class="arrow">1──N</span> <span class="to">Channel</span> <span class="cardinality">server_id FK, category_id FK(可选)</span></div>
+<div class="rel-item"><span class="from">Server</span> <span class="arrow">1──N</span> <span class="to">ServerMember</span> <span class="cardinality">server_id + user_id 联合 UK</span></div>
+<div class="rel-item"><span class="from">Server</span> <span class="arrow">1──N</span> <span class="to">Role</span> <span class="cardinality">server_id FK</span></div>
+<div class="rel-item"><span class="from">Server</span> <span class="arrow">1──N</span> <span class="to">Emoji</span> <span class="cardinality">server_id FK</span></div>
+<div class="rel-item"><span class="from">Server</span> <span class="arrow">1──N</span> <span class="to">Invite</span> <span class="cardinality">server_id + inviter_id FK</span></div>
+<div class="rel-item"><span class="from">ServerMember</span> <span class="arrow">N──M</span> <span class="to">Role</span> <span class="cardinality">通过 member_role 关联</span></div>
+<div class="rel-item"><span class="from">Channel</span> <span class="arrow">1──N</span> <span class="to">ChannelPermission</span> <span class="cardinality">channel_id FK, target_type+target_id 区分角色/用户</span></div>
+<div class="rel-item"><span class="from">Channel</span> <span class="arrow">1──N</span> <span class="to">Message</span> <span class="cardinality">channel_id FK</span></div>
+<div class="rel-item"><span class="from">Channel</span> <span class="arrow">1──N</span> <span class="to">Thread</span> <span class="cardinality">channel_id FK</span></div>
+<div class="rel-item"><span class="from">Message</span> <span class="arrow">1──N</span> <span class="to">Thread</span> <span class="cardinality">root_msg_id FK (触发 Thread 的消息)</span></div>
+<div class="rel-item"><span class="from">Thread</span> <span class="arrow">1──N</span> <span class="to">Message</span> <span class="cardinality">thread_id FK (Thread 内的回复)</span></div>
+<div class="rel-item"><span class="from">Message</span> <span class="arrow">1──N</span> <span class="to">Reaction</span> <span class="cardinality">message_id FK</span></div>
+<div class="rel-item"><span class="from">Message</span> <span class="arrow">1──N</span> <span class="to">FileAttachment</span> <span class="cardinality">message_id FK (nullable, 发消息后才关联)</span></div>
+<div class="rel-item"><span class="from">User</span> <span class="arrow">1──N</span> <span class="to">ServerMember</span> <span class="cardinality">user_id FK</span></div>
+<div class="rel-item"><span class="from">User</span> <span class="arrow">1──N</span> <span class="to">Message</span> <span class="cardinality">from_uid FK</span></div>
+<div class="rel-item"><span class="from">User</span> <span class="arrow">1──N</span> <span class="to">Reaction</span> <span class="cardinality">user_id FK</span></div>
+<div class="rel-item"><span class="from">User</span> <span class="arrow">1──N</span> <span class="to">FileAttachment</span> <span class="cardinality">uploader_id FK</span></div>
+<div class="rel-item"><span class="from">User</span> <span class="arrow">1──N</span> <span class="to">ChannelReadState</span> <span class="cardinality">user_id FK</span></div>
+<div class="rel-item"><span class="from">Channel</span> <span class="arrow">1──N</span> <span class="to">ChannelReadState</span> <span class="cardinality">channel_id FK</span></div>
+</div>
+
+<h2>15 张表详情（+2 补充表：sensitive_word、wx_msg）</h2>
+<div class="er-grid">
+
+<div class="er-card user">
+<h4>👤 User</h4>
+<div class="table-name">user</div>
+<ul>
+<li><span class="col">id</span> BIGINT PK</li>
+<li><span class="col">open_id</span> VARCHAR UK — 微信 OpenID</li>
+<li><span class="col">nickname</span> VARCHAR</li>
+<li><span class="col">avatar</span> VARCHAR — 头像 URL</li>
+<li><span class="col">sex</span> TINYINT</li>
+<li><span class="col">status</span> TINYINT DEFAULT 0</li>
+<li><span class="col">create_time</span> DATETIME</li>
+<li><span class="col">update_time</span> DATETIME</li>
+</ul>
+</div>
+
+<div class="er-card core">
+<h4>🏠 Server</h4>
+<div class="table-name">server</div>
+<ul>
+<li><span class="col">id</span> BIGINT PK</li>
+<li><span class="col">name</span> VARCHAR</li>
+<li><span class="col">owner_id</span> <span class="fk">BIGINT FK→user.id</span></li>
+<li><span class="col">icon</span> VARCHAR</li>
+<li><span class="col">description</span> TEXT</li>
+<li><span class="col">join_mode</span> TINYINT — 0=自由 1=审核 2=仅邀请</li>
+<li><span class="col">status</span> TINYINT DEFAULT 0 — 0=正常 1=删除</li>
+<li><span class="col">create_time / update_time</span></li>
+</ul>
+</div>
+
+<div class="er-card core">
+<h4>📁 Category</h4>
+<div class="table-name">category</div>
+<ul>
+<li><span class="col">id</span> BIGINT PK</li>
+<li><span class="col">server_id</span> <span class="fk">BIGINT FK→server.id</span></li>
+<li><span class="col">name</span> VARCHAR</li>
+<li><span class="col">sort_order</span> INT DEFAULT 0</li>
+<li><span class="col">create_time / update_time</span></li>
+</ul>
+</div>
+
+<div class="er-card core">
+<h4># Channel</h4>
+<div class="table-name">channel</div>
+<ul>
+<li><span class="col">id</span> BIGINT PK</li>
+<li><span class="col">server_id</span> <span class="fk">BIGINT FK→server.id</span></li>
+<li><span class="col">category_id</span> <span class="fk">BIGINT FK→category.id (nullable)</span></li>
+<li><span class="col">name</span> VARCHAR</li>
+<li><span class="col">type</span> TINYINT — TEXT / VOICE</li>
+<li><span class="col">topic</span> VARCHAR — 频道简介</li>
+<li><span class="col">sort_order</span> INT DEFAULT 0</li>
+<li><span class="col">last_msg_id</span> BIGINT — 最后消息 ID</li>
+<li><span class="col">status</span> TINYINT DEFAULT 0</li>
+<li><span class="col">create_time / update_time</span></li>
+</ul>
+</div>
+
+<div class="er-card user">
+<h4>👥 ServerMember</h4>
+<div class="table-name">server_member</div>
+<ul>
+<li><span class="col">id</span> BIGINT PK</li>
+<li><span class="col">server_id</span> <span class="fk">BIGINT FK→server.id</span></li>
+<li><span class="col">user_id</span> <span class="fk">BIGINT FK→user.id</span></li>
+<li><span class="col">nickname</span> VARCHAR — 服务器内昵称</li>
+<li><span class="col">join_time</span> DATETIME</li>
+<li class="idx">UK: (server_id, user_id)</li>
+</ul>
+</div>
+
+<div class="er-card core">
+<h4>🎭 Role</h4>
+<div class="table-name">role</div>
+<ul>
+<li><span class="col">id</span> BIGINT PK</li>
+<li><span class="col">server_id</span> <span class="fk">BIGINT FK→server.id</span></li>
+<li><span class="col">name</span> VARCHAR</li>
+<li><span class="col">color</span> INT — 角色颜色</li>
+<li><span class="col">permissions</span> BIGINT — 权限位掩码</li>
+<li><span class="col">position</span> INT — 角色等级（越高越权）</li>
+<li><span class="col">hoist</span> TINYINT — 是否独立显示</li>
+<li><span class="col">create_time / update_time</span></li>
+</ul>
+</div>
+
+<div class="er-card">
+<h4>🔗 MemberRole</h4>
+<div class="table-name">member_role</div>
+<ul>
+<li><span class="col">id</span> BIGINT PK</li>
+<li><span class="col">member_id</span> <span class="fk">BIGINT FK→server_member.id</span></li>
+<li><span class="col">role_id</span> <span class="fk">BIGINT FK→role.id</span></li>
+<li class="idx">UK: (member_id, role_id)</li>
+</ul>
+</div>
+
+<div class="er-card core">
+<h4>🔒 ChannelPermission</h4>
+<div class="table-name">channel_permission</div>
+<ul>
+<li><span class="col">id</span> BIGINT PK</li>
+<li><span class="col">channel_id</span> <span class="fk">BIGINT FK→channel.id</span></li>
+<li><span class="col">target_type</span> TINYINT — 0=角色 1=用户</li>
+<li><span class="col">target_id</span> BIGINT — role.id 或 user.id</li>
+<li><span class="col">allow_bits</span> BIGINT DEFAULT 0</li>
+<li><span class="col">deny_bits</span> BIGINT DEFAULT 0</li>
+</ul>
+</div>
+
+<div class="er-card msg">
+<h4>💬 Message</h4>
+<div class="table-name">message</div>
+<ul>
+<li><span class="col">id</span> BIGINT PK</li>
+<li><span class="col">channel_id</span> <span class="fk">BIGINT FK→channel.id</span></li>
+<li><span class="col">thread_id</span> <span class="fk">BIGINT FK→thread.id (nullable)</span></li>
+<li><span class="col">from_uid</span> <span class="fk">BIGINT FK→user.id</span></li>
+<li><span class="col">content</span> TEXT — Markdown</li>
+<li><span class="col">type</span> TINYINT — TEXT/IMAGE/FILE/SYSTEM</li>
+<li><span class="col">extra</span> JSON — 附件IDs / URL预览 / @列表</li>
+<li><span class="col">reply_msg_id</span> BIGINT — 引用回复</li>
+<li><span class="col">status</span> TINYINT — 0=正常 1=删除 2=编辑过</li>
+<li><span class="col">create_time / update_time</span></li>
+<li class="idx">INDEX: (channel_id, create_time)</li>
+</ul>
+</div>
+
+<div class="er-card msg">
+<h4>🧵 Thread</h4>
+<div class="table-name">thread</div>
+<ul>
+<li><span class="col">id</span> BIGINT PK</li>
+<li><span class="col">channel_id</span> <span class="fk">BIGINT FK→channel.id</span></li>
+<li><span class="col">root_msg_id</span> <span class="fk">BIGINT FK→message.id</span></li>
+<li><span class="col">name</span> VARCHAR</li>
+<li><span class="col">message_count</span> INT DEFAULT 0</li>
+<li><span class="col">last_active</span> DATETIME</li>
+<li><span class="col">status</span> TINYINT — ACTIVE / ARCHIVED</li>
+<li><span class="col">create_time / update_time</span></li>
+</ul>
+</div>
+
+<div class="er-card msg">
+<h4>👍 Reaction</h4>
+<div class="table-name">reaction</div>
+<ul>
+<li><span class="col">id</span> BIGINT PK</li>
+<li><span class="col">message_id</span> <span class="fk">BIGINT FK→message.id</span></li>
+<li><span class="col">user_id</span> <span class="fk">BIGINT FK→user.id</span></li>
+<li><span class="col">channel_id</span> <span class="fk">BIGINT FK→channel.id</span></li>
+<li><span class="col">emoji</span> VARCHAR(64)</li>
+<li><span class="col">create_time</span> DATETIME</li>
+<li class="idx">UK: (message_id, user_id, emoji)</li>
+</ul>
+</div>
+
+<div class="er-card">
+<h4>📎 FileAttachment</h4>
+<div class="table-name">file_attachment</div>
+<ul>
+<li><span class="col">id</span> BIGINT PK</li>
+<li><span class="col">message_id</span> <span class="fk">BIGINT FK→message.id (nullable)</span></li>
+<li><span class="col">uploader_id</span> <span class="fk">BIGINT FK→user.id</span></li>
+<li><span class="col">object_key</span> VARCHAR — MinIO 路径</li>
+<li><span class="col">file_name</span> VARCHAR</li>
+<li><span class="col">file_size</span> BIGINT</li>
+<li><span class="col">mime_type</span> VARCHAR</li>
+<li><span class="col">width / height</span> INT — 图片尺寸</li>
+<li><span class="col">status</span> TINYINT — PENDING / UPLOADED</li>
+<li><span class="col">create_time</span></li>
+</ul>
+</div>
+
+<div class="er-card">
+<h4>📖 ChannelReadState</h4>
+<div class="table-name">channel_read_state</div>
+<ul>
+<li><span class="col">id</span> BIGINT PK</li>
+<li><span class="col">user_id</span> <span class="fk">BIGINT FK→user.id</span></li>
+<li><span class="col">channel_id</span> <span class="fk">BIGINT FK→channel.id</span></li>
+<li><span class="col">last_read_msg_id</span> BIGINT</li>
+<li><span class="col">update_time</span> DATETIME</li>
+<li class="idx">UK: (user_id, channel_id)</li>
+</ul>
+</div>
+
+<div class="er-card">
+<h4>😀 Emoji</h4>
+<div class="table-name">emoji</div>
+<ul>
+<li><span class="col">id</span> BIGINT PK</li>
+<li><span class="col">server_id</span> <span class="fk">BIGINT FK→server.id</span></li>
+<li><span class="col">name</span> VARCHAR — :custom_name:</li>
+<li><span class="col">image_url</span> VARCHAR — 图片地址</li>
+<li><span class="col">is_animated</span> TINYINT</li>
+<li><span class="col">uploader_id</span> <span class="fk">BIGINT FK→user.id</span></li>
+<li><span class="col">create_time</span></li>
+</ul>
+</div>
+
+<div class="er-card">
+<h4>📨 Invite</h4>
+<div class="table-name">invite</div>
+<ul>
+<li><span class="col">id</span> BIGINT PK</li>
+<li><span class="col">server_id</span> <span class="fk">BIGINT FK→server.id</span></li>
+<li><span class="col">inviter_id</span> <span class="fk">BIGINT FK→user.id</span></li>
+<li><span class="col">code</span> VARCHAR UK — UUID 短码</li>
+<li><span class="col">max_uses</span> INT — null=无限</li>
+<li><span class="col">use_count</span> INT DEFAULT 0</li>
+<li><span class="col">expire_time</span> DATETIME</li>
+<li><span class="col">create_time</span> DATETIME</li>
+</ul>
+</div>
+
+</div><!-- /er-grid -->
+
+<h2>状态枚举</h2>
+<div class="rel-section">
+<div class="rel-item"><strong>Server.status</strong>: 0=正常 | 1=已删除</div>
+<div class="rel-item"><strong>Channel.status</strong>: 0=正常 | 1=已删除</div>
+<div class="rel-item"><strong>Message.status</strong>: 0=正常 | 1=已删除 | 2=已编辑</div>
+<div class="rel-item"><strong>Thread.status</strong>: ACTIVE | ARCHIVED</div>
+<div class="rel-item"><strong>FileAttachment.status</strong>: PENDING | UPLOADED</div>
+<div class="rel-item"><strong>Server.join_mode</strong>: 0=FREE | 1=APPROVAL | 2=INVITE_ONLY</div>
+<div class="rel-item"><strong>Channel.type</strong>: TEXT | VOICE</div>
+<div class="rel-item"><strong>Message.type</strong>: TEXT(1) | IMAGE(2) | FILE(3) | SYSTEM(4) | SOUND(5)</div>
+<div class="rel-item"><strong>ChannelPermission.target_type</strong>: 0=ROLE | 1=USER</div>
+</div>
+
+</div><!-- /tab-er -->
+
+<!-- ================================================================ -->
+<!-- TAB 3: API MAPPING -->
+<!-- ================================================================ -->
+<div id="tab-api" class="tab-content">
+
+<h2>REST API → Controller → Service 方法映射</h2>
+
+<h3>鉴权 (WeChat OAuth)</h3>
+<table class="api-table">
+<tr><th>方法</th><th>端点</th><th>Controller</th><th>Service</th></tr>
+<tr><td class="method get">GET</td><td>/api/v1/public/wx</td><td>WxPortalController.authGet()</td><td>WxMpService.checkSignature()</td></tr>
+<tr><td class="method post">POST</td><td>/api/v1/public/wx</td><td>WxPortalController.post()</td><td>WxMpMessageRouter.route()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/public/wx/callBack?code=</td><td>WxPortalController.callBack()</td><td>WxMsgService.authorize()</td></tr>
+<tr><td class="method post">POST</td><td>/api/v1/auth/refresh</td><td>AuthController.refreshToken()</td><td>LoginService.renewalTokenIfNecessary()</td></tr>
+</table>
+
+<h3>用户</h3>
+<table class="api-table">
+<tr><th>方法</th><th>端点</th><th>Controller</th><th>Service</th></tr>
+<tr><td class="method get">GET</td><td>/api/v1/users/me</td><td>UserController.getMe()</td><td>UserService.getMe()</td></tr>
+<tr><td class="method put">PUT</td><td>/api/v1/users/me</td><td>UserController.updateMe()</td><td>UserService.updateMe(nickname, avatar)</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/users/{id}</td><td>UserController.getUser()</td><td>UserService.getById()</td></tr>
+</table>
+
+<h3>Server (社群)</h3>
+<table class="api-table">
+<tr><th>方法</th><th>端点</th><th>Controller</th><th>Service</th></tr>
+<tr><td class="method post">POST</td><td>/api/v1/servers</td><td>ServerController.create()</td><td>ServerService.createServer()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/servers</td><td>ServerController.list()</td><td>ServerService.getMyServers()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/servers/discover?cursor=&pageSize=30</td><td>ServerController.discover()</td><td>ServerService.discoverServers()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/servers/{id}</td><td>ServerController.detail()</td><td>ServerService.getServerDetail()</td></tr>
+<tr><td class="method put">PUT</td><td>/api/v1/servers/{id}</td><td>ServerController.update()</td><td>ServerService.updateServer()</td></tr>
+<tr><td class="method del">DELETE</td><td>/api/v1/servers/{id}</td><td>ServerController.delete()</td><td>ServerService.deleteServer()</td></tr>
+<tr><td class="method post">POST</td><td>/api/v1/servers/{id}/transfer</td><td>MemberController.transfer()</td><td>MemberService.transferOwnership()</td></tr>
+</table>
+
+<h3>Category (分类)</h3>
+<table class="api-table">
+<tr><th>方法</th><th>端点</th><th>Controller</th><th>Service</th></tr>
+<tr><td class="method post">POST</td><td>/api/v1/servers/{id}/categories</td><td>CategoryController.create()</td><td>CategoryService.create()</td></tr>
+<tr><td class="method put">PUT</td><td>/api/v1/servers/{id}/categories/{cid}</td><td>CategoryController.update()</td><td>CategoryService.update()</td></tr>
+<tr><td class="method del">DELETE</td><td>/api/v1/servers/{id}/categories/{cid}</td><td>CategoryController.delete()</td><td>CategoryService.delete()</td></tr>
+</table>
+
+<h3>Channel (频道)</h3>
+<table class="api-table">
+<tr><th>方法</th><th>端点</th><th>Controller</th><th>Service</th></tr>
+<tr><td class="method post">POST</td><td>/api/v1/servers/{id}/channels</td><td>ChannelController.create()</td><td>ChannelService.create()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/servers/{id}/channels</td><td>ChannelController.list()</td><td>ChannelService.list()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/servers/{id}/channels/{cid}</td><td>ChannelController.detail()</td><td>ChannelService.get()</td></tr>
+<tr><td class="method put">PUT</td><td>/api/v1/servers/{id}/channels/{cid}</td><td>ChannelController.update()</td><td>ChannelService.update()</td></tr>
+<tr><td class="method del">DELETE</td><td>/api/v1/servers/{id}/channels/{cid}</td><td>ChannelController.delete()</td><td>ChannelService.delete()</td></tr>
+</table>
+
+<h3>Member (成员)</h3>
+<table class="api-table">
+<tr><th>方法</th><th>端点</th><th>Controller</th><th>Service</th></tr>
+<tr><td class="method get">GET</td><td>/api/v1/servers/{id}/members?cursor=&size=50</td><td>MemberController.list()</td><td>MemberService.getMemberList()</td></tr>
+<tr><td class="method post">POST</td><td>/api/v1/servers/{id}/members</td><td>MemberController.join()</td><td>MemberService.joinServer()</td></tr>
+<tr><td class="method del">DELETE</td><td>/api/v1/servers/{id}/members/{uid}</td><td>MemberController.kick()</td><td>MemberService.kickMember()</td></tr>
+<tr><td class="method put">PUT</td><td>/api/v1/servers/{id}/members/me/nickname</td><td>MemberController.updateNickname()</td><td>MemberService.updateNickname()</td></tr>
+</table>
+
+<h3>Role (角色) + 权限</h3>
+<table class="api-table">
+<tr><th>方法</th><th>端点</th><th>Controller</th><th>Service</th></tr>
+<tr><td class="method post">POST</td><td>/api/v1/servers/{id}/roles</td><td>RoleController.create()</td><td>RoleService.createRole()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/servers/{id}/roles</td><td>RoleController.list()</td><td>RoleService.getRoles()</td></tr>
+<tr><td class="method put">PUT</td><td>/api/v1/servers/{id}/roles/{rid}</td><td>RoleController.update()</td><td>RoleService.updateRole()</td></tr>
+<tr><td class="method del">DELETE</td><td>/api/v1/servers/{id}/roles/{rid}</td><td>RoleController.delete()</td><td>RoleService.deleteRole()</td></tr>
+<tr><td class="method post">POST</td><td>/api/v1/servers/{id}/members/{uid}/roles</td><td>RoleController.assign()</td><td>RoleService.assignRoles()</td></tr>
+<tr><td class="method del">DELETE</td><td>/api/v1/servers/{id}/members/{uid}/roles/{rid}</td><td>RoleController.remove()</td><td>RoleService.removeRole()</td></tr>
+<tr><td class="method put">PUT</td><td>/api/v1/channels/{cid}/permissions</td><td>ChannelPermController.set()</td><td>ChannelPermissionService.setOverwrite()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/channels/{cid}/permissions</td><td>ChannelPermController.list()</td><td>ChannelPermissionService.getOverwrites()</td></tr>
+<tr><td class="method del">DELETE</td><td>/api/v1/channels/{cid}/permissions/{pid}</td><td>ChannelPermController.delete()</td><td>ChannelPermissionService.deleteOverwrite()</td></tr>
+</table>
+
+<h3>Message (消息)</h3>
+<table class="api-table">
+<tr><th>方法</th><th>端点</th><th>Controller</th><th>Service</th></tr>
+<tr><td class="method post">POST</td><td>/api/v1/channels/{cid}/messages</td><td>MessageController.sendMsg()</td><td>MessageService.sendMsg() → MsgHandlerFactory.getStrategy() → AbstractMsgHandler.checkAndSaveMsg()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/channels/{cid}/messages?cursor=&size=50&threadId=</td><td>MessageController.list()</td><td>MessageService.getMessages()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/channels/{cid}/messages/{mid}</td><td>MessageController.detail()</td><td>MessageService.getMessage()</td></tr>
+<tr><td class="method put">PUT</td><td>/api/v1/channels/{cid}/messages/{mid}</td><td>MessageController.edit()</td><td>MessageService.editMessage()</td></tr>
+<tr><td class="method del">DELETE</td><td>/api/v1/channels/{cid}/messages/{mid}</td><td>MessageController.delete()</td><td>MessageService.deleteMessage()</td></tr>
+</table>
+
+<h3>Thread</h3>
+<table class="api-table">
+<tr><th>方法</th><th>端点</th><th>Controller</th><th>Service</th></tr>
+<tr><td class="method post">POST</td><td>/api/v1/channels/{cid}/threads</td><td>ThreadController.create()</td><td>ThreadService.createThread()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/channels/{cid}/threads?cursor=&size=30</td><td>ThreadController.list()</td><td>ThreadService.getThreads()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/threads/{tid}</td><td>ThreadController.detail()</td><td>ThreadService.getThread()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/threads/{tid}/messages?cursor=&size=50</td><td>ThreadController.messages()</td><td>ThreadService.getThreadMessages()</td></tr>
+<tr><td class="method put">PUT</td><td>/api/v1/threads/{tid}</td><td>ThreadController.update()</td><td>ThreadService.updateThread()</td></tr>
+</table>
+
+<h3>Reaction</h3>
+<table class="api-table">
+<tr><th>方法</th><th>端点</th><th>Controller</th><th>Service</th></tr>
+<tr><td class="method post">POST</td><td>/api/v1/messages/{mid}/reactions?emoji=</td><td>ReactionController.add()</td><td>ReactionService.addReaction()</td></tr>
+<tr><td class="method del">DELETE</td><td>/api/v1/messages/{mid}/reactions?emoji=</td><td>ReactionController.remove()</td><td>ReactionService.removeReaction()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/messages/{mid}/reactions</td><td>ReactionController.list()</td><td>ReactionService.getMessageReactions()</td></tr>
+</table>
+
+<h3>File (文件上传)</h3>
+<table class="api-table">
+<tr><th>方法</th><th>端点</th><th>Controller</th><th>Service</th></tr>
+<tr><td class="method post">POST</td><td>/api/v1/upload/presigned</td><td>FileController.presigned()</td><td>FileService.getPresignedUrl()</td></tr>
+<tr><td class="method post">POST</td><td>/api/v1/upload/confirm</td><td>FileController.confirm()</td><td>FileService.confirmUpload()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/files/{id}</td><td>FileController.detail()</td><td>FileService.getFile()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/files/{id}/download</td><td>FileController.download()</td><td>FileService.getDownloadUrl()</td></tr>
+</table>
+
+<h3>Search</h3>
+<table class="api-table">
+<tr><th>方法</th><th>端点</th><th>Controller</th><th>Service</th></tr>
+<tr><td class="method get">GET</td><td>/api/v1/servers/{id}/search?q=&channelId=&from=&to=</td><td>SearchController.search()</td><td>SearchService.searchMessages()</td></tr>
+</table>
+
+<h3>Emoji</h3>
+<table class="api-table">
+<tr><th>方法</th><th>端点</th><th>Controller</th><th>Service</th></tr>
+<tr><td class="method post">POST</td><td>/api/v1/servers/{id}/emojis</td><td>EmojiController.upload()</td><td>EmojiService.uploadEmoji()</td></tr>
+<tr><td class="method get">GET</td><td>/api/v1/servers/{id}/emojis</td><td>EmojiController.list()</td><td>EmojiService.listEmojis()</td></tr>
+<tr><td class="method del">DELETE</td><td>/api/v1/servers/{id}/emojis/{eid}</td><td>EmojiController.delete()</td><td>EmojiService.deleteEmoji()</td></tr>
+</table>
+
+<h3>Invite</h3>
+<table class="api-table">
+<tr><th>方法</th><th>端点</th><th>Controller</th><th>Service</th></tr>
+<tr><td class="method post">POST</td><td>/api/v1/servers/{id}/invites</td><td>InviteController.create()</td><td>InviteService.createInvite()</td></tr>
+<tr><td class="method post">POST</td><td>/api/v1/invites/{code}/join</td><td>InviteController.join()</td><td>InviteService.joinByInvite()</td></tr>
+</table>
+
+<h3>Unread (未读)</h3>
+<table class="api-table">
+<tr><th>方法</th><th>端点</th><th>Controller</th><th>Service</th></tr>
+<tr><td class="method get">GET</td><td>/api/v1/servers/{id}/unread</td><td>MessageController.unread()</td><td>ChannelReadStateService.getUnreadCounts()</td></tr>
+</table>
+
+</div><!-- /tab-api -->
+
+<!-- ================================================================ -->
+<!-- TAB 4: WS PROTOCOL -->
+<!-- ================================================================ -->
+<div id="tab-ws" class="tab-content">
+
+<h2>WebSocket 协议枚举</h2>
+
+<div class="legend">
+<span><span class="badge ws">C→S</span> 客户端→服务端</span>
+<span><span class="badge api">S→C</span> 服务端→客户端</span>
+</div>
+
+<h3>客户端 → 服务端 (9 种)</h3>
+<table class="api-table">
+<tr><th>type</th><th>名称</th><th>payload</th><th>处理方法</th></tr>
+<tr><td>1</td><td>LOGIN</td><td>无</td><td>WebSocketService.handleLoginReq()</td></tr>
+<tr><td>2</td><td>HEARTBEAT</td><td>无</td><td>(Netty IdleStateHandler 30s)</td></tr>
+<tr><td>3</td><td>AUTHORIZE</td><td>{token}</td><td>WebSocketService.authorize()</td></tr>
+<tr><td>10</td><td>SUBSCRIBE_CHANNEL</td><td>{channelIds: [1,2,3]}</td><td>WebSocketService.subscribeChannel()</td></tr>
+<tr><td>12</td><td>UNSUBSCRIBE_CHANNEL</td><td>{channelIds: [1,2,3]}</td><td>WebSocketService.unsubscribeChannel()</td></tr>
+<tr><td>13</td><td>TYPING_START</td><td>{channelId}</td><td>WebSocketService.handleTypingStart()</td></tr>
+<tr><td>14</td><td>TYPING_STOP</td><td>{channelId}</td><td>WebSocketService.handleTypingStop()</td></tr>
+<tr><td>18</td><td>SUBSCRIBE_THREAD</td><td>{threadId}</td><td>WebSocketService.subscribeThread()</td></tr>
+<tr><td>19</td><td>UNSUBSCRIBE_THREAD</td><td>{threadId}</td><td>WebSocketService.unsubscribeThread()</td></tr>
+</table>
+
+<h3>服务端 → 客户端 (18 种)</h3>
+<table class="api-table">
+<tr><th>type</th><th>名称</th><th>payload</th><th>构建方法</th></tr>
+<tr><td>1</td><td>LOGIN_URL</td><td>{loginUrl}</td><td>WSAdapter.buildLoginUrlResp()</td></tr>
+<tr><td>2</td><td>LOGIN_SCAN_SUCCESS</td><td>空</td><td>WSAdapter.buildScanSuccessResp()</td></tr>
+<tr><td>3</td><td>LOGIN_SUCCESS</td><td>{uid, avatar, token, name}</td><td>WSAdapter.buildLoginSuccessResp()</td></tr>
+<tr><td>4</td><td>MESSAGE</td><td>ChannelMessageVO</td><td>WSAdapter.buildMsgSend()</td></tr>
+<tr><td>5</td><td>ONLINE_OFFLINE</td><td>{uid, online}</td><td>WSAdapter.buildOnlineOfflineResp()</td></tr>
+<tr><td>6</td><td>INVALIDATE_TOKEN</td><td>空</td><td>WSAdapter.buildInvalidateTokenResp()</td></tr>
+<tr><td>11</td><td>SUBSCRIBE_ACK</td><td>{channelIds}</td><td>WSAdapter.buildSubscribeAck()</td></tr>
+<tr><td>15</td><td>THREAD_CREATE</td><td>ThreadVO</td><td>WSAdapter.buildThreadCreate()</td></tr>
+<tr><td>16</td><td>REACTION_UPDATE</td><td>{messageId, channelId, emoji, totalCount, users[], reacted}</td><td>WSAdapter.buildReactionUpdate()</td></tr>
+<tr><td>17</td><td>TYPING_INDICATOR</td><td>{channelId, userId, emoji}</td><td>WSAdapter.buildTypingIndicator()</td></tr>
+<tr><td>20</td><td>MEMBER_JOIN</td><td>{serverId, userId, username}</td><td>WSAdapter.buildMemberJoin()</td></tr>
+<tr><td>21</td><td>MEMBER_LEAVE</td><td>{serverId, userId}</td><td>WSAdapter.buildMemberLeave()</td></tr>
+<tr><td>22</td><td>MEMBER_KICK</td><td>{serverId, userId, reason?}</td><td>WSAdapter.buildMemberKick()</td></tr>
+<tr><td>23</td><td>ROLE_UPDATE</td><td>{serverId, userId, roles[]}</td><td>WSAdapter.buildRoleUpdate()</td></tr>
+<tr><td>24</td><td>CHANNEL_UPDATE</td><td>ChannelVO</td><td>WSAdapter.buildChannelUpdate()</td></tr>
+<tr><td>25</td><td>SERVER_UPDATE</td><td>ServerVO</td><td>WSAdapter.buildServerUpdate()</td></tr>
+<tr><td>26</td><td>MESSAGE_EDIT</td><td>{messageId, channelId, content}</td><td>WSAdapter.buildMsgEdit()</td></tr>
+<tr><td>27</td><td>MESSAGE_DELETE</td><td>{messageId, channelId}</td><td>WSAdapter.buildMsgDelete()</td></tr>
+</table>
+
+</div><!-- /tab-ws -->
+
+</div><!-- /container -->
+
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => {
+    if (t.textContent.includes(name === 'flows' ? '业务流程' : name === 'er' ? '实体关系' : name === 'api' ? '接口映射' : 'WebSocket')) t.classList.add('active');
+  });
+  document.getElementById('tab-' + name).classList.add('active');
+}
+</script>
+
+</body>
+</html>

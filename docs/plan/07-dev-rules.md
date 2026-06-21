@@ -40,7 +40,8 @@ docker compose ps          # 确认全部 healthy
 
 ## 关键约束
 
-- Phase 0-7 代码在 `community-server` 单模块内（按未来服务边界分包）
-- Phase 8 之前不动 Spring Cloud 依赖（只声明 BOM，不引入组件）
+- Phase 0-7 代码在 `community-server` 单模块内（按业务边界分包）
+- **Spring Cloud 目标**：根 pom.xml 已声明 Spring Cloud BOM（`dependencyManagement`）。Phase 0-7 在单模块内按业务边界分包，Phase 8 拆分为独立微服务
+- **包级接口隔离**：业务包之间只通过 Service 接口调用，禁止跨包引用 DAO/Mapper 或 Entity。此规则确保 Phase 8 拆分时改动量最小（Service 接口 → FeignClient）
 - 每个 Phase 结束必须编译通过 + 至少一个 curl 可验证的新功能
 - MallChat 代码只参考不复制，但工具类（JwtUtils/CursorUtils/RequestHolder）可直接移植

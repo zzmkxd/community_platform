@@ -26,6 +26,12 @@ public class UserVO {
     @Schema(description = "邮箱")
     private String email;
 
+    @Schema(description = "微信 openId")
+    private String openId;
+
+    @Schema(description = "微信 unionId")
+    private String unionId;
+
     @Schema(description = "性别")
     private Integer sex;
 

@@ -1,6 +1,7 @@
 package com.community.user.controller;
 
 import com.community.common.domain.vo.response.ApiResult;
+import com.community.user.domain.dto.AccountBindReq;
 import com.community.user.domain.vo.UserVO;
 import com.community.user.service.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +25,12 @@ public class UserController {
     public ApiResult<UserVO> updateMe(@RequestBody UserVO body) {
         return ApiResult.success(userService.updateMe(
                 body.getNickname(), body.getAvatar(), body.getEmail()));
+    }
+
+    @PostMapping("/me/bind-wx")
+    public ApiResult<Void> bindWeChat(@RequestBody AccountBindReq req) {
+        userService.bindWeChat(req);
+        return ApiResult.success(null);
     }
 
     @GetMapping("/{id}")

@@ -16,7 +16,59 @@
 10. 搜索历史 (GET /api/v1/servers/{id}/search?q=)
 ```
 
-## 2.2 发送消息全链路（核心流程）
+## 2.2 登录鉴权
+
+> **设计决策 (2026-06-22)**：主路径为微信 OAuth 扫码（复用 MallChat 全链路）。用户名/密码仅作 seed data 测试通道——DDL 预置 3~5 个 BCrypt 账号，`POST /api/v1/auth/login` 可验证，但无注册端点。新用户只能通过微信扫码自动创建。详见 [[login-design-decision]]。
+
+### 测试登录流程（用户名/密码，seed data）
+
+```
+DDL 预置 BCrypt 账号 → POST /api/v1/auth/login → 查用户 → BCrypt 验证 → JWT 签发 → Redis 存 Token
+每次请求 → TokenInterceptor → Bearer Token → JWT 验签 + Redis Token 值比对 → RequestHolder
+```
+
+### 主登录流程（微信扫码）
+
+```
+浏览器 WS 连接 → 请求登录码 → 微信 QR Ticket → 用户扫码
+→ WxPortalController 接收事件 → ScanHandler → WxMsgService.scan()
+→ 创建/查找 User → Redis 存 openid→loginCode
+→ RocketMQ SCAN_MSG_TOPIC → WebSocket 通知前端"已扫码"
+→ 用户点击授权 → OAuth2 回调 → 签发 JWT → LOGIN_SUCCESS
+```
+
+---
+
+## 2.3 用户加入服务器
+
+### 三种加入方式
+
+**方式一：自由加入**
+- Server 设置 `join_mode=FREE`
+- 用户浏览发现服务器：`GET /api/v1/servers/discover?cursor=&pageSize=30` → 点击"加入" → `POST /api/v1/servers/{id}/members` → 立即成为成员
+
+**方式二：邀请链接**
+- 已有成员生成邀请链接：`POST /api/v1/servers/{id}/invites`（可设过期时间、最大使用次数）
+- 新用户通过链接加入：`POST /api/v1/invites/{code}/join`
+- 后端校验：链接是否过期、是否达使用上限、服务器是否存在
+
+**方式三：直接添加**
+- 拥有 INVITE_MEMBERS 权限的成员通过用户名/ID 直接添加其他用户
+
+### 加入后初始化
+
+```
+MemberService.joinServer()
+  ├── 创建 server_member 记录
+  ├── 分配 @everyone 角色（member_role 插一条）
+  ├── 发布 MemberJoinEvent
+  │   └── 异步发送系统消息到 #general："xxx 加入了服务器"
+  └── 返回 MemberVO（含角色列表）
+```
+
+---
+
+## 2.4 发送消息全链路（核心流程）
 
 ```
 Client 发送消息
@@ -73,7 +125,40 @@ Client 浏览器收到 WS 帧 → 更新 UI
 - 多了权限检查环节（MallChat 只检查是否是群成员）
 - 多了 Thread 维度的推送路由
 
-## 2.3 权限解析流程
+### 2.4.1 频道已读/未读追踪
+
+```
+[用户进入频道 → 拉取消息]
+  │
+  ▼
+GET /api/v1/channels/{channelId}/messages?cursor=&pageSize=50
+  │
+  MessageService.getMessages()
+  ├── [1] 查询消息列表（光标分页）
+  ├── [2] 更新 channel_read_state
+  │   INSERT INTO channel_read_state (user_id, channel_id, last_read_msg_id, last_read_time)
+  │   VALUES (?, ?, (SELECT MAX(id) FROM message WHERE channel_id=?), NOW())
+  │   ON DUPLICATE KEY UPDATE
+  │     last_read_msg_id = GREATEST(last_read_msg_id, VALUES(last_read_msg_id)),
+  │     last_read_time = NOW()
+  └── [3] 返回消息列表
+
+[用户查看未读计数]
+  │
+  ▼
+GET /api/v1/servers/{serverId}/unread
+  │
+  ├── [1] 查询用户在该 server 所有频道的 read state
+  ├── [2] 对每个频道：SELECT COUNT(*) FROM message
+  │     WHERE channel_id=? AND id > last_read_msg_id AND thread_id IS NULL
+  └── [3] 返回 [{channelId, unreadCount, lastReadMsgId}]
+```
+
+**设计决策**：不追踪 Thread 内消息的已读状态；last_read_msg_id 使用自增 ID 而非时间戳。
+
+---
+
+## 2.5 权限解析流程
 
 ```
 用户请求操作（如：在 Channel#3 发送消息）
@@ -105,7 +190,7 @@ Client 浏览器收到 WS 帧 → 更新 UI
          return (effectivePermissions & SEND_MESSAGES) != 0;
 ```
 
-## 2.4 Thread 生命周期
+## 2.6 Thread 生命周期
 
 ```
 [用户在频道消息上点"创建话题"]
@@ -129,7 +214,7 @@ POST /api/v1/channels/{id}/threads  { rootMsgId, name? }
   → 仍可查看，不可新回复 → 24h 后自动归档或手动
 ```
 
-## 2.5 Reaction 流程
+## 2.7 Reaction 流程
 
 ```
 [用户对消息添加反应]
@@ -151,7 +236,7 @@ POST /api/v1/messages/{msgId}/reactions?emoji=👍
 客户端收到后更新消息的 Reaction 展示行
 ```
 
-## 2.6 文件上传流程
+## 2.8 文件上传流程
 
 ```
 前端选择文件
@@ -180,3 +265,86 @@ POST /api/v1/upload/confirm  { fileId }
   POST /api/v1/channels/{id}/messages  { content, msgType: IMAGE, fileIds: [123] }
   → 后端关联 file_attachment.message_id = newMessageId
 ```
+
+---
+
+## 2.9 服务器内成员管理
+
+### 角色分配
+
+```
+[管理员给成员分配角色]
+  POST /api/v1/servers/{serverId}/members/{userId}/roles  { roleIds: [3, 5] }
+  │
+  RoleService.assignRoles()
+  ├── [1] 权限检查：操作者有 MANAGE_ROLES 权限
+  ├── [2] 操作者角色 position 必须高于目标角色（不能赋予比自己高的角色）
+  ├── [3] 不能移除成员的 @everyone 角色
+  ├── [4] INSERT member_role (member_id, role_id) × N
+  └── [5] 发布 MemberRoleUpdateEvent → WS 推送权限变更通知
+```
+
+### 踢出成员
+
+```
+DELETE /api/v1/servers/{serverId}/members/{userId}
+  │
+  MemberService.kickMember()
+  ├── [1] 权限检查：操作者有 KICK_MEMBERS 权限
+  ├── [2] 操作者角色 position > 被操作者最高角色 position
+  ├── [3] 不能踢 Server Owner
+  ├── [4] 删除 server_member + 清理 member_role + 清理频道覆盖
+  └── [5] 发布 MemberKickEvent → WS 通知 + 系统消息
+```
+
+### Owner 转让
+
+```
+POST /api/v1/servers/{serverId}/transfer  { targetUserId }
+  ├── [1] 仅 Server Owner 可操作
+  ├── [2] 目标用户必须是当前成员
+  ├── [3] 转让 owner 角色给目标用户
+  ├── [4] 原 owner 降级为普通管理员角色（如存在）
+  └── [5] 发布 OwnershipTransferEvent
+```
+
+---
+
+## 2.10 WebSocket 协议
+
+### 客户端 → 服务端
+
+| type | 名称 | payload |
+|------|------|---------|
+| 1 | LOGIN | 无（请求生成二维码） |
+| 2 | HEARTBEAT | 无 |
+| 3 | AUTHORIZE | `{token}` |
+| 10 | SUBSCRIBE_CHANNEL | `{channelIds: [1,2,3]}` |
+| 12 | UNSUBSCRIBE_CHANNEL | `{channelIds: [1,2,3]}` |
+| 13 | TYPING_START | `{channelId}` |
+| 14 | TYPING_STOP | `{channelId}` |
+| 18 | SUBSCRIBE_THREAD | `{threadId}` |
+| 19 | UNSUBSCRIBE_THREAD | `{threadId}` |
+
+### 服务端 → 客户端
+
+| type | 名称 | payload |
+|------|------|---------|
+| 1 | LOGIN_URL | `{loginUrl}` — 微信二维码 |
+| 2 | LOGIN_SCAN_SUCCESS | 空（等待授权） |
+| 3 | LOGIN_SUCCESS | `{uid, avatar, token, name}` |
+| 4 | MESSAGE | `ChannelMessageVO` — 新消息 |
+| 5 | ONLINE_OFFLINE | `{uid, online}` |
+| 6 | INVALIDATE_TOKEN | 空 |
+| 11 | SUBSCRIBE_ACK | `{channelIds}` — 订阅确认 |
+| 15 | THREAD_CREATE | `ThreadVO` |
+| 16 | REACTION_UPDATE | `{messageId, channelId, emoji, totalCount, users[], reacted}` |
+| 17 | TYPING_INDICATOR | `{channelId, userId, emoji}` |
+| 20 | MEMBER_JOIN | `{serverId, userId, username}` |
+| 21 | MEMBER_LEAVE | `{serverId, userId}` |
+| 22 | MEMBER_KICK | `{serverId, userId, reason?}` |
+| 23 | ROLE_UPDATE | `{serverId, userId, roles[]}` |
+| 24 | CHANNEL_UPDATE | `ChannelVO` — 频道信息变更 |
+| 25 | SERVER_UPDATE | `ServerVO` — 服务器信息变更 |
+| 26 | MESSAGE_EDIT | `{messageId, channelId, content}` |
+| 27 | MESSAGE_DELETE | `{messageId, channelId}` |

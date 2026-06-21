@@ -12,20 +12,34 @@ USE community_platform;
 -- =============================================
 -- 1. User 用户表
 -- =============================================
+-- 设计决策: username/password 仅用于 seed data 测试通道（无注册端点）。
+-- 微信扫码用户 open_id 有值，username/password/email 为 NULL。
+-- 两种用户通过 NULL 值区分，MySQL UNIQUE 索引允许多个 NULL。
 CREATE TABLE IF NOT EXISTS `user` (
     `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '用户 ID',
-    `username`    VARCHAR(32)  NOT NULL COMMENT '用户名',
-    `password`    VARCHAR(128) NOT NULL COMMENT 'BCrypt 密码',
+    `username`    VARCHAR(32)  DEFAULT NULL COMMENT '用户名 (seed data 测试账号)',
+    `password`    VARCHAR(128) DEFAULT NULL COMMENT 'BCrypt 密码 (seed data 测试账号)',
     `nickname`    VARCHAR(32)  DEFAULT NULL COMMENT '昵称',
     `avatar`      VARCHAR(255) DEFAULT NULL COMMENT '头像 URL',
     `email`       VARCHAR(64)  DEFAULT NULL COMMENT '邮箱',
+    `open_id`     VARCHAR(64)  DEFAULT NULL COMMENT '微信 openId (UK)',
+    `union_id`    VARCHAR(64)  DEFAULT NULL COMMENT '微信 unionId',
     `sex`         TINYINT      DEFAULT 0 COMMENT '性别: 0=未知 1=男 2=女',
     `status`      TINYINT      DEFAULT 1 COMMENT '状态: 0=禁用 1=正常',
     `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_username` (`username`)
+    UNIQUE KEY `uk_username` (`username`),
+    UNIQUE KEY `uk_open_id` (`open_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
+
+-- Seed data: 预置测试账号 (密码均为 "123456")
+-- 运行以下 Java 代码生成 BCrypt 哈希后替换占位符:
+--   System.out.println(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("123456"));
+INSERT INTO `user` (`id`, `username`, `password`, `nickname`, `email`) VALUES
+(1, 'alice',   '<BCRYPT_HASH_OF_123456>', 'Alice',   'alice@test.com'),
+(2, 'bob',     '<BCRYPT_HASH_OF_123456>', 'Bob',     'bob@test.com'),
+(3, 'charlie', '<BCRYPT_HASH_OF_123456>', 'Charlie', 'charlie@test.com');
 
 -- =============================================
 -- 2. Server 服务器表
