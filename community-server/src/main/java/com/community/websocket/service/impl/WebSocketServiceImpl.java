@@ -95,6 +95,7 @@ public class WebSocketServiceImpl implements WebSocketService {
 
         Long uid = NettyUtil.getAttr(channel, NettyUtil.UID);
         if (uid != null) {
+            broadcastOffline(uid);
             RedisUtils.del(RedisKey.WS_USER + uid);
         }
         log.info("WS removed: uid={}", uid);
@@ -141,6 +142,44 @@ public class WebSocketServiceImpl implements WebSocketService {
     public void handleSendMessage(Channel channel, String data) {
         log.debug("SEND_MESSAGE received, data: {}", data);
         // TODO Phase 3: 解析消息 → 持久化 → MQ → PushConsumer → pushToChannel
+    }
+
+    @Override
+    public void handleTypingStart(Channel channel, String data) {
+        Long uid = NettyUtil.getAttr(channel, NettyUtil.UID);
+        Long channelId = parseId(data, "channelId");
+        Long threadId = parseId(data, "threadId");
+        if (uid == null || channelId == null) return;
+        Object payload = WSAdapter.buildTypingStart(channelId, threadId, uid);
+        pushToChannel(channelId, payload);
+        if (threadId != null) {
+            pushToThread(threadId, payload);
+        }
+    }
+
+    @Override
+    public void handleTypingStop(Channel channel, String data) {
+        Long uid = NettyUtil.getAttr(channel, NettyUtil.UID);
+        Long channelId = parseId(data, "channelId");
+        Long threadId = parseId(data, "threadId");
+        if (uid == null || channelId == null) return;
+        Object payload = WSAdapter.buildTypingStop(channelId, threadId, uid);
+        pushToChannel(channelId, payload);
+        if (threadId != null) {
+            pushToThread(threadId, payload);
+        }
+    }
+
+    @Override
+    public void broadcastOnline(Long uid) {
+        WSBaseResp<?> resp = WSAdapter.buildUserOnline(uid);
+        sendToAllOnline(resp, uid);
+    }
+
+    @Override
+    public void broadcastOffline(Long uid) {
+        WSBaseResp<?> resp = WSAdapter.buildUserOffline(uid);
+        sendToAllOnline(resp, uid);
     }
 
     @Override
@@ -238,6 +277,7 @@ public class WebSocketServiceImpl implements WebSocketService {
         online(channel, user.getId());
         boolean hasPower = true; // TODO: 接入角色系统后改为真实权限检查
         sendMsg(channel, WSAdapter.buildLoginSuccessResp(user, token, hasPower));
+        broadcastOnline(user.getId());
     }
 
     private void online(Channel channel, Long uid) {

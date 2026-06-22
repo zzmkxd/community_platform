@@ -84,6 +84,10 @@ public class NettyWebSocketServerHandler extends SimpleChannelInboundHandler<Tex
                     webSocketService.subscribeThread(ctx.channel(), wsBaseReq.getData());
             case UNSUBSCRIBE_THREAD ->
                     webSocketService.unsubscribeThread(ctx.channel(), wsBaseReq.getData());
+            case TYPING_START ->
+                    webSocketService.handleTypingStart(ctx.channel(), wsBaseReq.getData());
+            case TYPING_STOP ->
+                    webSocketService.handleTypingStop(ctx.channel(), wsBaseReq.getData());
             default -> log.info("Unhandled WS type: {}", wsReqTypeEnum);
         }
     }

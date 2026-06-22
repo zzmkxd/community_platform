@@ -32,6 +32,18 @@ public interface WebSocketService {
     /** 处理客户端发送消息请求（Phase 3 实现完整链路） */
     void handleSendMessage(Channel channel, String data);
 
+    /** 处理输入中开始 */
+    void handleTypingStart(Channel channel, String data);
+
+    /** 处理输入中停止 */
+    void handleTypingStop(Channel channel, String data);
+
+    /** 广播用户上线给同服务器成员 */
+    void broadcastOnline(Long uid);
+
+    /** 广播用户离线给同服务器成员 */
+    void broadcastOffline(Long uid);
+
     /** 扫码登录成功 */
     Boolean scanLoginSuccess(Integer loginCode, Long uid);
 

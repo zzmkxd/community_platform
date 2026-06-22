@@ -7,10 +7,13 @@ import com.community.common.exception.BusinessException;
 import com.community.common.utils.CursorUtils;
 import com.community.common.utils.RequestHolder;
 import com.community.message.dao.MessageDao;
+import com.community.message.dao.ReactionDao;
 import com.community.message.dao.ThreadDao;
 import com.community.message.domain.entity.Message;
+import com.community.message.domain.entity.Reaction;
 import com.community.message.domain.entity.Thread;
 import com.community.message.domain.vo.MessageVO;
+import com.community.message.domain.vo.ReactionVO;
 import com.community.message.domain.vo.ThreadVO;
 import com.community.message.service.ThreadService;
 import com.community.message.service.adapter.MessageAdapter;
@@ -22,6 +25,7 @@ import com.community.user.dao.UserDao;
 import com.community.user.domain.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +44,7 @@ public class ThreadServiceImpl implements ThreadService {
     private final MessageDao messageDao;
     private final ChannelDao channelDao;
     private final UserDao userDao;
+    private final ReactionDao reactionDao;
     private final PermissionService permissionService;
 
     @Override
@@ -123,11 +128,20 @@ public class ThreadServiceImpl implements ThreadService {
             return CursorPageBaseResp.empty();
         }
 
+        List<Long> userIds = page.getList().stream().map(Message::getFromUid).distinct().toList();
+        Map<Long, User> userMap = userDao.lambdaQuery()
+                .in(User::getId, userIds)
+                .list()
+                .stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
+
+        List<Long> msgIds = page.getList().stream().map(Message::getId).toList();
+        Map<Long, List<ReactionVO>> reactionMap = buildReactionMapForMessages(msgIds);
+
         List<MessageVO> vos = page.getList().stream()
-                .map(msg -> {
-                    User user = userDao.getById(msg.getFromUid());
-                    return MessageAdapter.buildMessageVO(msg, user, Collections.emptyList(), null);
-                })
+                .map(msg -> MessageAdapter.buildMessageVO(
+                        msg, userMap.get(msg.getFromUid()),
+                        reactionMap.getOrDefault(msg.getId(), List.of()), null))
                 .toList();
         return CursorPageBaseResp.init(page, vos);
     }
@@ -151,6 +165,57 @@ public class ThreadServiceImpl implements ThreadService {
         User creator = userDao.getById(thread.getCreatorId());
         log.info("Thread updated: id={}, name={}, status={}", threadId, name, status);
         return toThreadVO(thread, creator);
+    }
+
+    @Scheduled(cron = "0 0 * * * *")
+    public void autoArchiveThreads() {
+        LocalDateTime cutoff = LocalDateTime.now().minusHours(24);
+        List<Thread> inactive = threadDao.lambdaQuery()
+                .eq(Thread::getStatus, "ACTIVE")
+                .lt(Thread::getLastActive, cutoff)
+                .list();
+        for (Thread t : inactive) {
+            t.setStatus("ARCHIVED");
+            threadDao.updateById(t);
+        }
+        if (!inactive.isEmpty()) {
+            log.info("Auto-archived {} inactive threads", inactive.size());
+        }
+    }
+
+    private Map<Long, List<ReactionVO>> buildReactionMapForMessages(List<Long> msgIds) {
+        if (msgIds.isEmpty()) return Map.of();
+        List<Reaction> reactions = reactionDao.lambdaQuery()
+                .in(Reaction::getMessageId, msgIds)
+                .list();
+
+        Map<Long, Map<String, ReactionVO>> grouped = new java.util.HashMap<>();
+        for (Reaction r : reactions) {
+            Map<String, ReactionVO> emojiMap = grouped.computeIfAbsent(r.getMessageId(),
+                    k -> new java.util.LinkedHashMap<>());
+            ReactionVO vo = emojiMap.computeIfAbsent(r.getEmoji(), emoji -> {
+                ReactionVO rvo = new ReactionVO();
+                rvo.setEmoji(emoji);
+                rvo.setCount(0);
+                rvo.setUserIds(new java.util.ArrayList<>());
+                return rvo;
+            });
+            vo.setCount(vo.getCount() + 1);
+            vo.getUserIds().add(r.getUserId());
+        }
+
+        Long currentUid = RequestHolder.get() != null ? RequestHolder.get().getUid() : null;
+        Map<Long, List<ReactionVO>> result = new java.util.HashMap<>();
+        for (var entry : grouped.entrySet()) {
+            List<ReactionVO> list = new java.util.ArrayList<>(entry.getValue().values());
+            if (currentUid != null) {
+                for (ReactionVO vo : list) {
+                    vo.setReacted(vo.getUserIds().contains(currentUid));
+                }
+            }
+            result.put(entry.getKey(), list);
+        }
+        return result;
     }
 
     private ThreadVO toThreadVO(Thread thread, User creator) {

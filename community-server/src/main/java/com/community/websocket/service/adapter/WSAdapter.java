@@ -59,13 +59,83 @@ public class WSAdapter {
                 });
     }
 
-    public static WSBaseResp buildTypingStart(Long channelId, Long userId, String nickname) {
+    public static WSBaseResp buildTypingStart(Long channelId, Long threadId, Long userId) {
         return WSBaseResp.of(WSRespTypeEnum.TYPING_START_PUSH.getType(),
                 new Object() {
                     public final Long cid = channelId;
+                    public final Long tid = threadId;
                     public final Long uid = userId;
-                    public final String name = nickname;
                 });
+    }
+
+    public static WSBaseResp buildTypingStop(Long channelId, Long threadId, Long userId) {
+        return WSBaseResp.of(WSRespTypeEnum.TYPING_STOP_PUSH.getType(),
+                new Object() {
+                    public final Long cid = channelId;
+                    public final Long tid = threadId;
+                    public final Long uid = userId;
+                });
+    }
+
+    public static WSBaseResp buildUserOnline(Long userId) {
+        return WSBaseResp.of(WSRespTypeEnum.USER_ONLINE.getType(),
+                new Object() { public final Long uid = userId; });
+    }
+
+    public static WSBaseResp buildUserOffline(Long userId) {
+        return WSBaseResp.of(WSRespTypeEnum.USER_OFFLINE.getType(),
+                new Object() { public final Long uid = userId; });
+    }
+
+    public static WSBaseResp buildMessageDelete(Long msgId, Long channelId) {
+        final Long mid = msgId;
+        final Long cid = channelId;
+        return WSBaseResp.of(WSRespTypeEnum.MESSAGE_DELETE.getType(),
+                new Object() { public final Long msgId = mid; public final Long channelId = cid; });
+    }
+
+    public static WSBaseResp buildMessageUpdate(Object messageVO) {
+        return WSBaseResp.of(WSRespTypeEnum.MESSAGE_UPDATE.getType(), messageVO);
+    }
+
+    public static WSBaseResp buildReactionRemove(Long msgId, String emoji, Long userId, int totalCount) {
+        return WSBaseResp.of(WSRespTypeEnum.REACTION_REMOVE.getType(),
+                new Object() {
+                    public final Long messageId = msgId;
+                    public final String e = emoji;
+                    public final Long uid = userId;
+                    public final int count = totalCount;
+                });
+    }
+
+    public static WSBaseResp buildThreadCreate(Object threadVO) {
+        return WSBaseResp.of(WSRespTypeEnum.THREAD_CREATE.getType(), threadVO);
+    }
+
+    public static WSBaseResp buildMemberJoin(Long serverId, Object memberVO) {
+        return WSBaseResp.of(WSRespTypeEnum.MEMBER_JOIN.getType(), memberVO);
+    }
+
+    public static WSBaseResp buildMemberLeave(Long serverId, Long userId) {
+        return WSBaseResp.of(WSRespTypeEnum.MEMBER_LEAVE.getType(),
+                new Object() { public final Long sid = serverId; public final Long uid = userId; });
+    }
+
+    public static WSBaseResp buildChannelCreate(Object channelVO) {
+        return WSBaseResp.of(WSRespTypeEnum.CHANNEL_CREATE.getType(), channelVO);
+    }
+
+    public static WSBaseResp buildChannelUpdate(Object channelVO) {
+        return WSBaseResp.of(WSRespTypeEnum.CHANNEL_UPDATE.getType(), channelVO);
+    }
+
+    public static WSBaseResp buildChannelDelete(Long channelId) {
+        return WSBaseResp.of(WSRespTypeEnum.CHANNEL_DELETE.getType(),
+                new Object() { public final Long cid = channelId; });
+    }
+
+    public static WSBaseResp buildServerUpdate(Object serverVO) {
+        return WSBaseResp.of(WSRespTypeEnum.SERVER_UPDATE.getType(), serverVO);
     }
 
     public static WSBaseResp buildError(String message) {
