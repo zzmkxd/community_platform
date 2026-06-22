@@ -88,7 +88,7 @@ services:
 
   # ==================== Community Platform App ====================
   app:
-    image: community-platform:latest
+    image: ghcr.io/zzmkxd/community-platform:latest
     container_name: community-app
     depends_on:
       mysql:

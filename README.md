@@ -26,17 +26,28 @@
 
 ### 方式 1: Docker Compose（推荐，一键启动）
 
+有 Java 21 环境：
+
 ```bash
 # 1. 打包
 export JAVA_HOME="/path/to/jdk-21"
 mvn package -pl community-server -am -DskipTests
 
 # 2. 构建镜像
-docker build -t community-platform:latest .
+docker build -t ghcr.io/zzmkxd/community-platform:latest .
 
 # 3. 启动全栈（MySQL + Redis + MinIO + RocketMQ + App）
 docker compose up -d
 ```
+
+无 Java 环境，直接拉取 CI 已构建的镜像（仅需 Docker）：
+
+```bash
+docker compose pull app
+docker compose up -d
+```
+
+> `docker compose pull` 从 GitHub Container Registry 拉取，无需本地编译。
 
 首次启动时 Docker Desktop 会弹出文件共享确认窗口，点击 **"Share it"** 允许挂载 `docs/ddl.sql`（数据库自动建表 + 种子数据）。
 
@@ -140,9 +151,9 @@ curl -X POST http://localhost:8080/api/v1/channels/1/messages \
 | **文件上传** | MinIO 预签名 URL | PENDING → UPLOADED 状态流转 |
 | **搜索** | 消息全文搜索 | MySQL LIKE + LIMIT 50 |
 | **WebSocket** | Netty 8091 端口 | JWT 认证 + 基础 WS 握手 |
-| **API 文档** | Swagger UI | 所有端点可在线调试 |
 | **Docker** | Dockerfile + docker-compose | 一键启动全栈，独立端口不冲突 |
-
+| **CI/CD** | GitHub Actions | push/PR 自动编译，push main 自动打包推送 GHCR |
+| **API 文档** | Swagger UI | 所有端点可在线调试 |
 ### 尚未实现 (Phase 4.x+)
 
 | 项目 | 说明 | 计划 |
