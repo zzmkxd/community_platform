@@ -1,6 +1,7 @@
 package com.community.server.controller;
 
 import com.community.common.domain.vo.response.ApiResult;
+import com.community.message.service.ChannelReadStateService;
 import com.community.server.domain.vo.ServerDetailVO;
 import com.community.server.domain.vo.ServerVO;
 import com.community.server.service.ServerService;
@@ -19,6 +20,7 @@ import java.util.Map;
 public class ServerController {
 
     private final ServerService serverService;
+    private final ChannelReadStateService channelReadStateService;
 
     @PostMapping
     public ApiResult<ServerVO> create(@RequestBody Map<String, String> body) {
@@ -39,6 +41,11 @@ public class ServerController {
     @GetMapping("/{serverId}")
     public ApiResult<ServerDetailVO> getDetail(@PathVariable Long serverId) {
         return ApiResult.success(serverService.getServerDetail(serverId));
+    }
+
+    @GetMapping("/{serverId}/unread")
+    public ApiResult<Map<Long, Long>> getUnread(@PathVariable Long serverId) {
+        return ApiResult.success(channelReadStateService.getUnreadCounts(serverId));
     }
 
     @PutMapping("/{serverId}")

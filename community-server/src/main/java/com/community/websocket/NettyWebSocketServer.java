@@ -26,7 +26,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class NettyWebSocketServer {
 
-    public static final int WEB_SOCKET_PORT = 8090;
+    public static final int WEB_SOCKET_PORT = 8091;
     public static final NettyWebSocketServerHandler NETTY_WEB_SOCKET_SERVER_HANDLER =
             new NettyWebSocketServerHandler();
 
