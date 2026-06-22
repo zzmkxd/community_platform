@@ -88,7 +88,7 @@ Server (服务器/社群)
 
 | 功能 | 说明 | MallChat 参考 |
 |------|------|--------------|
-| 连接管理 | Netty on 8090，JWT 认证 | `NettyWebSocketServer` 完整复用 |
+| 连接管理 | Netty on 8091，JWT 认证 | `NettyWebSocketServer` 完整复用 |
 | 频道订阅 | 客户端声明订阅哪些频道，仅收到相关推送 | 新增（MallChat 是房间级全推） |
 | 消息推送 | RocketMQ → PushConsumer → WS 帧 | `PushService` 模式复用 |
 | 输入状态 | TYPING_START/STOP，广播给同频道其他人 | 新增 |

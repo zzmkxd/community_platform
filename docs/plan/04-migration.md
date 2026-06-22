@@ -114,15 +114,18 @@ websocket/                →  websocket-server         无数据库
 
 ## 补充：尚待补全的组件
 
-以下组件在现有代码骨架中尚未实现，Phase 3-4 推进时补全：
+以下组件在现有代码骨架中尚未实现，Phase 4.x~5 推进时补全：
 
 | 包 | 待加入组件 | 对应 Phase | 状态 |
 |----|----------|-----------|------|
-| server/ | Invite Entity + Mapper + Dao + Service + Controller | Phase 3 | DDL 已补，代码待建 |
-| server/ | ChannelReadState Entity + Mapper + Dao + Service | Phase 4 | DDL 已补，代码待建 |
-| message/ | SoundMsgHandler, MsgHandlerFactory, AbstractMsgHandler, TextMsgHandler, ImageMsgHandler, FileMsgHandler, SystemMsgHandler | Phase 4 | 待建 |
-| message/ | PushService, MsgSendConsumer, MessageSendEvent/Listener | Phase 4 | 待建 |
+| server/ | Invite Entity + Mapper + Dao + Service + Controller | Phase 3 | ✅ 已完成 |
+| server/ | ChannelReadState Entity + Mapper + Dao + Service | Phase 4 | ✅ 已完成 |
+| message/ | SoundMsgHandler, MsgHandlerFactory, AbstractMsgHandler, TextMsgHandler, ImageMsgHandler, FileMsgHandler, SystemMsgHandler | Phase 4 | ✅ 已完成 |
+| message/ | PushService, MsgSendConsumer | Phase 4 | ❌ 待补（Phase 4.x） |
+| message/ | MessageSendEvent/Listener | Phase 4 | ⚠️ 骨架存在（仅 log，未发 MQ） |
 | common/ | MentionParser（@提及解析） | 后续 | v1 暂缓 |
 | common/ | sensitive/ (AC 自动机敏感词) | 后续 | v1 暂缓 |
+| file/ | FileService 真实实现（MinIO 预签名） | Phase 6 | ❌ 待补（当前 throw TODO） |
+| message/ | SearchService ES 实现 | Phase 6 | ⚠️ 当前用 MySQL LIKE 占位 |
 
 > 详见 [08-microservice-upgrade-path.md](./08-microservice-upgrade-path.md) 微服务拆分操作手册。

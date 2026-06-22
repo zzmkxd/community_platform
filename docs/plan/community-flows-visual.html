@@ -122,7 +122,7 @@
 <!-- Flow 1: WeChat Login -->
 <div class="flow wx">
 <h3>2.1 微信扫码登录 <span class="badge ws">WebSocket</span> <span class="badge mq">RocketMQ</span></h3>
-<div class="step"><div class="step-num ext">1</div><div class="step-body"><div class="step-title">前端建立 WebSocket 连接</div><div class="step-detail">ws://host:8090/ws → Netty 握手 → <span class="code">HttpHeadersHandler</span> 提取 token/IP → <span class="code">WebSocketServerProtocolHandler</span> 升级</div></div></div>
+<div class="step"><div class="step-num ext">1</div><div class="step-body"><div class="step-title">前端建立 WebSocket 连接</div><div class="step-detail">ws://host:8091/ → Netty 握手 → <span class="code">HttpHeadersHandler</span> 提取 token/IP → <span class="code">WebSocketServerProtocolHandler</span> 升级</div></div></div>
 <div class="step"><div class="step-num ws">2</div><div class="step-body"><div class="step-title">前端请求登录二维码</div><div class="step-detail">发送 <span class="code">{"type":1}</span> → <span class="code">WebSocketService.handleLoginReq(channel)</span> → 生成 loginCode → <span class="code">WxMpService.qrCodeCreateTmpTicket()</span> → 返回 <span class="code">{"type":1, "loginUrl"}</span></div></div></div>
 <div class="step"><div class="step-num ext">3</div><div class="step-body"><div class="step-title">用户微信扫码</div><div class="step-detail">微信发送 SCAN/SUBSCRIBE 事件到 <span class="code">WxPortalController.post()</span> → <span class="code">WxMpMessageRouter</span> → <span class="code">ScanHandler.handle()</span></div></div></div>
 <div class="step"><div class="step-num svc">4</div><div class="step-body"><div class="step-title">处理扫码事件</div><div class="step-detail"><span class="code">WxMsgService.scan()</span> — 查/建 User → Redis 存 <span class="code">openid:{openId}→loginCode</span> → 回复微信授权链接</div></div></div>
@@ -229,7 +229,7 @@
 <!-- Flow 11: WS State Machine -->
 <div class="flow sub">
 <h3>2.11 WebSocket 状态机（前端视角）</h3>
-<div class="step"><div class="step-num ws">1</div><div class="step-body"><div class="step-title">[未连接] → [已连接]</div><div class="step-detail">ws://host:8090/ws → Netty 30s IdleStateHandler 心跳检测</div></div></div>
+<div class="step"><div class="step-num ws">1</div><div class="step-body"><div class="step-title">[未连接] → [已连接]</div><div class="step-detail">ws://host:8091/ → Netty 30s IdleStateHandler 心跳检测</div></div></div>
 <div class="step"><div class="step-num ws">2</div><div class="step-body"><div class="step-title">[已连接] → [已认证]</div><div class="step-detail">收到 <span class="code">{"type":3}</span> (LOGIN_SUCCESS) — 绑定 uid, avatar, token</div></div></div>
 <div class="step"><div class="step-num ws">3</div><div class="step-body"><div class="step-title">[已认证] → [订阅中]</div><div class="step-detail">进入服务器 → GET /api/v1/servers/{id} → 发 <span class="code">{"type":10}</span> 批量订阅 → 收 <span class="code">{"type":11}</span> ACK</div></div></div>
 <div class="step"><div class="step-num ws">4</div><div class="step-body"><div class="step-title">在频道中交互</div><div class="step-detail">收 type=4(MESSAGE) / type=16(REACTION) / type=17(TYPING) | 发 type=13(TYPING_START) / type=14(TYPING_STOP)</div></div></div>

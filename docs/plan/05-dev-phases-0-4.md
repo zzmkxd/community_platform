@@ -2,7 +2,7 @@
 
 > Phase 5-8 → [06-dev-phases-5-8.md](./06-dev-phases-5-8.md)
 
-每个 Phase 结束条件：`./mvnw clean compile` 通过 + 本阶段 API 可 curl 验证。
+每个 Phase 结束条件：`mvn clean compile` 通过 + 本阶段 API 可 curl 验证。
 
 ---
 
@@ -18,7 +18,7 @@
 - [ ] 0.1.5 创建 `community-server/` 模块（pom.xml + 启动类 + application.yml）
 - [ ] 0.1.6 创建 `.gitignore` + `README.md`
 - [ ] 0.1.7 初始化 Git 仓库，首次提交
-- [ ] 0.1.8 验证：`./mvnw clean compile` → BUILD SUCCESS
+- [ ] 0.1.8 验证：`mvn clean compile` → BUILD SUCCESS
 
 #### 0.2 基础设施
 - [ ] 0.2.1 创建 `docker-compose.yml`（MySQL 3307 + Redis 6380 + RocketMQ + MinIO + ES）
@@ -79,7 +79,7 @@
 - [ ] 1.7.1 `@SecureInvoke` 注解 + `SecureInvokeAspect` 切面
 - [ ] 1.7.2 `SecureInvokeRecord` 实体 + `SecureInvokeRecordDao`
 - [ ] 1.7.3 `MQProducer.java` — 事务安全 RocketMQ 发送
-- [ ] 1.7.4 验证：`./mvnw clean compile` 全模块通过
+- [ ] 1.7.4 验证：`mvn clean compile` 全模块通过
 
 **MallChat 参考**：`mallchat-common-starter/` 下的所有 config、interceptor、utils、cache、exception 类，`mallchat-transaction/` 全部内容
 
@@ -127,7 +127,7 @@
 - [ ] 2.7.1 `curl POST /api/v1/auth/login` (seed data 账号) → 返回 JWT + userId
 - [ ] 2.7.2 无 Token 访问 /api/v1/users/me → 401
 - [ ] 2.7.3 带 Token 访问 /api/v1/users/me → 200 + UserVO
-- [ ] 2.7.4 `./mvnw clean compile` ✅
+- [ ] 2.7.4 `mvn clean compile` ✅
 
 **MallChat 参考**：`LoginServiceImpl.java`（JWT 签发）、`TokenInterceptor.java`（鉴权链路）、`JwtUtils.java`（auth0 java-jwt）
 
@@ -295,9 +295,9 @@
 | # | 方案要求 | 代码现状 | 决议 |
 |---|---------|---------|------|
 | P4-4 | **MessageSendListener** (4.5.2) → RocketMQ `SEND_MSG_TOPIC` | 只 `log.info()` + TODO 注释 | 与 P4-1/P4-2 联动，Phase 4.x 一起做 |
-| P4-5 | **getThreads** (4.6.2) 按 `last_active DESC` 排序 | 默认按 `id` 排序 | **立即修复** |
-| P4-6 | **消息列表附带 reactions** (4.7.4) | `buildMessageVOList` 传 `Collections.emptyList()` | **立即修复**（批量查 Reaction 后组装） |
-| P4-7 | **ThreadVO.creator** (4.9.3) — 应包含创建者 UserVO | `toThreadVO()` 未设置 `creator` | **立即修复**（查 User 后设置） |
+| P4-5 | **getThreads** (4.6.2) 按 `last_active DESC` 排序 | 默认按 `id` 排序 | **已修复**（`ThreadServiceImpl:82` 传入 `Thread::getLastActive`） |
+| P4-6 | **消息列表附带 reactions** (4.7.4) | `buildMessageVOList` 传 `Collections.emptyList()` | **已修复**（主流程 `MessageServiceImpl:197` 调用 `buildReactionMap`）。残留：`SearchServiceImpl:38` 和 `ThreadServiceImpl:129` 仍传 `emptyList()`，搜索和 Thread 消息列表暂不附带 Reaction |
+| P4-7 | **ThreadVO.creator** (4.9.3) — 应包含创建者 UserVO | `toThreadVO()` 未设置 `creator` | **已修复**（`ThreadServiceImpl:166-172` 查 User 后设置） |
 | P4-8 | **deleteMessage** (4.4.5) — "作者或 MANAGE_MESSAGES 权限" | 代码用 `ADMINISTRATOR` | **保持现状**。`MANAGE_MESSAGES` 在 PermissionBit 中不存在，`ADMINISTRATOR` 等价且更简单 |
 
 ##### 命名差异（保持代码现状，功能等价）

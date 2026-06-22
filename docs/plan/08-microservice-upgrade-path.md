@@ -219,7 +219,7 @@ JWT 校验 → 在 Gateway 层做一个全局过滤器，提取 Header Token →
 
 ### 3.3 WebSocket 不经过 Gateway
 
-Netty 端口 8090 直连，不走 HTTP Gateway。WS 认证 Token 通过 URL 参数传递，与 MallChat 一致。
+Netty 端口 8091 直连，不走 HTTP Gateway。WS 认证 Token 通过 URL 参数传递，与 MallChat 一致。
 
 ---
 
@@ -244,7 +244,7 @@ user-service           : 8081
 server-service         : 8082
 message-service        : 8083
 file-service           : 8084
-community-websocket    : 8090  (Netty WS, 直连)
+community-websocket    : 8091  (Netty WS, 直连)
 ```
 
 ---
@@ -270,7 +270,7 @@ community_platform_file    → file-service
 
 - [ ] 所有服务注册到 Nacos 控制台
 - [ ] Gateway 路由分发正确（curl Gateway 端口，各路径路由到对应服务）
-- [ ] WebSocket 连接 8090 → 扫码登录 → LOGIN_SUCCESS 正常
+- [ ] WebSocket 连接 8091 → 扫码登录 → LOGIN_SUCCESS 正常
 - [ ] 发消息全链路：REST → Gateway → message-service → Feign → server-service/checkPermission → MQ → websocket → 前端
 - [ ] Phase 7 冒烟测试脚本全部通过
 - [ ] 断点调试：各服务单步跟踪，Feign 调用链正确

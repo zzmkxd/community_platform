@@ -17,7 +17,7 @@ feat(phaseN): <简短描述>
 ```
 1. 读 docs/plan/README.md → 确认当前 Phase 进度
 2. 执行下一步 checkbox [ ]
-3. ./mvnw clean compile — 通过才继续
+3. mvn clean compile — 通过才继续
 4. 标记 [x]   → 继续下一步，或提交
 ```
 
@@ -25,13 +25,13 @@ feat(phaseN): <简短描述>
 
 ```bash
 # Phase 0-7: 单体编译
-./mvnw clean compile -pl community-server -am
+mvn clean compile -pl community-server -am
 
 # 完整打包
-./mvnw clean package -DskipTests
+mvn clean package -DskipTests
 
 # Phase 8: 全模块编译
-./mvnw clean compile
+mvn clean compile
 
 # 基础设施
 docker compose up -d

@@ -2,7 +2,7 @@
 
 > Phase 0-4 → [05-dev-phases-0-4.md](./05-dev-phases-0-4.md)
 
-每个 Phase 结束条件：`./mvnw clean compile` 通过 + 本阶段 API 可 curl 验证。
+每个 Phase 结束条件：`mvn clean compile` 通过 + 本阶段 API 可 curl 验证。
 
 ---
 
@@ -11,7 +11,7 @@
 **目标**：Netty WebSocket 服务器，频道订阅/退订，实时消息推送，输入状态，在线通知
 
 #### 5.1 Netty 服务器
-- [ ] 5.1.1 `NettyWebSocketServer.java` — 端口 8090，Pipeline 配置（从 MallChat 照搬）
+- [ ] 5.1.1 `NettyWebSocketServer.java` — 端口 8091，Pipeline 配置（从 MallChat 照搬）
 - [ ] 5.1.2 `HttpHeadersHandler.java` — 从 URL 参数提取 Token + IP（照搬）
 - [ ] 5.1.3 `NettyUtil.java` — Channel Attribute 管理（照搬）
 - [ ] 5.1.4 `NettyWebSocketServerHandler.java` — WS 帧处理（照搬 + 扩展）
@@ -121,7 +121,7 @@
 - [ ] 7.5.1 Docker Compose 一键启动全部服务 + 应用
 - [ ] 7.5.2 `bash scripts/smoke-test.sh` 全部通过
 - [ ] 7.5.3 Knife4j 文档可浏览
-- [ ] 7.5.4 `./mvnw clean package -DskipTests` BUILD SUCCESS
+- [ ] 7.5.4 `mvn clean package -DskipTests` BUILD SUCCESS
 - [ ] 7.5.5 Git 提交：`release(phase7): 完整交付 — 测试 + 文档 + 冒烟`
 
 ---
@@ -136,14 +136,14 @@
 - [ ] 7+.1.1 检查所有 `import`：无跨包 DAO/Mapper 引用
 - [ ] 7+.1.2 检查所有 `import`：无跨包 Entity 引用
 - [ ] 7+.1.3 检查每个业务包的 service 子包：关键接口有完整定义
-- [ ] 7+.1.4 验证：`./mvnw clean compile` 全模块通过
+- [ ] 7+.1.4 验证：`mvn clean compile` 全模块通过
 
 #### 7+.2 WebSocket 独立进程（可选，推荐）
 - [ ] 7+.2.1 创建 `community-websocket` 模块 — 仅含 Netty + PushConsumer，不依赖 Spring Web/Tomcat
 - [ ] 7+.2.2 创建 `NettyWsApplication` 启动类（`@SpringBootApplication`，排除 Web 自动配置）
 - [ ] 7+.2.3 主服务 `community-server` 共享 `community-common` JAR
 - [ ] 7+.2.4 两个进程通过 RocketMQ 通信（PUSH_TOPIC 已就绪，无需改代码）
-- [ ] 7+.2.5 验证：同时启动两个进程 → WS 连接 8090 → HTTP 请求 8080 → 消息推送正常
+- [ ] 7+.2.5 验证：同时启动两个进程 → WS 连接 8091 → HTTP 请求 8080 → 消息推送正常
 - [ ] 7+.2.6 Git 提交：`feat(phase7+): 接口边界审计通过 + WebSocket 独立进程`
 
 **如不拆分 websocket**：在 `community-server` 中通过 `@Profile("local")` 控制 Netty 随主进程启动（默认行为），生产环境如需独立部署则激活 `@Profile("prod")`。
@@ -172,7 +172,7 @@
 - [ ] 8.3.2 提取 `server-service`（独立启动类 + 独立端口 8082）
 - [ ] 8.3.3 提取 `message-service`（独立启动类 + 独立端口 8083）
 - [ ] 8.3.4 提取 `file-service`（独立启动类 + 独立端口 8084）
-- [ ] 8.3.5 提取 `websocket-server`（独立启动类，8090 WS + 8091 health）
+- [ ] 8.3.5 提取 `websocket-server`（独立启动类，8091 WS + 8092 health）
 
 #### 8.4 Feign 跨服务调用
 - [ ] 8.4.1 `UserServiceClient` — user-service 暴露的 Feign 接口

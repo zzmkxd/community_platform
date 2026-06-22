@@ -15,11 +15,12 @@ POST   /api/v1/auth/refresh        { token }                      → { token }
 GET    /api/v1/users/me                                           → UserVO
 PUT    /api/v1/users/me             { nickname?, avatar?, email? } → UserVO
 GET    /api/v1/users/{id}                                         → UserVO (public)
+POST   /api/v1/users/me/bind-wx    { code }                       → UserVO  (绑定微信)
 
-=== 微信回调（公开路径 /api/v1/public/wx，Phase 2+ 可选移植）===
-GET    /api/v1/public/wx                       → 微信服务器验证（signature/timestamp/nonce/echostr）
-POST   /api/v1/public/wx                       → 微信事件推送（SCAN/SUBSCRIBE 扫码事件）
-GET    /api/v1/public/wx/callBack?code=         → OAuth2 授权回调（code 换 accessToken → 用户信息 → 签发 JWT）
+=== 微信回调（公开路径 /wx/portal/public，Phase 2+ 可选移植）===
+GET    /wx/portal/public                       → 微信服务器验证（signature/timestamp/nonce/echostr）
+POST   /wx/portal/public                       → 微信事件推送（SCAN/SUBSCRIBE 扫码事件）
+GET    /wx/portal/public/callBack?code=         → OAuth2 授权回调（code 换 accessToken → 用户信息 → 签发 JWT）
 ```
 
 ## 3.2 服务器/频道相关 (server/)
@@ -50,7 +51,7 @@ GET    /api/v1/servers/{serverId}/members?cursor=&pageSize=50    → CursorPage<
 POST   /api/v1/servers/{serverId}/members                        → MemberVO  (加入服务器)
 DELETE /api/v1/servers/{serverId}/members/{userId}               → 204        (踢出/离开)
 PUT    /api/v1/servers/{serverId}/members/me/nickname  { nickname } → MemberVO
-POST   /api/v1/servers/{serverId}/transfer   { targetUserId }    → ServerVO  (转让 owner，仅当前 owner 可操作)
+PUT    /api/v1/servers/{serverId}/members/transfer-ownership  { newOwnerId }    → 204  (转让 owner，仅当前 owner 可操作)
 
 === Role ===
 POST   /api/v1/servers/{serverId}/roles            { name, color?, permissions, position? } → RoleVO
@@ -71,8 +72,8 @@ GET    /api/v1/servers/{serverId}/emojis                             → [EmojiV
 DELETE /api/v1/servers/{serverId}/emojis/{emojiId}                   → 204
 
 === Invite ===
-POST   /api/v1/servers/{serverId}/invites     { maxUses?, expireHours? }  → InviteVO
-POST   /api/v1/invites/{code}/join                                         → MemberVO
+POST   /api/v1/servers/{serverId}/invites       { maxUses?, expireHours? }  → InviteVO
+POST   /api/v1/servers/{serverId}/invites/join  { code }                     → ServerVO
 ```
 
 ## 3.3 消息相关 (message/)
@@ -149,7 +150,7 @@ GET    /api/v1/files/{fileId}/download                              → { downlo
 ### 4.2 前端 WebSocket 状态机
 
 ```
-[未连接] → ws://host:8090/ws → [已连接]
+[未连接] → ws://host:8091/ → [已连接]
   │
   ▼ 收到 type=3 LOGIN_SUCCESS → [已认证]
   │
