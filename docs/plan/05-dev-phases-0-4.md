@@ -278,6 +278,34 @@
 
 **目标**：实现消息发送 → 持久化 → 推送的完整链路，含 Thread 和 Reaction。复用 MallChat 策略模式。
 
+#### 4.0.1 实现差异记录 (2026-06-22)
+
+> 以下为方案文档与代码实现之间的差异，已逐一评审并给出决议。
+
+##### 缺失（按需推进）
+
+| # | 方案要求 | 代码现状 | 决议 |
+|---|---------|---------|------|
+| P4-1 | **MsgSendConsumer** (4.5.3) — RocketMQ 消费 → 构建 MessageVO → PushService | 不存在。仅有 PushConsumer / MsgLoginConsumer / ScanSuccessConsumer | Phase 4.x 补（与 P4-2、P4-3 联调） |
+| P4-2 | **PushService** (4.5.4) — `sendPushMsg()` → RocketMQ PUSH_TOPIC | 不存在 | Phase 4.x 补 |
+| P4-3 | **autoArchiveThreads** (4.6.5) — `@Scheduled` 每小时归档 24h 无活动 Thread | 未实现 | Phase 4.x 补 |
+
+##### 行为差异
+
+| # | 方案要求 | 代码现状 | 决议 |
+|---|---------|---------|------|
+| P4-4 | **MessageSendListener** (4.5.2) → RocketMQ `SEND_MSG_TOPIC` | 只 `log.info()` + TODO 注释 | 与 P4-1/P4-2 联动，Phase 4.x 一起做 |
+| P4-5 | **getThreads** (4.6.2) 按 `last_active DESC` 排序 | 默认按 `id` 排序 | **立即修复** |
+| P4-6 | **消息列表附带 reactions** (4.7.4) | `buildMessageVOList` 传 `Collections.emptyList()` | **立即修复**（批量查 Reaction 后组装） |
+| P4-7 | **ThreadVO.creator** (4.9.3) — 应包含创建者 UserVO | `toThreadVO()` 未设置 `creator` | **立即修复**（查 User 后设置） |
+| P4-8 | **deleteMessage** (4.4.5) — "作者或 MANAGE_MESSAGES 权限" | 代码用 `ADMINISTRATOR` | **保持现状**。`MANAGE_MESSAGES` 在 PermissionBit 中不存在，`ADMINISTRATOR` 等价且更简单 |
+
+##### 命名差异（保持代码现状，功能等价）
+
+| # | 方案 | 代码 | 决议 |
+|---|------|------|------|
+| P4-9 | `CREATE_THREAD` 权限 | `USE_THREADS` | 保持现状 |
+
 #### 4.1 数据库（4 张表）
 - [ ] 4.1.1 `message` 表 DDL（已建）
 - [ ] 4.1.2 `thread` 表 DDL（已建）
