@@ -28,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -66,8 +68,9 @@ public class ThreadServiceImpl implements ThreadService {
         thread.setLastActive(LocalDateTime.now());
         threadDao.save(thread);
 
+        User user = userDao.getById(uid);
         log.info("Thread created: id={}, name={}, channelId={}", thread.getId(), name, channelId);
-        return toThreadVO(thread);
+        return toThreadVO(thread, user);
     }
 
     @Override
@@ -76,14 +79,24 @@ public class ThreadServiceImpl implements ThreadService {
         CursorPageBaseResp<Thread> page = CursorUtils.getCursorPageByMysql(
                 threadDao, req,
                 wrapper -> wrapper.eq(Thread::getChannelId, channelId),
-                Thread::getId
+                Thread::getLastActive
         );
 
         if (page.isEmpty()) {
             return CursorPageBaseResp.empty();
         }
 
-        List<ThreadVO> voList = page.getList().stream().map(this::toThreadVO).toList();
+        List<Thread> threads = page.getList();
+        List<Long> creatorIds = threads.stream().map(Thread::getCreatorId).distinct().toList();
+        Map<Long, User> userMap = userDao.lambdaQuery()
+                .in(User::getId, creatorIds)
+                .list()
+                .stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
+
+        List<ThreadVO> voList = threads.stream()
+                .map(t -> toThreadVO(t, userMap.get(t.getCreatorId())))
+                .toList();
         return CursorPageBaseResp.init(page, voList);
     }
 
@@ -93,7 +106,8 @@ public class ThreadServiceImpl implements ThreadService {
         if (thread == null) {
             throw new BusinessException(BusinessErrorEnum.THREAD_NOT_FOUND);
         }
-        return toThreadVO(thread);
+        User creator = userDao.getById(thread.getCreatorId());
+        return toThreadVO(thread, creator);
     }
 
     @Override
@@ -134,11 +148,12 @@ public class ThreadServiceImpl implements ThreadService {
         }
         threadDao.updateById(thread);
 
+        User creator = userDao.getById(thread.getCreatorId());
         log.info("Thread updated: id={}, name={}, status={}", threadId, name, status);
-        return toThreadVO(thread);
+        return toThreadVO(thread, creator);
     }
 
-    private ThreadVO toThreadVO(Thread thread) {
+    private ThreadVO toThreadVO(Thread thread, User creator) {
         ThreadVO vo = new ThreadVO();
         vo.setId(thread.getId());
         vo.setChannelId(thread.getChannelId());
@@ -148,6 +163,13 @@ public class ThreadServiceImpl implements ThreadService {
         vo.setMessageCount(thread.getMessageCount());
         vo.setLastActive(thread.getLastActive());
         vo.setCreateTime(thread.getCreateTime());
+        if (creator != null) {
+            com.community.user.domain.vo.UserVO cv = new com.community.user.domain.vo.UserVO();
+            cv.setId(creator.getId());
+            cv.setNickname(creator.getNickname());
+            cv.setAvatar(creator.getAvatar());
+            vo.setCreator(cv);
+        }
         return vo;
     }
 }

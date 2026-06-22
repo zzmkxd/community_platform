@@ -1,16 +1,16 @@
 package com.community.message.service.adapter;
 
 import com.community.message.domain.entity.Message;
-import com.community.message.domain.entity.Reaction;
 import com.community.message.domain.entity.Thread;
 import com.community.message.domain.vo.MessageVO;
+import com.community.message.domain.vo.ReactionVO;
 import com.community.user.domain.entity.User;
 
 import java.util.List;
 
 public class MessageAdapter {
 
-    public static MessageVO buildMessageVO(Message message, User fromUser, List<Reaction> reactions, Thread thread) {
+    public static MessageVO buildMessageVO(Message message, User fromUser, List<ReactionVO> reactions, Thread thread) {
         MessageVO vo = new MessageVO();
         vo.setId(message.getId());
         vo.setChannelId(message.getChannelId());
@@ -31,13 +31,7 @@ public class MessageAdapter {
         }
 
         if (reactions != null && !reactions.isEmpty()) {
-            vo.setReactions(reactions.stream().map(r -> {
-                com.community.message.domain.vo.ReactionVO rvo = new com.community.message.domain.vo.ReactionVO();
-                rvo.setEmoji(r.getEmoji());
-                rvo.setCount(1);
-                rvo.setUserIds(List.of(r.getUserId()));
-                return rvo;
-            }).toList());
+            vo.setReactions(reactions);
         }
 
         if (thread != null) {

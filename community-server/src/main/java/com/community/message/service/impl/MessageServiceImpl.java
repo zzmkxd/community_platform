@@ -7,11 +7,14 @@ import com.community.common.exception.BusinessException;
 import com.community.common.utils.CursorUtils;
 import com.community.common.utils.RequestHolder;
 import com.community.message.dao.MessageDao;
+import com.community.message.dao.ReactionDao;
 import com.community.message.dao.ThreadDao;
 import com.community.message.domain.dto.SendMsgReq;
 import com.community.message.domain.entity.Message;
+import com.community.message.domain.entity.Reaction;
 import com.community.message.domain.entity.Thread;
 import com.community.message.domain.vo.MessageVO;
+import com.community.message.domain.vo.ReactionVO;
 import com.community.message.event.ChannelMessageSendEvent;
 import com.community.message.service.MessageService;
 import com.community.message.service.adapter.MessageAdapter;
@@ -43,6 +46,7 @@ public class MessageServiceImpl implements MessageService {
     private final ThreadDao threadDao;
     private final ChannelDao channelDao;
     private final UserDao userDao;
+    private final ReactionDao reactionDao;
     private final PermissionService permissionService;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -178,6 +182,10 @@ public class MessageServiceImpl implements MessageService {
     }
 
     private List<MessageVO> buildMessageVOList(List<Message> messages) {
+        if (messages.isEmpty()) {
+            return List.of();
+        }
+
         List<Long> userIds = messages.stream().map(Message::getFromUid).distinct().toList();
         Map<Long, User> userMap = userDao.lambdaQuery()
                 .in(User::getId, userIds)
@@ -185,9 +193,45 @@ public class MessageServiceImpl implements MessageService {
                 .stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
 
+        List<Long> msgIds = messages.stream().map(Message::getId).toList();
+        Map<Long, List<ReactionVO>> reactionMap = buildReactionMap(msgIds);
+
         return messages.stream()
                 .map(msg -> MessageAdapter.buildMessageVO(
-                        msg, userMap.get(msg.getFromUid()), Collections.emptyList(), null))
+                        msg, userMap.get(msg.getFromUid()),
+                        reactionMap.getOrDefault(msg.getId(), List.of()), null))
                 .toList();
+    }
+
+    private Map<Long, List<ReactionVO>> buildReactionMap(List<Long> msgIds) {
+        List<Reaction> reactions = reactionDao.lambdaQuery()
+                .in(Reaction::getMessageId, msgIds)
+                .list();
+
+        Map<Long, Map<String, ReactionVO>> grouped = new java.util.HashMap<>();
+        for (Reaction r : reactions) {
+            Map<String, ReactionVO> emojiMap = grouped.computeIfAbsent(r.getMessageId(),
+                    k -> new java.util.LinkedHashMap<>());
+            ReactionVO vo = emojiMap.computeIfAbsent(r.getEmoji(), emoji -> {
+                ReactionVO rvo = new ReactionVO();
+                rvo.setEmoji(emoji);
+                rvo.setCount(0);
+                rvo.setUserIds(new java.util.ArrayList<>());
+                return rvo;
+            });
+            vo.setCount(vo.getCount() + 1);
+            vo.getUserIds().add(r.getUserId());
+        }
+
+        Long currentUid = RequestHolder.get().getUid();
+        Map<Long, List<ReactionVO>> result = new java.util.HashMap<>();
+        for (var entry : grouped.entrySet()) {
+            List<ReactionVO> list = new java.util.ArrayList<>(entry.getValue().values());
+            for (ReactionVO vo : list) {
+                vo.setReacted(vo.getUserIds().contains(currentUid));
+            }
+            result.put(entry.getKey(), list);
+        }
+        return result;
     }
 }
