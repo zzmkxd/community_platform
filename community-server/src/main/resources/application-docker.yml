@@ -1,0 +1,53 @@
+# Docker 环境配置 — 所有 host 使用 Docker 服务名
+community:
+  mysql:
+    ip: mysql
+    port: 3306
+    db: community_platform
+    username: root
+    password: 123456
+  redis:
+    host: redis
+    port: 6379
+    password: 123456
+  jwt:
+    secret: docker-dev-secret-not-for-production
+  wx:
+    callback: http://localhost:8081
+    appId: placeholder
+    secret: placeholder
+    token: placeholder
+    aesKey: placeholder
+  minio:
+    endpoint: http://minio:9000
+    access-key: minioadmin
+    secret-key: minioadmin
+    bucket: community
+  es:
+    uris: http://elasticsearch:9200
+
+spring:
+  redis:
+    host: redis
+    port: 6379
+    password: 123456
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.elasticsearch.ReactiveElasticsearchClientAutoConfiguration
+
+rocketmq:
+  name-server: rocketmq-namesrv:9876
+
+oss:
+  enabled: true
+  type: minio
+  endpoint: http://minio:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket-name: community
+
+logging:
+  level:
+    root: INFO
+    com.community: DEBUG

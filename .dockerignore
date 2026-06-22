@@ -1,0 +1,15 @@
+target/classes
+target/maven-status
+target/generated-sources
+target/test-classes
+.git
+.gitignore
+*.md
+!docs/ddl.sql
+.idea/
+.vscode/
+plan/
+plan_front/
+.claude/
+course-project/
+*.log

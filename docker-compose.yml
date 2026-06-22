@@ -1,0 +1,120 @@
+services:
+  # ==================== MySQL 8.0 ====================
+  mysql:
+    image: mysql:8.0
+    container_name: community-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: community_platform
+    ports:
+      - "3308:3306"
+    volumes:
+      - community-mysql-data:/var/lib/mysql
+      - ./docs/ddl.sql:/docker-entrypoint-initdb.d/01-init.sql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - community-net
+
+  # ==================== Redis 7 ====================
+  redis:
+    image: redis:7-alpine
+    container_name: community-redis
+    ports:
+      - "6381:6379"
+    volumes:
+      - community-redis-data:/data
+    command: redis-server --requirepass 123456 --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "123456", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - community-net
+
+  # ==================== MinIO ====================
+  minio:
+    image: minio/minio:latest
+    container_name: community-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9004:9000"   # API
+      - "9005:9001"   # Console
+    volumes:
+      - community-minio-data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - community-net
+
+  # ==================== RocketMQ NameServer ====================
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.1.4
+    container_name: community-rocketmq-namesrv
+    command: sh mqnamesrv
+    ports:
+      - "9878:9876"
+    networks:
+      - community-net
+
+  # ==================== RocketMQ Broker ====================
+  rocketmq-broker:
+    image: apache/rocketmq:5.1.4
+    container_name: community-rocketmq-broker
+    depends_on:
+      - rocketmq-namesrv
+    command: sh mqbroker -n rocketmq-namesrv:9876 -c /home/rocketmq/conf/broker.conf
+    ports:
+      - "10919:10909"
+      - "11911:10911"
+    volumes:
+      - ./broker.conf:/home/rocketmq/conf/broker.conf
+    networks:
+      - community-net
+
+  # ==================== Community Platform App ====================
+  app:
+    image: community-platform:latest
+    container_name: community-app
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8081:8080"   # HTTP API
+      - "8092:8091"   # WebSocket
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: "6379"
+      SPRING_REDIS_PASSWORD: "123456"
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/community_platform?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&connectionCollation=utf8mb4_unicode_ci"
+    volumes:
+      - community-app-logs:/app/logs
+    networks:
+      - community-net
+
+volumes:
+  community-mysql-data:
+  community-redis-data:
+  community-minio-data:
+  community-app-logs:
+
+networks:
+  community-net:
+    driver: bridge
