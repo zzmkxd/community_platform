@@ -74,6 +74,8 @@ public class NettyWebSocketServerHandler extends SimpleChannelInboundHandler<Tex
         switch (wsReqTypeEnum) {
             case LOGIN -> webSocketService.handleLogin(ctx.channel());
             case HEARTBEAT -> { /* no-op */ }
+            case SEND_MESSAGE ->
+                    webSocketService.handleSendMessage(ctx.channel(), wsBaseReq.getData());
             case SUBSCRIBE_CHANNEL ->
                     webSocketService.subscribeChannel(ctx.channel(), wsBaseReq.getData());
             case UNSUBSCRIBE_CHANNEL ->

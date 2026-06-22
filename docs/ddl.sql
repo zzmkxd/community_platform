@@ -34,12 +34,10 @@ CREATE TABLE IF NOT EXISTS `user` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
 
 -- Seed data: 预置测试账号 (密码均为 "123456")
--- 运行以下 Java 代码生成 BCrypt 哈希后替换占位符:
---   System.out.println(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("123456"));
 INSERT INTO `user` (`id`, `username`, `password`, `nickname`, `email`) VALUES
-(1, 'alice',   '<BCRYPT_HASH_OF_123456>', 'Alice',   'alice@test.com'),
-(2, 'bob',     '<BCRYPT_HASH_OF_123456>', 'Bob',     'bob@test.com'),
-(3, 'charlie', '<BCRYPT_HASH_OF_123456>', 'Charlie', 'charlie@test.com');
+(1, 'alice',   '$2a$10$mLITQAM7X/6NI0trNtT10O6yUGEDczRxMz9RLAF8/VwrYO5yoZuw6', 'Alice',   'alice@test.com'),
+(2, 'bob',     '$2a$10$mLITQAM7X/6NI0trNtT10O6yUGEDczRxMz9RLAF8/VwrYO5yoZuw6', 'Bob',     'bob@test.com'),
+(3, 'charlie', '$2a$10$mLITQAM7X/6NI0trNtT10O6yUGEDczRxMz9RLAF8/VwrYO5yoZuw6', 'Charlie', 'charlie@test.com');
 
 -- =============================================
 -- 2. Server 服务器表
@@ -169,7 +167,26 @@ CREATE TABLE IF NOT EXISTS `emoji` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='表情表';
 
 -- =============================================
--- 10. Message 消息表
+-- 10. Invite 邀请链接表
+-- =============================================
+CREATE TABLE IF NOT EXISTS `invite` (
+    `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '邀请 ID',
+    `server_id`   BIGINT       NOT NULL COMMENT '所属服务器 ID',
+    `inviter_id`  BIGINT       NOT NULL COMMENT '创建者用户 ID',
+    `code`        VARCHAR(16)  NOT NULL COMMENT '邀请码（UUID 短码）',
+    `max_uses`    INT          DEFAULT 0 COMMENT '最大使用次数（0=不限）',
+    `used_count`  INT          DEFAULT 0 COMMENT '已使用次数',
+    `expire_time` DATETIME     DEFAULT NULL COMMENT '过期时间（NULL=永久）',
+    `status`      TINYINT      DEFAULT 1 COMMENT '状态: 0=失效 1=有效',
+    `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_code` (`code`),
+    KEY `idx_server_id` (`server_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='邀请链接表';
+
+-- =============================================
+-- 11. Message 消息表
 -- =============================================
 CREATE TABLE IF NOT EXISTS `message` (
     `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '消息 ID',
@@ -191,7 +208,7 @@ CREATE TABLE IF NOT EXISTS `message` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='消息表';
 
 -- =============================================
--- 11. Thread 话题表
+-- 12. Thread 话题表
 -- =============================================
 CREATE TABLE IF NOT EXISTS `thread` (
     `id`            BIGINT      NOT NULL AUTO_INCREMENT COMMENT '话题 ID',
@@ -210,7 +227,7 @@ CREATE TABLE IF NOT EXISTS `thread` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='话题表';
 
 -- =============================================
--- 12. Reaction 反应表
+-- 13. Reaction 反应表
 -- =============================================
 CREATE TABLE IF NOT EXISTS `reaction` (
     `id`          BIGINT      NOT NULL AUTO_INCREMENT COMMENT '反应 ID',
@@ -224,7 +241,22 @@ CREATE TABLE IF NOT EXISTS `reaction` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='反应表';
 
 -- =============================================
--- 13. FileAttachment 文件附件表
+-- 14. channel_read_state 已读追踪表
+-- =============================================
+CREATE TABLE IF NOT EXISTS `channel_read_state` (
+    `id`              BIGINT   NOT NULL AUTO_INCREMENT COMMENT '记录 ID',
+    `user_id`         BIGINT   NOT NULL COMMENT '用户 ID',
+    `channel_id`      BIGINT   NOT NULL COMMENT '频道 ID',
+    `last_read_msg_id` BIGINT  DEFAULT 0 COMMENT '最后已读消息 ID',
+    `create_time`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_user_channel` (`user_id`, `channel_id`),
+    KEY `idx_channel_id` (`channel_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='频道已读追踪表';
+
+-- =============================================
+-- 15. FileAttachment 文件附件表
 -- =============================================
 CREATE TABLE IF NOT EXISTS `file_attachment` (
     `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '文件 ID',

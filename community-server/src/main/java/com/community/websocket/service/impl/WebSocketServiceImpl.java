@@ -96,8 +96,6 @@ public class WebSocketServiceImpl implements WebSocketService {
         Long uid = NettyUtil.getAttr(channel, NettyUtil.UID);
         if (uid != null) {
             RedisUtils.del(RedisKey.WS_USER + uid);
-            RedisUtils.del(RedisKey.WS_SUB_CHANNEL + uid);
-            RedisUtils.del(RedisKey.WS_SUB_THREAD + uid);
         }
         log.info("WS removed: uid={}", uid);
     }
@@ -137,6 +135,12 @@ public class WebSocketServiceImpl implements WebSocketService {
         if (uid != null && threadId != null) {
             RedisUtils.sRemove(RedisKey.WS_SUB_THREAD + threadId, String.valueOf(uid));
         }
+    }
+
+    @Override
+    public void handleSendMessage(Channel channel, String data) {
+        log.debug("SEND_MESSAGE received, data: {}", data);
+        // TODO Phase 3: 解析消息 → 持久化 → MQ → PushConsumer → pushToChannel
     }
 
     @Override

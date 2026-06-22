@@ -112,15 +112,17 @@ websocket/                →  websocket-server         无数据库
 
 ---
 
-## 补充：MallChat 计划中尚待加入的组件
+## 补充：尚待补全的组件
 
-以下组件来自 MallChat plan (`05-dev-phases-0-4.md`)，在社区平台现有代码骨架中尚未实现，Phase 3-4 推进时补全：
+以下组件在现有代码骨架中尚未实现，Phase 3-4 推进时补全：
 
-| 包 | 待加入组件 | 对应 Phase |
-|----|----------|-----------|
-| user/ | WxPortalController, WxMsgService, LoginService | Phase 2+ (微信登录可选) |
-| server/ | InviteController, InviteService, InviteDao, Invite entity | Phase 3 |
-| message/ | SoundMsgHandler, MentionParser, ChannelReadStateService, ChannelReadStateDao, PushService | Phase 4 |
-| common/ | MQConstant.java, sensitive/ (AC 自动机) | Phase 1/4 |
+| 包 | 待加入组件 | 对应 Phase | 状态 |
+|----|----------|-----------|------|
+| server/ | Invite Entity + Mapper + Dao + Service + Controller | Phase 3 | DDL 已补，代码待建 |
+| server/ | ChannelReadState Entity + Mapper + Dao + Service | Phase 4 | DDL 已补，代码待建 |
+| message/ | SoundMsgHandler, MsgHandlerFactory, AbstractMsgHandler, TextMsgHandler, ImageMsgHandler, FileMsgHandler, SystemMsgHandler | Phase 4 | 待建 |
+| message/ | PushService, MsgSendConsumer, MessageSendEvent/Listener | Phase 4 | 待建 |
+| common/ | MentionParser（@提及解析） | 后续 | v1 暂缓 |
+| common/ | sensitive/ (AC 自动机敏感词) | 后续 | v1 暂缓 |
 
 > 详见 [08-microservice-upgrade-path.md](./08-microservice-upgrade-path.md) 微服务拆分操作手册。

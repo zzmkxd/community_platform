@@ -633,8 +633,8 @@ mvn clean compile -pl community-server -am  # BUILD SUCCESS
 
 | # | 条目 | 阻塞场景 | 说明 |
 |---|------|---------|------|
-| T1 | BCrypt seed data 哈希 | docker compose 首次启动 | `ddl.sql` 中 `<BCRYPT_HASH_OF_123456>` 占位符需替换为真实 BCrypt hash，否则 seed data 账号无法登录 |
-| T2 | `application-local.properties` 微信凭据 | 微信扫码登录 | 当前使用 MallChat 公众号凭据，新环境需更新 `community.wx.*` |
+| ~~T1~~ | ~~BCrypt seed data 哈希~~ | ✅ 已完成 (2026-06-22) | `ddl.sql` 中占位符已替换为真实 BCrypt hash |
+| ~~T2~~ | ~~应用配置 微信凭据~~ | ✅ 已完成 (2026-06-22) | 微信凭据已填入，复用 MallChat 公众号 |
 
 ### 功能缺口（按 Phase 推进时补齐）
 

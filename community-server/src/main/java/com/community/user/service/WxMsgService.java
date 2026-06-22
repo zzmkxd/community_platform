@@ -42,7 +42,12 @@ public class WxMsgService {
 
     public WxMpXmlOutMessage scan(WxMpService wxMpService, WxMpXmlMessage wxMpXmlMessage) {
         String openid = wxMpXmlMessage.getFromUser();
-        Integer loginCode = Integer.parseInt(getEventKey(wxMpXmlMessage));
+        String eventKey = getEventKey(wxMpXmlMessage);
+        if (!eventKey.matches("\\d+")) {
+            log.warn("scan() called with non-numeric eventKey: {}", eventKey);
+            return null;
+        }
+        Integer loginCode = Integer.parseInt(eventKey);
         User user = userDao.getByOpenId(openid);
         // 已注册且有头像，直接登录成功
         if (Objects.nonNull(user) && StringUtils.isNotEmpty(user.getAvatar())) {
@@ -73,8 +78,15 @@ public class WxMsgService {
 
     public void authorize(WxOAuth2UserInfo userInfo) {
         User user = userDao.getByOpenId(userInfo.getOpenid());
-        // 更新用户信息
-        if (StringUtils.isEmpty(user.getNickname()) || user.getNickname().startsWith("微信用户")) {
+        if (user == null) {
+            user = new User();
+            user.setOpenId(userInfo.getOpenid());
+            user.setNickname("微信用户" + RandomUtil.randomInt(100000));
+            userDao.save(user);
+        }
+        // 更新用户信息（首次授权或无头像时填入微信信息）
+        if (StringUtils.isEmpty(user.getAvatar()) || StringUtils.isEmpty(user.getNickname())
+                || user.getNickname().startsWith("微信用户")) {
             fillUserInfo(user.getId(), userInfo);
         }
         // 找到对应的 code

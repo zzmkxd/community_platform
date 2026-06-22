@@ -4,7 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 /**
- * 14 位权限位图 (BIGINT 位掩码)
+ * 13 位权限位图 (BIGINT 位掩码)
+ * 位掩码递增: 0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080, 0x0100, 0x0200, 0x0400, 0x0800, 0x1000
  */
 @AllArgsConstructor
 @Getter
@@ -23,7 +24,6 @@ public enum PermissionBit {
     ATTACH_FILES(0x0400, "上传文件"),
     MENTION_EVERYONE(0x0800, "@全体成员"),
     MANAGE_ROLES(0x1000, "管理角色"),
-    MANAGE_EMOJI(0x2000, "管理表情"),
     ;
 
     private final int bit;

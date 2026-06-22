@@ -29,6 +29,9 @@ public interface WebSocketService {
     /** 取消订阅话题 */
     void unsubscribeThread(Channel channel, String data);
 
+    /** 处理客户端发送消息请求（Phase 3 实现完整链路） */
+    void handleSendMessage(Channel channel, String data);
+
     /** 扫码登录成功 */
     Boolean scanLoginSuccess(Integer loginCode, Long uid);
 

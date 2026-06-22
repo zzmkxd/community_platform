@@ -137,7 +137,7 @@
 
 **目标**：实现 Server → Category → Channel 的完整嵌套 CRUD + 权限体系。这是整个项目最复杂的模块。
 
-#### 3.1 数据库（6 张表）
+#### 3.1 数据库（9 张表）
 - [ ] 3.1.1 `server` 表 DDL
 - [ ] 3.1.2 `category` 表 DDL
 - [ ] 3.1.3 `channel` 表 DDL
@@ -146,8 +146,9 @@
 - [ ] 3.1.6 `member_role` 表 DDL
 - [ ] 3.1.7 `channel_permission` 表 DDL
 - [ ] 3.1.8 `emoji` 表 DDL
+- [ ] 3.1.9 `invite` 表 DDL（code UK + server_id + inviter_id + max_uses + used_count + expire_time）
 
-#### 3.2 Entity + Mapper + DAO（8 组）
+#### 3.2 Entity + Mapper + DAO（9 组）
 - [ ] 3.2.1 Server Entity + Mapper + Dao
 - [ ] 3.2.2 Category Entity + Mapper + Dao
 - [ ] 3.2.3 Channel Entity + Mapper + Dao
@@ -156,20 +157,27 @@
 - [ ] 3.2.6 MemberRole Entity + Mapper + Dao
 - [ ] 3.2.7 ChannelPermission Entity + Mapper + Dao
 - [ ] 3.2.8 Emoji Entity + Mapper + Dao
+- [ ] 3.2.9 Invite Entity + Mapper + Dao
 
 #### 3.3 Server/Category/Channel CRUD
 - [ ] 3.3.1 `ServerService.createServer()` — 建 server + 设 owner 角色 + 添加 @everyone 默认角色
 - [ ] 3.3.2 `ServerService.getMyServers()` — 用户加入的服务器列表
 - [ ] 3.3.3 `ServerService.getServerDetail()` — 服务详情含 categories + channels 嵌套
-- [ ] 3.3.4 `ServerService.updateServer()` — 仅 owner/admin
-- [ ] 3.3.5 `ServerService.deleteServer()` — 仅 owner（软删除）
-- [ ] 3.3.6 `CategoryService` — create/update/delete/list
-- [ ] 3.3.7 `ChannelService` — create/update/delete/list
-- [ ] 3.3.8 `MemberService.joinServer()` — 加入服务器，分配 @everyone 角色
-- [ ] 3.3.9 `MemberService.leaveServer()` — 离开（owner 不可离开，需先转让或删除）
-- [ ] 3.3.10 `MemberService.kickMember()` — 踢出（需 KICK_MEMBERS 权限）
-- [ ] 3.3.11 `MemberService.getMemberList()` — 光标分页
-- [ ] 3.3.12 `MemberService.updateNickname()` — 服务器内昵称
+- [ ] 3.3.4 `ServerService.getDiscoverableServers()` — 公开可加入服务器（join_mode=FREE，光标分页）
+- [ ] 3.3.5 `ServerService.updateServer()` — 仅 owner/admin
+- [ ] 3.3.6 `ServerService.deleteServer()` — 仅 owner（软删除）
+- [ ] 3.3.7 `CategoryService` — create/update/delete/list
+- [ ] 3.3.8 `ChannelService` — create / update / delete / getSingle / getNestedList（按 category 分组）
+- [ ] 3.3.9 `MemberService.joinServer()` — 加入服务器，分配 @everyone 角色
+- [ ] 3.3.10 `MemberService.leaveServer()` — 离开（owner 不可离开，需先转让或删除）
+- [ ] 3.3.11 `MemberService.kickMember()` — 踢出（需 KICK_MEMBERS 权限）
+- [ ] 3.3.12 `MemberService.getMemberList()` — 光标分页
+- [ ] 3.3.13 `MemberService.updateNickname()` — 服务器内昵称
+- [ ] 3.3.14 `MemberService.transferOwnership()` — 转让 owner（仅当前 owner，目标必须是成员）
+
+#### 3.3b 邀请管理
+- [ ] 3.3.15 `InviteService.createInvite()` — 生成邀请链接（code + 过期时间 + 最大使用次数）
+- [ ] 3.3.16 `InviteService.joinByInvite()` — 通过邀请码加入服务器（校验有效性 → 创建 member → 分配 @everyone）
 
 #### 3.4 角色管理
 - [ ] 3.4.1 `RoleService.createRole()` — 创建自定义角色（name + color + permissions + position）
@@ -194,16 +202,18 @@
 - [ ] 3.6.3 `EmojiService.deleteEmoji()` — 删除自定义表情
 
 #### 3.7 VO/Adapter
-- [ ] 3.7.1 ServerVO, CategoryVO, ChannelVO, MemberVO, RoleVO, EmojiVO
-- [ ] 3.7.2 ServerAdapter, ChannelAdapter, MemberAdapter, RoleAdapter
+- [ ] 3.7.1 ServerVO, CategoryVO, ChannelVO, MemberVO, RoleVO, EmojiVO, InviteVO, ChannelPermissionVO
+- [ ] 3.7.2 ServerAdapter, CategoryAdapter, ChannelAdapter, MemberAdapter, RoleAdapter, InviteAdapter
 
-#### 3.8 Controller（6 个）
+#### 3.8 Controller（8 个）
 - [ ] 3.8.1 `ServerController`
 - [ ] 3.8.2 `CategoryController`
 - [ ] 3.8.3 `ChannelController`
 - [ ] 3.8.4 `MemberController`
 - [ ] 3.8.5 `RoleController`
-- [ ] 3.8.6 `EmojiController`
+- [ ] 3.8.6 `ChannelPermissionController`
+- [ ] 3.8.7 `EmojiController`
+- [ ] 3.8.8 `InviteController`
 
 #### 3.9 验证
 - [ ] 3.9.1 注册用户 A → 创建服务器 → 验证 owner 角色自动分配
@@ -212,7 +222,10 @@
 - [ ] 3.9.4 创建自定义角色 → 分配权限 → 赋给用户 B → 权限检查通过
 - [ ] 3.9.5 频道级 deny 覆盖 → 用户在该频道发消息权限被拒绝
 - [ ] 3.9.6 无权限用户尝试删除频道 → 403
-- [ ] 3.9.7 Git 提交：`feat(phase3): Server/Category/Channel CRUD + RBAC 权限系统`
+- [ ] 3.9.7 浏览公开服务器 → `GET /api/v1/servers/discover` → CursorPage<ServerVO>
+- [ ] 3.9.8 转让 owner → 原 owner 降级，新 owner 获得所有权限
+- [ ] 3.9.9 创建邀请链接 → 新用户通过邀请加入 → 校验 code → 200 MemberVO
+- [ ] 3.9.10 Git 提交：`feat(phase3): Server/Category/Channel CRUD + RBAC 权限系统 + 邀请`
 
 ---
 
@@ -220,35 +233,38 @@
 
 **目标**：实现消息发送 → 持久化 → 推送的完整链路，含 Thread 和 Reaction。复用 MallChat 策略模式。
 
-#### 4.1 数据库（3 张表）
-- [ ] 4.1.1 `message` 表 DDL
-- [ ] 4.1.2 `thread` 表 DDL
-- [ ] 4.1.3 `reaction` 表 DDL
-- [ ] 4.1.4 `channel_read_state` 表 DDL
+#### 4.1 数据库（4 张表）
+- [ ] 4.1.1 `message` 表 DDL（已建）
+- [ ] 4.1.2 `thread` 表 DDL（已建）
+- [ ] 4.1.3 `reaction` 表 DDL（已建）
+- [ ] 4.1.4 `channel_read_state` 表 DDL（已建，Phase 3 DDL 已含）
 
 #### 4.2 Entity + Mapper + DAO
 - [ ] 4.2.1 Message Entity + Mapper + Dao — 含 JSON extra 字段 + JacksonTypeHandler
-- [ ] 4.2.2 Thread Entity + Mapper + Dao
-- [ ] 4.2.3 Reaction Entity + Mapper + Dao
+- [ ] 4.2.2 Thread Entity + Mapper + Dao（已建骨架）
+- [ ] 4.2.3 Reaction Entity + Mapper + Dao（已建骨架）
 - [ ] 4.2.4 ChannelReadState Entity + Mapper + Dao
 
-#### 4.3 消息策略链（核心）
+#### 4.3 消息策略链（核心，复用 MallChat 策略模式）
 - [ ] 4.3.1 `AbstractMsgHandler<T>` — 模板方法 checkAndSaveMsg() + @PostConstruct 自注册
 - [ ] 4.3.2 `MsgHandlerFactory` — static Map<Integer, AbstractMsgHandler> + getStrategyNoNull()
-- [ ] 4.3.3 `MentionParser.java` — 正则提取 @username → 查 user 表转 uid → 校验 @everyone/@here 权限 → 存入 extra JSON
-- [ ] 4.3.4 `TextMsgHandler` — checkMsg() 校验文本长度 + 调用 MentionParser + saveMsg() CommonMark Markdown 清洗/渲染
-- [ ] 4.3.5 `ImageMsgHandler` — checkMsg() 校验文件关联 + saveMsg() 关联 file_attachment
-- [ ] 4.3.6 `FileMsgHandler` — 同上
-- [ ] 4.3.7 `SoundMsgHandler` — checkMsg() 校验 audioUrl 非空 + second > 0；saveMsg() 写 extra.soundMsgDTO
-- [ ] 4.3.8 `SystemMsgHandler` — 系统消息（成员加入/离开/频道变更）
+- [ ] 4.3.3 `TextMsgHandler` — checkMsg() 校验文本长度 + saveMsg() 写 message.content
+- [ ] 4.3.4 `ImageMsgHandler` — checkMsg() 校验文件关联 + saveMsg() 关联 file_attachment
+- [ ] 4.3.5 `FileMsgHandler` — 同上
+- [ ] 4.3.6 `SoundMsgHandler` — checkMsg() 校验 audioUrl 非空 + second > 0；saveMsg() 写 extra.soundMsgDTO
+- [ ] 4.3.7 `SystemMsgHandler` — 系统消息（成员加入/离开/频道变更）
 
-#### 4.4 消息 CRUD
-- [ ] 4.4.1 `MessageService.sendMsg()` — 权限检查 → 频控 → 敏感词 → 策略链 → 持久化 → 发事件
+> **留待补充**：MentionParser（@提及解析）、CommonMark Markdown 渲染、VIDEO/EMOJI 消息类型
+
+#### 4.4 消息 CRUD（v1 简化版）
+- [ ] 4.4.1 `MessageService.sendMsg()` — 权限检查 → 策略链 → 持久化 → 发事件（**v1 暂不加入频控和敏感词过滤**）
 - [ ] 4.4.2 `MessageService.getMessages()` — 频道内光标分页（`thread_id IS NULL`）
 - [ ] 4.4.3 `MessageService.getMessage()` — 单条消息查询
 - [ ] 4.4.4 `MessageService.editMessage()` — 仅作者，标记 status=2（已编辑）
 - [ ] 4.4.5 `MessageService.deleteMessage()` — 作者或 MANAGE_MESSAGES 权限
 - [ ] 4.4.6 `MessageAdapter` — Entity ↔ MessageVO（含 UserVO、reactions、attachments 组装）
+
+> **留待补充**：频控（`@FrequencyControl` 注解 + AOP）、敏感词过滤（AC 自动机移植 MallChat `common/sensitive/`）
 
 #### 4.4b 已读追踪
 - [ ] 4.4.7 `ChannelReadStateService.updateReadState()` — 拉取消息时自动更新 last_read_msg_id（ON DUPLICATE KEY UPDATE）
@@ -281,7 +297,7 @@
 - [ ] 4.8.4 `SearchController` — /api/v1/servers/{id}/search
 
 #### 4.9 VO/DTO
-- [ ] 4.9.1 `SendMsgReq` — content, msgType, threadId?, replyMsgId?, fileIds[], soundMsgDTO?
+- [ ] 4.9.1 `SendMsgReq` — channelId, content, msgType, threadId?, replyMsgId?, fileIds[]?
 - [ ] 4.9.1b `SoundMsgDTO` — url, size, second（语音消息元数据，复用 MallChat 字段）
 - [ ] 4.9.2 `MessageVO` — id, channelId, threadId, fromUser, content, type, reactions[], attachments[], replyTo?, createTime, edited
 - [ ] 4.9.3 `ThreadVO` — id, channelId, rootMessage, name, messageCount, lastActive, status
@@ -295,6 +311,7 @@
 - [ ] 4.10.5 创建 Thread → 在 Thread 内发消息 → 频道主时间线不出现 Thread 内消息
 - [ ] 4.10.6 添加 Reaction → 返回 emoji + totalCount → 再次添加同一 emoji → 移除
 - [ ] 4.10.7 无 SEND_MESSAGES 权限用户发消息 → 403
-- [ ] 4.10.8 Git 提交：`feat(phase4): 消息策略链 + Thread + Reaction 系统`
+- [ ] 4.10.8 已读追踪：GET /api/v1/servers/{serverId}/unread → 返回各频道未读计数
+- [ ] 4.10.9 Git 提交：`feat(phase4): 消息策略链 + Thread + Reaction + 已读追踪`
 
 **MallChat 参考**：`MsgHandlerFactory` + `AbstractMsgHandler`（自注册策略）、`MessageSendEvent` → MQ → Consumer 管道、`CursorPageBaseResp` 分页、`MessageAdapter` DTO 组装
