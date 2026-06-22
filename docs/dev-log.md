@@ -1004,6 +1004,48 @@ docker compose up -d  # 6 服务全部启动成功
 
 ---
 
+## Phase 4.6: CI/CD — GitHub Actions 编译 + 发布 GHCR (2026-06-22)
+
+**Commit**: `0de68cf` feat: CI/CD — GitHub Actions 编译 + 打包推送 GHCR
+
+### 目标
+
+PR 自动编译检查 + push main 自动打包 Docker 镜像并推送到 GitHub Container Registry (ghcr.io)，让其他人无需本地 JDK/Maven 即可 `docker compose pull && up` 运行。
+
+### 新增/修改文件
+
+| 文件 | 说明 |
+|------|------|
+| `.github/workflows/build.yml` | CI 流水线：编译 → 打包 JAR → docker build → push GHCR |
+| `docker-compose.yml` | app 镜像改为 `ghcr.io/zzmkxd/community-platform:latest` |
+| `README.md` | 新增 `docker compose pull` 无 JDK 启动方式 + CI/CD 条目 |
+
+### 流水线设计
+
+```
+Pull Request → main     compile (mvn compile, JDK 21)
+
+Push to main            compile → package (mvn package -DskipTests)
+                              → docker/build-push-action → ghcr.io
+```
+
+### 关键设计决策
+
+- **无 Maven Wrapper**：直接用 `mvn` 命令（`actions/setup-java@v4` 内置 Maven）
+- **GHCR 认证**：`${{ secrets.GITHUB_TOKEN }}` 自动注入，无需额外配置
+- **push 权限**：`packages: write` 允许推送容器镜像
+- **两阶段**：compile 阶段 PR/push 都跑，build-and-push 仅 push main 时执行
+
+### 使用方式
+
+其他人克隆后无需 JDK/Maven：
+```bash
+docker compose pull app   # 拉取 CI 构建的最新镜像
+docker compose up -d      # 启动全栈
+```
+
+---
+
 ## 待办：后续升级清单
 
 > 以下条目在 Phase 0-2 中因优先级、复杂度或外部依赖而被推迟，Phase 3+ 或重构时重新评估。
