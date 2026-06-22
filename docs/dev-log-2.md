@@ -8,7 +8,7 @@
 
 - **项目名称**: community-platform (社群平台)
 - **当前 Phase**: Phase 5 待开始（WebSocket 实时通信）
-- **最新提交**: `f940ec5` — 计划文档审计同步 + `a08329a` — 新建 2 号日志
+- **最新提交**: `36bc4be` — 打通消息推送管线（6 项阻断性缺口）
 - **日期**: 2026-06-22
 
 ---
@@ -28,12 +28,12 @@
 
 | # | 来源 | 条目 | 现状 | 文件 |
 |---|------|------|------|------|
-| 1 | P4-4 | MessageSendListener 发 MQ | 只 log.info() | MessageSendListener.java:16 |
-| 2 | 新增 | PushMessageDTO | 不存在 | 新建 common/domain/dto/PushMessageDTO.java |
-| 3 | P4-1 | MsgSendConsumer | 不存在 | 新建 message/consumer/MsgSendConsumer.java |
-| 4 | T7 | PushService | **不存在**（dev-log 原误标 ✅） | 新建 message/service/PushService.java |
-| 5 | 5.3.1 | PushConsumer 实现 | TODO 空壳，只 log | PushConsumer.java:30 |
-| 6 | 5.3.3 | pushToChannel / pushToThread | TODO 空壳 | WebSocketServiceImpl.java:170-177 |
+| ~~1~~ | ~~P4-4~~ | ~~MessageSendListener 发 MQ~~ | ✅ 已修复 (`36bc4be`) | 注入 RocketMQTemplate → SEND_MSG_TOPIC |
+| ~~2~~ | ~~新增~~ | ~~PushMessageDTO~~ | ✅ 已创建 (`36bc4be`) | common/domain/dto/PushMessageDTO.java |
+| ~~3~~ | ~~P4-1~~ | ~~MsgSendConsumer~~ | ✅ 已创建 (`36bc4be`) | message/consumer/MsgSendConsumer.java |
+| ~~4~~ | ~~T7~~ | ~~PushService~~ | ✅ 已创建 (`36bc4be`) | message/service/PushService.java + impl |
+| ~~5~~ | ~~5.3.1~~ | ~~PushConsumer 实现~~ | ✅ 已修复 (`36bc4be`) | 解析 PushMessageDTO → 分派 |
+| ~~6~~ | ~~5.3.3~~ | ~~pushToChannel / pushToThread~~ | ✅ 已修复 (`36bc4be`) | Redis SMEMBERS → sendToUid |
 
 ### 二、🟡 Phase 4.x 其他遗留
 
@@ -185,7 +185,8 @@ MessageServiceImpl.sendMessage()
 | 日期 | 内容 | 提交 |
 |------|------|------|
 | 2026-06-22 | 创建 2 号日志，续接 dev-log.md | `a08329a` |
-| 2026-06-22 | 完整待办汇总（29 项）+ T7 纠错 | — |
+| 2026-06-22 | 完整待办汇总（29 项）+ T7 纠错 | `0cfd4ea` |
+| 2026-06-22 | **打通推送管线 6 项** — MessageSendListener → MQ → MsgSendConsumer → PushService → PushConsumer → pushToChannel/Thread | `36bc4be` |
 
 ---
 
