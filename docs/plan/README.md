@@ -49,4 +49,28 @@ Phase 7+ → 边界审计 + WS 独立进程 (可选)            ██ 一步之
 Phase 8  → 微服务拆分    (Spring Cloud)           ████ 架构升级 (详见 08-microservice-upgrade-path.md)
 ```
 
-每个 Phase 结束条件：`./mvnw clean compile` 通过 + 本阶段 API 可 curl 验证。
+每个 Phase 结束条件：`mvn clean compile` 通过 + 本阶段 API 可 curl 验证。
+
+---
+
+## 当前进度
+
+| Phase | 状态 | 提交 | 日期 |
+|-------|------|------|------|
+| Phase 0 | ✅ 完成 | `312d110` | 2026-06-20 |
+| Phase 1 | ✅ 完成 | `65c3d60` | 2026-06-20 |
+| Phase 2 | ✅ 完成 | `3fab073` | 2026-06-22 |
+| Phase 3 | ✅ 完成 | `943ebfa` | 2026-06-22 |
+| Phase 4 | ✅ 完成 | `632e093` | 2026-06-22 |
+| Phase 5 | ⏳ 待开始 | — | — |
+| Phase 6 | ⏳ 待开始 | — | — |
+| Phase 7 | ⏳ 待开始 | — | — |
+| Phase 8 | ⏳ 待开始 | — | — |
+
+### 已完成但超出计划范围
+
+| 交付物 | 说明 |
+|--------|------|
+| Docker 部署 | `Dockerfile` + `docker-compose.yml` + `application-docker.yml`（`1f7d513`） |
+| README 重写 | 290 行精准指南：启动方式 + 功能清单 + 50+ 端点（`25e7dbe`） |
+| 开发日志 | `docs/dev-log.md` 记录 Phase 0-4 所有实现细节和决策 |

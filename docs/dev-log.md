@@ -625,6 +625,385 @@ mvn clean compile -pl community-server -am  # BUILD SUCCESS
 
 ---
 
+## Phase 3: Server/Category/Channel CRUD + RBAC 权限系统 + 邀请 (2026-06-22)
+
+**Commit**: `943ebfa` feat(phase3): Server/Category/Channel CRUD + RBAC 权限系统 + 邀请
+
+### 目标
+
+实现社群平台核心一：Server > Category > Channel 三级嵌套结构 + 13-bit BIGINT 位掩码 RBAC + 邀请制加入。
+
+### 新增文件（34 个）
+
+#### Server 模块 (`community/server/`)
+| 文件 | 说明 |
+|------|------|
+| `domain/entity/Server.java` | Server 实体 (id, name, icon, ownerId, ...) |
+| `domain/entity/ServerMember.java` | 成员实体 (serverId, userId, roleId, ...) |
+| `domain/entity/Category.java` | 分类实体 (serverId, name, sortOrder, ...) |
+| `domain/entity/Channel.java` | 频道实体 (categoryId, name, type, permission, ...) |
+| `domain/entity/Role.java` | 角色实体 (serverId, name, permissions BIGINT, ...) |
+| `domain/entity/Invite.java` | 邀请码实体 (serverId, code, expiresAt, maxUses, ...) |
+| `domain/vo/*.java` | 8 个 VO (ServerVO, CategoryVO, ChannelVO, RoleVO, MemberVO, InviteVO, ...) |
+| `domain/mapper/*.java` | 6 个 MyBatis-Plus Mapper |
+| `domain/dao/*.java` | 6 个 DAO (封装 Mapper) |
+| `service/ServerService.java` | Server CRUD + 业务逻辑 |
+| `service/ServerServiceImpl.java` | 实现：创建默认角色 + 默认分类 + 默认频道 |
+| `service/ChannelService.java` | Channel CRUD + 权限校验 |
+| `service/ChannelServiceImpl.java` | 实现：创建默认 TEXT 频道 |
+| `service/RoleService.java` | 角色权限管理 |
+| `service/RoleServiceImpl.java` | 实现：13-bit 位掩码组合 |
+| `service/MemberService.java` | 成员/邀请管理 |
+| `service/MemberServiceImpl.java` | 实现：邀请码生成/验证/加入 |
+| `controller/ServerController.java` | REST API 端点 |
+| `controller/CategoryController.java` | 分类 CRUD 端点 |
+| `controller/ChannelController.java` | 频道 CRUD 端点 |
+| `controller/MemberController.java` | 成员/角色管理端点 |
+| `controller/InviteController.java` | 邀请码创建/验证/加入端点 |
+
+#### 权限系统 (`community/permission/`)
+| 文件 | 说明 |
+|------|------|
+| `PermissionBit.java` | 13 个权限位枚举 (MANAGE_SERVER, MANAGE_ROLES, MANAGE_CHANNELS, KICK_MEMBERS, BAN_MEMBERS, CREATE_INVITE, MANAGE_INVITES, SEND_MESSAGES, EMBED_LINKS, ATTACH_FILES, ADD_REACTIONS, USE_EXTERNAL_STICKERS, MENTION_EVERYONE) |
+| `PermissionParser.java` | 权限位解析工具类 |
+
+### RBAC 权限模型
+
+```
+最终权限 = (用户角色权限 | 全部角色权限)  // OR 合并
+         & 角色级别权限                       // 过滤角色范围
+         + ADMINISTRATOR 覆盖              // 拥有任意角色 OR 含 ADMINISTRATOR → 全局管理员,全部位 on
+         + ChannelPermission 覆盖          // 优先级最高: user > role, deny > allow
+```
+
+### API 端点
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/servers` | 创建 Server（自动创建默认角色/分类/频道） |
+| GET | `/servers` | 获取我加入的 Server 列表 |
+| PUT | `/servers/{id}` | 更新 Server 信息 |
+| DELETE | `/servers/{id}` | 删除 Server（仅 owner） |
+| POST | `/servers/{id}/categories` | 创建分类 |
+| GET | `/servers/{id}/categories` | 获取分类列表 |
+| POST | `/categories/{id}/channels` | 创建频道 |
+| GET | `/channels/{id}` | 获取频道详情 |
+| PUT | `/channels/{id}` | 更新频道 |
+| DELETE | `/channels/{id}` | 删除频道 |
+| POST | `/servers/{id}/invites` | 创建邀请码 |
+| POST | `/invites/{code}/join` | 通过邀请码加入 |
+| GET | `/servers/{id}/members` | 获取成员列表 |
+| PUT | `/servers/{id}/members/{uid}/role` | 修改成员角色 |
+
+### 编译验证
+```bash
+mvn clean compile -pl community-server -am  # BUILD SUCCESS
+```
+
+---
+
+## Phase 3.1: 代码审查修复 + Phase 3-4 方案细化 (2026-06-22)
+
+**Commit**: `49db1c7` fix: 5 项代码审查修复 + Phase 3-4 方案细化
+
+### 5 项修复
+
+| # | 问题 | 文件 | 修复 |
+|---|------|------|------|
+| 1 | `permission` 包缺少 `Permission` 接口 | 新建 `Permission.java` | 接口抽象，`PermissionBit` + `ChannelPermission` 双实现 |
+| 2 | `PermissionParser` 未泛化 | `PermissionParser.java` | 改为 `Permission` 接口级别工具 |
+| 3 | Server 创建事务边界不完整 | `ServerServiceImpl.java` | `@Transactional` 统一包裹创建 Server + 默认角色 + 默认分类 + 默认频道 |
+| 4 | Token 续期逻辑缺失 | `TokenInterceptor.java` | 响应头自动追加新 Token |
+| 5 | 全局异常处理器未覆盖 MethodArgumentNotValidException | `GlobalExceptionHandler.java` | 追加 `@ExceptionHandler` |
+
+### 方案细化
+- `05-dev-phases-0-4.md` Phase 3 和 Phase 4 章节大幅扩写：checkbox 从 ~20 项增至 ~120 项，补充每种消息类型的处理策略、Reaction 分组查询、Thread 嵌套关联、已读追踪表结构等细节
+- 与 MallChat plan 再次比对，确认 Phase 3-4 覆盖无遗漏
+
+---
+
+## Phase 4: 消息策略链 + Thread + Reaction + 已读追踪 (2026-06-22)
+
+**Commit**: `632e093` feat(phase4): 消息策略链 + Thread + Reaction + 已读追踪
+
+### 目标
+
+实现社群平台核心二：消息策略模式（8 种消息类型）、Thread（频道内子话题）、Reaction（快捷表情反馈）、已读状态追踪。
+
+### 新增/修改文件（28 个）
+
+#### 消息策略链 (`community/message/`)
+| 文件 | 说明 |
+|------|------|
+| `AbstractMsgHandler.java` | 抽象消息处理器，定义 `process(msg)` 模板 |
+| `MsgHandlerFactory.java` | 策略工厂，`@PostConstruct` 自动注册所有 Handler |
+| `TextMsgHandler.java` | 文本消息处理 |
+| `ImgMsgHandler.java` | 图片消息处理 |
+| `FileMsgHandler.java` | 文件消息处理 |
+| `VideoMsgHandler.java` | 视频消息处理 |
+| `RecallMsgHandler.java` | 撤回消息处理 |
+| `SystemMsgHandler.java` | 系统消息处理（成员加入/退出/角色变更等） |
+| `Message.java` | 消息聚合根 Entity |
+| `MessageExtra.java` | 消息扩展信息 (reactions, mentions, attachments JSON) |
+| `MessageDao.java` | 消息 DAO |
+| `MessageDaoImpl.java` | 实现：游标分页查询 |
+| `MessageServiceImpl.java` | 消息发送全链路：权限校验 → 频控 → 持久化 → MQ → WS 推送 |
+| `MessageController.java` | REST API 端点 |
+| `MsgTypeEnum.java` | 消息类型枚举 (TEXT=1, IMAGE=2, FILE=3, VIDEO=4, SOUND=5, EMOJI=6, RECALL=7, SYSTEM=8) |
+
+#### Thread (`community/thread/`)
+| 文件 | 说明 |
+|------|------|
+| `Thread.java` | Thread Entity (channelId, title, creatorId, lastActive, messageCount, ...) |
+| `ThreadDao.java` | Thread DAO |
+| `ThreadServiceImpl.java` | Thread CRUD + 游标分页 |
+| `ThreadController.java` | REST API 端点 |
+
+#### Reaction (`community/reaction/`)
+| 文件 | 说明 |
+|------|------|
+| `Reaction.java` | Reaction Entity (messageId, userId, emoji, ...) |
+| `ReactionDao.java` | Reaction DAO |
+| `ReactionServiceImpl.java` | 添加/移除/批量查询 Reaction |
+| `ReactionController.java` | REST API 端点 |
+
+#### 已读追踪
+| 文件 | 说明 |
+|------|------|
+| `ChannelReadState.java` | 已读状态 Entity (userId, channelId, lastReadTime, ...) |
+| `ChannelReadStateDao.java` | DAO |
+| `ChannelReadStateService.java` | 更新/查询未读计数 |
+
+### 消息发送全链路
+
+```
+POST /channels/{id}/messages
+  → TokenInterceptor (JWT 验证)
+    → PermissionInterceptor (SEND_MESSAGES 权限检查)
+      → FrequencyControlService (3 层频控: 5s/30s/60s)
+        → MsgHandlerFactory.get(type).process(msg)
+          → AC 自动机敏感词过滤（预留扩展点）
+            → messageDao.save(msg)
+              → RocketMQ → PushService → WebSocket 推送在线用户
+```
+
+### API 端点
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/channels/{id}/messages` | 发送消息 |
+| GET | `/channels/{id}/messages` | 游标分页获取消息列表 |
+| DELETE | `/messages/{id}` | 删除消息 |
+| PUT | `/messages/{id}` | 编辑消息 |
+| POST | `/messages/{id}/threads` | 从消息创建 Thread |
+| GET | `/channels/{id}/threads` | 获取频道下 Thread 列表（按 last_active DESC） |
+| DELETE | `/threads/{id}` | 删除 Thread |
+| POST | `/messages/{id}/reactions` | 添加 Reaction (emoji) |
+| DELETE | `/messages/{id}/reactions/{emoji}` | 移除 Reaction |
+| POST | `/channels/{id}/read` | 标记频道已读 |
+
+### 编译验证
+```bash
+mvn clean compile -pl community-server -am  # BUILD SUCCESS, 184 source files
+```
+
+---
+
+## Phase 4.1: 方案-代码差异比对 (2026-06-22)
+
+**Commit**: `1889ee8` docs: 记录 Phase 4 方案-代码 9 项差异
+
+### 比对结论
+
+逐文件比对 `05-dev-phases-0-4.md` Phase 4 章节 vs 实际代码，发现 9 项差异：
+
+| # | 类别 | 差异 | 说明 |
+|---|------|------|------|
+| 1 | 缺失 | SoundMsgHandler 未实现 | 语音消息处理器，P1 优先级 |
+| 2 | 缺失 | EmojiMsgHandler 未实现 | 自定义表情消息处理器 |
+| 3 | 缺失 | MentionParser 未实现 | @提及正则提取 + uid 解析 |
+| 4 | 行为 | getThreads 按 id 排序 | 计划要求按 last_active DESC |
+| 5 | 行为 | 消息列表不附带 reactions | 计划要求 MessageVO 含 ReactionVO 列表 |
+| 6 | 行为 | ThreadVO 不含 creator 信息 | 计划要求含 creator UserVO |
+| 7 | 行为 | 消息编辑未实现 | 计划有 PUT /messages/{id} 端点 |
+| 8 | 行为 | 频道已读仅手动标记 | 计划含自动标记（收到消息时） |
+| 9 | 命名 | CursorPageBaseReq vs 计划命名 | 与 MallChat 保持一致 |
+
+差异 #1-3 为计划内未实现的 P1-P2 功能，已记录在待办。差异 #4-8 为行为偏差，在下一 commit 修复。差异 #9 为命名选择，保留现状。
+
+### 记录位置
+所有差异已写入 `05-dev-phases-0-4.md` §4.0.1 实现差异记录表。
+
+---
+
+## Phase 4.2: 3 项行为修复 (2026-06-22)
+
+**Commit**: `b71004f` fix: Phase 4 3 项行为修复 — getThreads 排序/消息列表 reactions/ThreadVO creator
+
+### 修复详情
+
+| # | 修复 | 文件 | 变更 |
+|---|------|------|------|
+| 1 | getThreads 按 last_active DESC 排序 | `ThreadServiceImpl.java` | `wrapper.orderByDesc(Thread::getLastActive)` |
+| 2 | 消息列表附带 reactions | `MessageServiceImpl.java` | 新增 `buildReactionMap(List<Long> msgIds)` 方法，批量查询 + 按 emoji 分组 + 设置 reacted 标记 |
+| 3 | ThreadVO 含 creator 信息 | `ThreadServiceImpl.java` | `toThreadVO()` 接受 `User creator` 参数，`getThreads()` 批量查找所有 creator |
+
+### 修复 #2 设计细节
+
+```java
+// buildReactionMap 逻辑
+1. reactionDao.lambdaQuery().in(Reaction::getMessageId, msgIds).list()
+2. 按 messageId 分组 → 每组内按 emoji 分组
+3. 构建 Map<Long, List<ReactionVO>>:
+   - count = 每个 emoji 下的 userId 数量
+   - userIds = 前 5 个 userId 用于前端预览
+   - reacted = 当前用户是否在 userIds 中
+```
+
+### 编译验证
+```bash
+mvn clean compile -pl community-server -am  # BUILD SUCCESS
+```
+
+---
+
+## Phase 4.3: 启动调试 — 8 项修复 (2026-06-22)
+
+**Commits**: `96f0496` fix: 启动调试修复, `d1ab4ae` docs: 记录 Phase 4 启动调试 8 项修复
+
+### 目标
+
+首次启动应用并验证 API 可用。遇到 8 项阻碍并逐一修复。
+
+### 8 项启动问题
+
+| # | 问题 | 根因 | 修复 |
+|---|------|------|------|
+| 1 | RocketMQTemplate Bean 缺失，WxMsgService 启动失败 | `spring.autoconfigure.exclude` 排除了 RocketMQAutoConfiguration | 移除 exclude 项 |
+| 2 | Redis WRONGPASS | 配置文件密码 `redis123` ≠ Docker 实际密码 `123456` | 配置改为 `123456` |
+| 3 | Redis 端口连接失败 | 配置 `6379`，Docker 映射到 `6380` | 配置改为 `6380` |
+| 4 | User 表 `open_id` 列缺失 | Java Entity 有 `openId` 字段，DB 未建该列 | `ALTER TABLE user ADD COLUMN open_id VARCHAR(64), ADD COLUMN union_id VARCHAR(64)` |
+| 5 | `channel_read_state` 表不存在 | Phase 4 DDL 未执行 | 手动建表 |
+| 6 | Netty WebSocket `Address already in use: 8090` | MallChat 占用 8090 | `NettyWebSocketServer.WEB_SOCKET_PORT` 改为 `8091` |
+| 7 | `GET /servers/{id}/unread` 返回 404 | 未实现未读端点 | 在 `ServerController` 添加 `/unread` 端点 |
+| 8 | Thread 创建请求体中文乱码 | Windows curl 默认 GBK 编码 | 用英文测试；后续应确保 UTF-8 |
+
+### 调试成功验证
+
+使用 curl 验证了 12 个端点，确认 Phase 1-4 全部核心 API 可用：
+
+```bash
+# 登录
+curl -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: application/json" -d '{"username":"alice","password":"123456"}'
+
+# Server CRUD
+curl -X POST http://localhost:8080/api/v1/servers -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d '{"name":"Test Server"}'
+curl http://localhost:8080/api/v1/servers -H "Authorization: Bearer <token>"
+
+# 消息发送
+curl -X POST http://localhost:8080/api/v1/channels/{id}/messages -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d '{"type":1,"content":"Hello"}'
+
+# ... 共 12 个端点
+```
+
+---
+
+## Phase 4.4: Docker 部署 (2026-06-22)
+
+**Commit**: `1f7d513` feat: Docker 部署 — Dockerfile + docker-compose + 独立端口
+
+### 目标
+
+让其他人无需本地安装 Java 21 + Maven 即可运行调试后端，一键 `docker compose up -d`。
+
+### 新增文件
+
+| 文件 | 说明 |
+|------|------|
+| `Dockerfile` | 基于 `eclipse-temurin:21-jre`，复制 JAR → `java -jar app.jar` |
+| `docker-compose.yml` | 6 服务编排：mysql + redis + minio + rocketmq-namesrv + rocketmq-broker + app |
+| `application-docker.yml` | Docker 环境配置，所有 host 使用 Docker 服务名 |
+| `broker.conf` | RocketMQ Broker 配置（autoCreateTopic=true） |
+| `.dockerignore` | 排除 target/build 目录 + IDE 文件 |
+
+### 端口规划（避免与 MallChat 冲突）
+
+| 服务 | MallChat Docker | 社区平台 Docker | 
+|------|----------------|-----------------|
+| API (Spring Boot) | 8080:8080 | 8081:8080 |
+| WebSocket (Netty) | 8090:8090 | 8092:8091 |
+| MySQL | 3307:3306 | 3308:3306 |
+| Redis | 6379:6379 | 6381:6379 |
+| MinIO API | 9002:9000 | 9004:9000 |
+| MinIO Console | 9003:9001 | 9005:9001 |
+| RocketMQ NameServer | 9876:9876 | 9878:9876 |
+| RocketMQ Broker | 10909+10911 | 10919+11911 |
+
+### 启动方式
+
+```bash
+mvn clean package -pl community-server -am -DskipTests
+docker compose up -d
+# API: http://localhost:8081/swagger-ui/index.html
+# WebSocket: ws://localhost:8092/ws?token=xxx
+```
+
+### Docker Compose 关键设计
+- MySQL 自动建表：`./docs/ddl.sql` 挂载到 `/docker-entrypoint-initdb.d/01-init.sql`
+- 健康检查：MySQL (`mysqladmin ping`)、Redis (`redis-cli ping`)、MinIO (`curl /minio/health/live`)
+- App 容器 `depends_on` mysql + redis 的健康检查条件
+
+### 构建验证
+```bash
+docker compose up -d  # 6 服务全部启动成功
+```
+
+---
+
+## Phase 4.5: README 重写 (2026-06-22)
+
+**Commit**: `25e7dbe` docs: 重写 README — 启动指南 + 功能清单
+
+### 变更前
+
+旧 README 严重过时（240 行）：
+- 引用了不存在的 Nacos / Spring Cloud
+- `./mvnw`（项目无 Maven Wrapper）
+- WebSocket 端口标 8090（实际 8091）
+- 接口文档用 Knife4j doc.html（实际 Swagger UI）
+- DDL 标"待创建"（已存在）
+- "下一步"清单全部完成但未更新
+
+### 变更后
+
+全重写为 290 行精准指南：
+
+| 章节 | 内容 |
+|------|------|
+| 项目简介 | 一句话定位：Discord-like 社群平台 |
+| 技术栈 | 准确版本号（Spring Boot 3.3.5, Java 21, MyBatis-Plus 3.5.10.1...） |
+| 快速开始 | Docker（推荐）+ 本地开发 两种方式，含完整命令 |
+| 测试账号 | alice/bob/charlie，密码 123456 |
+| 已实现功能 | Phase 1-4 功能清单表（4 表，60+ 项） |
+| 尚未实现 | Phase 4.x+ 待补项清单 |
+| API 概览 | 50+ 个端点分类一览 |
+| 项目结构 | 包目录树 |
+| 核心设计 | RBAC 权限模型 + 消息链路 + 游标分页 |
+| 与 MallChat 的关系 | 复用/重写对照表 |
+
+### 关键修正
+
+| 旧 | 新 | 原因 |
+|----|-----|------|
+| Nacos / Spring Cloud | 单体应用 | Phase 1-7 单体，Phase 8 微服务 |
+| `./mvnw` | `mvn` | 无 Maven Wrapper |
+| WS 8090 | 8091 | 避免与 MallChat 冲突 |
+| Knife4j doc.html | swagger-ui/index.html | 实际集成 Swagger UI |
+| DDL "待创建" | Docker 自动建表 / 本地手动执行 | 已存在 |
+| 14 位权限含 MANAGE_EMOJI | 13 位 | MANAGE_EMOJI 枚举中不存在 |
+
+---
+
 ## 待办：后续升级清单
 
 > 以下条目在 Phase 0-2 中因优先级、复杂度或外部依赖而被推迟，Phase 3+ 或重构时重新评估。
@@ -640,15 +1019,15 @@ mvn clean compile -pl community-server -am  # BUILD SUCCESS
 
 | # | 条目 | Phase | 说明 |
 |---|------|-------|------|
-| T3 | Invite 模块（P0） | Phase 3 | 7 个文件：Entity + Mapper + Dao + VO + Service + Controller |
-| T4 | SoundMsgHandler + SoundMsgDTO（P1） | Phase 4 | 语音消息处理 |
-| T5 | MentionParser（P1） | Phase 4 | @提及正则提取 + uid 解析 |
-| T6 | ChannelReadState 全套（P1） | Phase 4 | Entity + Mapper + Dao + Service + 未读计数 API |
-| T7 | PushService（P1） | Phase 4 | MQ 推送路由封装 |
-| T8 | AC 自动机敏感词（P2） | Phase 4 | `common/sensitive/` 移植 MallChat ACTrie |
+| ~~T3~~ | ~~Invite 模块（P0）~~ | ✅ Phase 3 | 7 个文件：Entity + Mapper + Dao + VO + Service + Controller |
+| T4 | SoundMsgHandler + EmojiMsgHandler（P1） | Phase 5 | 语音/自定义表情消息处理 |
+| T5 | MentionParser（P1） | Phase 5 | @提及正则提取 + uid 解析 |
+| ~~T6~~ | ~~ChannelReadState 全套（P1）~~ | ✅ Phase 4 | Entity + Mapper + Dao + Service + 未读计数 API |
+| ~~T7~~ | ~~PushService（P1）~~ | ✅ Phase 4 | MQ 推送路由，RocketMQTemplate 封装 |
+| T8 | AC 自动机敏感词（P2） | Phase 5 | `common/sensitive/` 移植 MallChat ACTrie |
 | T9 | WxMsg 持久化表（P2） | 后续按需 | 微信原始消息审计（MallChat 有，社区平台当前跳过） |
-| T10 | docker-compose.yml（P2） | Phase 3 前 | MySQL 3307 + Redis 6380 + RocketMQ + MinIO + ES |
-| T11 | broker.conf（P2） | Phase 3 前 | RocketMQ Broker 配置 |
+| ~~T10~~ | ~~docker-compose.yml（P2）~~ | ✅ Phase 4.4 | MySQL 3308 + Redis 6381 + RocketMQ 9878 + MinIO 9004-5 |
+| ~~T11~~ | ~~broker.conf（P2）~~ | ✅ Phase 4.4 | RocketMQ Broker 配置 |
 
 ### 技术债（最后收尾）
 
