@@ -306,6 +306,21 @@
 |---|------|------|------|
 | P4-9 | `CREATE_THREAD` 权限 | `USE_THREADS` | 保持现状 |
 
+##### 启动调试修复 (2026-06-22)
+
+以下为首次启动运行时发现并修复的问题：
+
+| # | 问题 | 根因 | 修复 |
+|---|------|------|------|
+| D1 | `RocketMQAutoConfiguration` 被排除 → `WxMsgService` 缺少 `RocketMQTemplate` Bean | `application-local.properties` 排除了 RocketMQ 自动配置 | 移除排除项（Docker 容器已运行），修正 name-server 端口 9876→9877 |
+| D2 | Redis 密码错误 `WRONGPASS` | 配置 `redis123` ≠ 实际 `123456` | 修正密码为 `123456` |
+| D3 | Redis 端口不匹配 | 配置 `6379` ≠ Docker 映射 `6380` | 修正端口为 `6380` |
+| D4 | `user` 表缺 `open_id` / `union_id` 列 | User Entity 新增字段但 DDL 未执行 | 手动 ALTER TABLE 补充两列 |
+| D5 | `channel_read_state` 表不存在 | Phase 4 DDL 未执行 | 手动建表（DDL 见 `docs/ddl.sql:246`） |
+| D6 | Netty WebSocket `Address already in use: 8090` | 与 MallChat WS 端口冲突 | 改为 `8091` |
+| D7 | `GET /api/v1/servers/{id}/unread` 404 | 缺少 Controller 端点 | 补 `ServerController.getUnread()` |
+| D8 | Thread/Reaction 创建返回 500 (GBK 乱码) | Windows curl 中文编码问题 | 非代码问题，使用英文或 URL 编码 |
+
 #### 4.1 数据库（4 张表）
 - [ ] 4.1.1 `message` 表 DDL（已建）
 - [ ] 4.1.2 `thread` 表 DDL（已建）
