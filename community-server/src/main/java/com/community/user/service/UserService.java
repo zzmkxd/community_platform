@@ -9,7 +9,7 @@ public interface UserService {
 
     UserVO updateMe(String nickname, String avatar, String email);
 
-    void bindWeChat(AccountBindReq req);
+    UserVO bindWeChat(AccountBindReq req);
 
     UserVO getUserById(Long id);
 }

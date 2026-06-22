@@ -48,7 +48,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void bindWeChat(AccountBindReq req) {
+    public UserVO bindWeChat(AccountBindReq req) {
         Long uid = RequestHolder.get().getUid();
         User user = userDao.getById(uid);
         if (user == null) {
@@ -63,7 +63,6 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException(BusinessErrorEnum.WECHAT_NOT_CONFIGURED);
         }
 
-        // 检查 openId 是否已被其他用户绑定
         boolean bound = userDao.lambdaQuery()
                 .eq(User::getOpenId, openId)
                 .ne(User::getId, uid)
@@ -74,6 +73,7 @@ public class UserServiceImpl implements UserService {
 
         user.setOpenId(openId);
         userDao.updateById(user);
+        return toVO(user);
     }
 
     @Override

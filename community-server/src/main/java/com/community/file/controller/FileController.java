@@ -34,8 +34,7 @@ public class FileController {
 
     @GetMapping("/files/{fileId}")
     public ApiResult<FileVO> getFile(@PathVariable Long fileId) {
-        // TODO
-        throw new UnsupportedOperationException("TODO");
+        return ApiResult.success(fileService.getFile(fileId));
     }
 
     @GetMapping("/files/{fileId}/download")

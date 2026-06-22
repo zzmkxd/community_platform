@@ -194,7 +194,7 @@ CREATE TABLE IF NOT EXISTS `message` (
     `thread_id`   BIGINT       DEFAULT NULL COMMENT '话题 ID (可为空)',
     `from_uid`    BIGINT       NOT NULL COMMENT '发送者用户 ID',
     `content`     TEXT         NOT NULL COMMENT '消息内容',
-    `msg_type`    TINYINT      DEFAULT 1 COMMENT '消息类型: 1=TEXT 2=IMAGE 3=FILE 4=SYSTEM 5=SOUND',
+    `msg_type`    TINYINT      DEFAULT 1 COMMENT '消息类型: 1=TEXT 2=IMAGE 3=FILE 4=SYSTEM 5=SOUND 6=EMOJI',
     `extra`       JSON         DEFAULT NULL COMMENT '扩展信息 JSON',
     `status`      TINYINT      DEFAULT 0 COMMENT '状态: 0=正常 1=删除 2=已编辑',
     `reply_msg_id` BIGINT      DEFAULT NULL COMMENT '回复的消息 ID',
@@ -256,7 +256,15 @@ CREATE TABLE IF NOT EXISTS `channel_read_state` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='频道已读追踪表';
 
 -- =============================================
--- 15. FileAttachment 文件附件表
+-- 15. sensitive_word 敏感词表
+-- =============================================
+CREATE TABLE IF NOT EXISTS `sensitive_word` (
+    `word` VARCHAR(64) NOT NULL COMMENT '敏感词',
+    PRIMARY KEY (`word`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='敏感词表';
+
+-- =============================================
+-- 16. FileAttachment 文件附件表
 -- =============================================
 CREATE TABLE IF NOT EXISTS `file_attachment` (
     `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '文件 ID',

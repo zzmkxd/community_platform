@@ -24,6 +24,9 @@ public class FileVO {
     @Schema(description = "图片高度（图片才有）")
     private Integer height;
 
-    @Schema(description = "下载链接（预签名）")
+    @Schema(description = "状态: PENDING / UPLOADED")
+    private String status;
+
+    @Schema(description = "下载链接（预签名，仅 UPLOADED 状态有效）")
     private String downloadUrl;
 }

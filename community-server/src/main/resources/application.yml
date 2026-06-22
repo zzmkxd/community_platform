@@ -70,3 +70,5 @@ wx:
 community:
   jwt:
     secret: ${community.jwt.secret}
+  websocket:
+    port: 8091

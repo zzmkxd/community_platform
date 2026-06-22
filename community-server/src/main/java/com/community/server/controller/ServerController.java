@@ -1,6 +1,7 @@
 package com.community.server.controller;
 
 import com.community.common.domain.vo.response.ApiResult;
+import com.community.common.domain.vo.response.CursorPageBaseResp;
 import com.community.message.service.ChannelReadStateService;
 import com.community.server.domain.vo.ServerDetailVO;
 import com.community.server.domain.vo.ServerVO;
@@ -34,8 +35,10 @@ public class ServerController {
     }
 
     @GetMapping("/discover")
-    public ApiResult<List<ServerVO>> getDiscoverableServers() {
-        return ApiResult.success(serverService.getDiscoverableServers());
+    public ApiResult<CursorPageBaseResp<ServerVO>> getDiscoverableServers(
+            @RequestParam(defaultValue = "") String cursor,
+            @RequestParam(defaultValue = "30") Integer pageSize) {
+        return ApiResult.success(serverService.getDiscoverableServers(cursor, pageSize));
     }
 
     @GetMapping("/{serverId}")

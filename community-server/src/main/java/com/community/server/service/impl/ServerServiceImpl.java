@@ -1,7 +1,10 @@
 package com.community.server.service.impl;
 
+import com.community.common.domain.vo.request.CursorPageBaseReq;
+import com.community.common.domain.vo.response.CursorPageBaseResp;
 import com.community.common.exception.BusinessErrorEnum;
 import com.community.common.exception.BusinessException;
+import com.community.common.utils.CursorUtils;
 import com.community.common.utils.RequestHolder;
 import com.community.server.dao.*;
 import com.community.server.domain.entity.*;
@@ -115,21 +118,27 @@ public class ServerServiceImpl implements ServerService {
     }
 
     @Override
-    public List<ServerVO> getDiscoverableServers() {
-        List<Server> servers = serverDao.lambdaQuery()
-                .eq(Server::getStatus, 1)
-                .list();
+    public CursorPageBaseResp<ServerVO> getDiscoverableServers(String cursor, Integer pageSize) {
+        CursorPageBaseReq req = new CursorPageBaseReq(
+                pageSize != null ? pageSize : 30, cursor);
+        CursorPageBaseResp<Server> page = CursorUtils.getCursorPageByMysql(
+                serverDao, req,
+                wrapper -> wrapper.eq(Server::getStatus, 1),
+                Server::getId);
 
-        if (servers.isEmpty()) {
-            return Collections.emptyList();
+        if (page.isEmpty()) {
+            return CursorPageBaseResp.empty();
         }
 
+        List<Server> servers = page.getList();
         List<Long> serverIds = servers.stream().map(Server::getId).toList();
         Map<Long, Long> memberCounts = memberCountByServerIds(serverIds);
 
-        return servers.stream()
+        List<ServerVO> vos = servers.stream()
                 .map(s -> toServerVO(s, memberCounts.getOrDefault(s.getId(), 0L).intValue()))
                 .toList();
+
+        return CursorPageBaseResp.init(page, vos);
     }
 
     @Override

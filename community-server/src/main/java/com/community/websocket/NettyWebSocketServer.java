@@ -26,7 +26,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class NettyWebSocketServer {
 
-    public static final int WEB_SOCKET_PORT = 8091;
+    @org.springframework.beans.factory.annotation.Value("${community.websocket.port:8091}")
+    private int wsPort;
     public static final NettyWebSocketServerHandler NETTY_WEB_SOCKET_SERVER_HANDLER =
             new NettyWebSocketServerHandler();
 
@@ -67,7 +68,7 @@ public class NettyWebSocketServer {
                         pipeline.addLast(NETTY_WEB_SOCKET_SERVER_HANDLER);
                     }
                 });
-        serverBootstrap.bind(WEB_SOCKET_PORT).sync();
-        log.info("WS server started on port {}", WEB_SOCKET_PORT);
+        serverBootstrap.bind(wsPort).sync();
+        log.info("WS server started on port {}", wsPort);
     }
 }

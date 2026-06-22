@@ -28,9 +28,8 @@ public class UserController {
     }
 
     @PostMapping("/me/bind-wx")
-    public ApiResult<Void> bindWeChat(@RequestBody AccountBindReq req) {
-        userService.bindWeChat(req);
-        return ApiResult.success(null);
+    public ApiResult<UserVO> bindWeChat(@RequestBody AccountBindReq req) {
+        return ApiResult.success(userService.bindWeChat(req));
     }
 
     @GetMapping("/{id}")

@@ -1,5 +1,6 @@
 package com.community.server.service;
 
+import com.community.common.domain.vo.response.CursorPageBaseResp;
 import com.community.server.domain.vo.ServerDetailVO;
 import com.community.server.domain.vo.ServerVO;
 
@@ -11,7 +12,7 @@ public interface ServerService {
 
     List<ServerVO> getMyServers();
 
-    List<ServerVO> getDiscoverableServers();
+    CursorPageBaseResp<ServerVO> getDiscoverableServers(String cursor, Integer pageSize);
 
     ServerDetailVO getServerDetail(Long serverId);
 

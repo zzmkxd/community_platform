@@ -7,9 +7,9 @@
 ## 项目信息
 
 - **项目名称**: community-platform (社群平台)
-- **当前 Phase**: Phase 5 待开始（WebSocket 实时通信）
-- **最新提交**: `7af4244` — Phase 4.x 遗留 + Phase 5 未完成（6 项修复）
-- **日期**: 2026-06-22
+- **当前 Phase**: Phase 6 文件模块
+- **最新提交**: 待提交 — 敏感词 + Emoji + MentionParser + JsonUtils + FileService + MinIO
+- **日期**: 2026-06-23
 
 ---
 
@@ -55,17 +55,17 @@
 
 | # | 来源 | 条目 | 现状 |
 |---|------|------|------|
-| 13 | T4 | EmojiMsgHandler | ❌ 不存在（SoundMsgHandler ✅ 已实现） |
-| 14 | T5 | MentionParser（@提及正则 + uid 解析） | ❌ 不存在 |
-| 15 | T8 | AC 自动机敏感词 | ❌ 未移植 MallChat `common/sensitive/` |
+| ~~13~~ | ~~T4~~ | ~~EmojiMsgHandler~~ | ✅ 已创建 (`待提交`) | message/service/strategy/msg/EmojiMsgHandler.java |
+| ~~14~~ | ~~T5~~ | ~~MentionParser（@提及正则 + uid 解析）~~ | ✅ 已创建 (`待提交`) | common/utils/MentionParser.java |
+| ~~15~~ | ~~T8~~ | ~~AC 自动机敏感词~~ | ✅ 已移植 (`待提交`) | common/algorithm/sensitiveWord/ + common/sensitive/ 共 11 个文件 |
 | 16 | T9 | WxMsg 持久化表 | 后续按需（微信原始消息审计） |
 
 ### 五、🔵 File 模块预检（Phase 6 前置）
 
 | # | 条目 | 说明 |
 |---|------|------|
-| 17 | FileService 3 方法 | 全部 `throw UnsupportedOperationException("TODO")` |
-| 18 | MinIOConfiguration | 不存在（MinIO 容器已就绪，缺 Spring Bean） |
+| ~~17~~ | ~~FileService 3 方法~~ | ✅ 已实现 | MinIO presigned URL upload + confirm + download |
+| ~~18~~ | ~~MinIOConfiguration~~ | ✅ 已创建 | file/config/MinIOConfiguration.java + common/config/OssProperties.java |
 | 19 | MessageAdapter 文件关联 | ImageMsgHandler/FileMsgHandler 需校验 fileId 已确认上传 |
 | 20 | docker-compose 验证 MinIO | 已配置 9004-5，需联调 |
 
@@ -180,6 +180,69 @@ MessageServiceImpl.sendMessage()
 
 ---
 
+---
+
+## 审计记录：代码 vs 计划 (2026-06-23)
+
+### 🔴 高优先级
+
+| # | 类别 | 问题 | 位置 |
+|---|------|------|------|
+| A1 | **端口不同步** | docker-compose 暴露端口与 `application-local.properties` 不一致：MySQL `3308`→`3307`、Redis `6381`→`6380`、MinIO `9004`→`9000`、RocketMQ `9878`→`9877`。Docker 启动后用 local profile 连不上基础设施。 | compose vs local.properties |
+| A2 | **SQL 注入** | `SearchServiceImpl` channelId 通过字符串拼接注入 SQL：`.last("AND channel_id = " + channelId)`，应改用 `eq()` | `SearchServiceImpl.java:39` |
+| A3 | **端点未实现** | `GET /api/v1/files/{fileId}` 抛 `UnsupportedOperationException("TODO")` | `FileController.java:37` |
+| A4 | **分页缺失** | `GET /api/v1/servers/discover` 计划要求游标分页 `CursorPage<ServerVO>`，实际返回全量 `List<ServerVO>`，无分页参数 | `ServerController.java` |
+
+### 🟡 中优先级
+
+| # | 问题 | 位置 |
+|---|------|------|
+| A5 | **ImageMsgHandler/FileMsgHandler** 不校验 fileId 是否已 `confirmUpload`，可引用未上传完成的文件 | Handler `checkMsg()` |
+| A6 | **SensitiveWordMapper** 缺少 `@Mapper` 注解（15 个其他 Mapper 都有，打破惯例） | `SensitiveWordMapper.java` |
+| A7 | **DDL 注释过时** — message 表 `msg_type` 注释缺 `6=EMOJI` | `ddl.sql:197` |
+| A8 | **WebSocket 端口硬编码** — `NettyWebSocketServer.WEB_SOCKET_PORT = 8091` 未外部化到配置 | `NettyWebSocketServer.java:29` |
+| A9 | **bind-wx 返回 null** — spec 要 `UserVO`，实际返回 `Void`（`ApiResult.success(null)`） | `UserController.java` |
+| A10 | **登录权限 TODO** — `loginSuccess()` 始终 `hasPower = true`，未接入角色系统 | `WebSocketServiceImpl.java:278` |
+| A11 | **WS handleSendMessage 桩** — 通过 WebSocket 发送的消息只记日志，不做处理 | `WebSocketServiceImpl.java:144` |
+
+### ⚪ 低优先级
+
+| # | 问题 |
+|---|------|
+| A12 | DELETE reactions 返回 204 No Content，spec 定义 `{ emoji, userId, totalCount }` |
+| A13 | POST reactions 返回 `List<ReactionVO>`，spec 定义单个对象 |
+| A14 | POST `/servers` 额外接受 `icon` 字段（spec 只有 name + description） |
+| A15 | `server.port` 未显式配置，依赖 Spring Boot 默认 8080 |
+| A16 | ES 搜索 (Phase 6.3) 完全缺失：无 ElasticsearchConfig / MessageDocument / SearchRepository |
+	
+	### 运行时测试发现 (2026-06-23)
+	
+	| # | 问题 | 位置 |
+	|---|------|------|
+	| A19 | **MinIO 配置不完整** — 缺 `region("us-east-1")` 导致 presigned URL 生成失败；bucket 不存在需手动创建 | `MinIOConfiguration.java` |
+	| A20 | **FileAttachmentDao.getById 异常** — `getById(id)` 返回 null 但 DB 有记录，同表 `lambdaQuery().eq(id).one()` 正常。根因未明，统一改用 lambdaQuery | `FileServiceImpl.java` |
+	| A21 | **FileVO 缺 status 字段** — GET /files/{fileId} 无法区分 PENDING/UPLOADED，PENDING 文件调用 getDownloadUrl 抛异常 | `FileVO.java` |
+	| A22 | **GET /files/{fileId} 对 PENDING 文件报错** — buildFileVO 无条件调 getDownloadUrl，PENDING 文件应返回 metadata（downloadUrl=null） | `FileServiceImpl.java` |
+
+### 实体 vs DDL 字段映射审计
+
+| # | 表 | 问题 |
+|---|------|------|
+| A17 | `sensitive_word` | **SensitiveWord.word 缺 `@TableId`** — DDL 中 word 是主键，entity 无 `@TableId(type = IdType.INPUT)` |
+| A18 | `message` | **extra 列 JSON→String 无 TypeHandler** — 可能序列化/反序列化异常 |
+
+### Event / MQ 配线审计
+
+| 结果 |
+|------|
+| ✅ Spring Event 链完整：1 事件+1 发布者+1 监听器→MQ |
+| ✅ RocketMQ 4 主题 4 消费者全部配对，无孤立端点 |
+| ⚠️ `@EnableAsync` 无自定义 Executor（高并发下每任务新建线程） |
+| ⚠️ 计划文档 6 个事件尚未实现：MemberJoinEvent, MemberKickEvent, MemberRoleUpdateEvent, OwnershipTransferEvent, ServerCreateEvent, ThreadCreateEvent |
+| ⚠️ `05-dev-phases-0-4.md` 部分 checkbox 标未完成但代码已实现（文档过时） |
+
+---
+
 ## 变更记录
 
 | 日期 | 内容 | 提交 |
@@ -188,6 +251,11 @@ MessageServiceImpl.sendMessage()
 | 2026-06-22 | 完整待办汇总（29 项）+ T7 纠错 | `0cfd4ea` |
 | 2026-06-22 | **打通推送管线 6 项** — MessageSendListener → MQ → MsgSendConsumer → PushService → PushConsumer → pushToChannel/Thread | `36bc4be` |
 | 2026-06-22 | **Phase 4.x 遗留 + Phase 5 未完成 6 项** — autoArchive + Reaction 残留 + Typing + Online/Offline + WSAdapter 全 18 类型 | `7af4244` |
+| 2026-06-23 | **Backlog: 敏感词过滤系统 + EmojiMsgHandler** — DFAFilter + ACTrie + SensitiveWordBs + MyWordFactory + TextMsgHandler 集成 + MessageTypeEnum.EMOJI | 待提交 |
+| 2026-06-23 | **Backlog: MentionParser + JsonUtils + FutureUtils** — @提及正则解析器 + Jackson 工具类 + CompletableFuture 工具集 | 待提交 |
+| 2026-06-23 | **Phase 6: MinIOConfiguration + FileServiceImpl** — OssProperties 配置绑定 + MinioClient Bean + 预签名上传/确认/下载 三方法实现 | 待提交 |
+| 2026-06-23 | **审计修复 (A1-A11)** — 端口同步 + SQL注入修复 + FileController.getFile + Server分页 + 文件上传校验 + WS端口外部化 + bind-wx返回值 + @Mapper/@TableId补完 | 待提交 |
+| 2026-06-23 | **API 全量测试 + 运行时修复 (A19-A22)** — MinIO region+bucket 自动创建 + FileServiceImpl getById→lambdaQuery + FileVO.status + PENDING 文件 GET 修复 | 待提交 |
 
 ---
 

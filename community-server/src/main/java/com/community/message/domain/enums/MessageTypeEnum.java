@@ -12,6 +12,7 @@ public enum MessageTypeEnum {
     FILE(3, "文件消息"),
     SYSTEM(4, "系统消息"),
     SOUND(5, "语音消息"),
+    EMOJI(6, "表情消息"),
     ;
 
     private final Integer type;

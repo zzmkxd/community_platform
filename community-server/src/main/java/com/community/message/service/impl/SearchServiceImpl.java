@@ -33,10 +33,13 @@ public class SearchServiceImpl implements SearchService {
     @Override
     public CursorPageBaseResp<MessageVO> search(Long serverId, String q, Long channelId,
                                                  String from, String to, Integer page) {
-        List<Message> messages = messageDao.lambdaQuery()
+        var query = messageDao.lambdaQuery()
                 .like(Message::getContent, q)
-                .ne(Message::getStatus, 1)
-                .last(channelId != null ? "AND channel_id = " + channelId : "")
+                .ne(Message::getStatus, 1);
+        if (channelId != null) {
+            query.eq(Message::getChannelId, channelId);
+        }
+        List<Message> messages = query
                 .orderByDesc(Message::getCreateTime)
                 .last("LIMIT 50")
                 .list();

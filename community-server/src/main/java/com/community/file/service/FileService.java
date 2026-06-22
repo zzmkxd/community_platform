@@ -10,6 +10,9 @@ public interface FileService {
     /** 确认上传完成 */
     FileVO confirmUpload(Long fileId);
 
+    /** 获取文件信息 */
+    FileVO getFile(Long fileId);
+
     /** 获取下载 URL */
     String getDownloadUrl(Long fileId);
 }
