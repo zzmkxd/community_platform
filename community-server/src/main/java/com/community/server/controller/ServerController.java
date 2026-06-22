@@ -23,12 +23,17 @@ public class ServerController {
     @PostMapping
     public ApiResult<ServerVO> create(@RequestBody Map<String, String> body) {
         return ApiResult.success(serverService.createServer(
-                body.get("name"), body.get("description")));
+                body.get("name"), body.get("description"), body.get("icon")));
     }
 
     @GetMapping
     public ApiResult<List<ServerVO>> getMyServers() {
         return ApiResult.success(serverService.getMyServers());
+    }
+
+    @GetMapping("/discover")
+    public ApiResult<List<ServerVO>> getDiscoverableServers() {
+        return ApiResult.success(serverService.getDiscoverableServers());
     }
 
     @GetMapping("/{serverId}")

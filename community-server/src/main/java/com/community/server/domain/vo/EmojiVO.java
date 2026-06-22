@@ -11,6 +11,9 @@ public class EmojiVO {
     @Schema(description = "表情 ID")
     private Long id;
 
+    @Schema(description = "服务器 ID")
+    private Long serverId;
+
     @Schema(description = "表情名称")
     private String name;
 

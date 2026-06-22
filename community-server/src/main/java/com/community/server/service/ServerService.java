@@ -7,9 +7,11 @@ import java.util.List;
 
 public interface ServerService {
 
-    ServerVO createServer(String name, String description);
+    ServerVO createServer(String name, String description, String icon);
 
     List<ServerVO> getMyServers();
+
+    List<ServerVO> getDiscoverableServers();
 
     ServerDetailVO getServerDetail(Long serverId);
 

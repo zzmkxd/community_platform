@@ -12,4 +12,6 @@ public interface MemberService {
     void leaveOrKick(Long serverId, Long userId);
 
     MemberVO updateNickname(Long serverId, String nickname);
+
+    void transferOwnership(Long serverId, Long newOwnerId);
 }

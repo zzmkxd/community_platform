@@ -41,4 +41,11 @@ public class MemberController {
     public ApiResult<MemberVO> updateNickname(@PathVariable Long serverId, @RequestBody Map<String, String> body) {
         return ApiResult.success(memberService.updateNickname(serverId, body.get("nickname")));
     }
+
+    @PutMapping("/transfer-ownership")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void transferOwnership(@PathVariable Long serverId, @RequestBody Map<String, Object> body) {
+        Long newOwnerId = ((Number) body.get("newOwnerId")).longValue();
+        memberService.transferOwnership(serverId, newOwnerId);
+    }
 }

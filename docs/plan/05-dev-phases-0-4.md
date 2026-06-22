@@ -227,6 +227,51 @@
 - [ ] 3.9.9 创建邀请链接 → 新用户通过邀请加入 → 校验 code → 200 MemberVO
 - [ ] 3.9.10 Git 提交：`feat(phase3): Server/Category/Channel CRUD + RBAC 权限系统 + 邀请`
 
+#### 3.10 实现差异记录 (2026-06-22)
+
+> 以下为方案文档与代码实现之间的差异，已逐一评审并给出决议。
+
+##### 行为差异（已修复）
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 1 | `createServer` 只建 @everyone，未建 Owner 角色 | 新增 "Owner" 角色（ADMINISTRATOR 权限，position=999），创建者同时获得 Owner + @everyone |
+| 2 | `updateServer` 只检查 owner，admin 不可操作 | 改为 `PermissionService.checkPermission(ADMINISTRATOR)` 放行 |
+| 3 | 缺少 `entity/vo/ServerMemberApply.java` + 对应 DDL | **留待 Phase 7**（加入审批） |
+| 4 | `leaveOrKick` 中 kick 只检查 owner 而非 KICK_MEMBERS | 已改为 RBAC `checkPermission(KICK_MEMBERS)` |
+| 5 | `leaveOrKick` 中 owner 可自行离开 | 已阻止，owner 须先转让 |
+| 6 | Emoji 3 个方法全是 stub | 已实现基础 CRUD（MinIO 上传留待 Phase 4+） |
+
+##### API 路径对齐
+
+| # | 方案路径 | 代码路径 | 决议 |
+|---|---------|---------|------|
+| 7 | `GET /api/v1/servers/discover` | `GET /api/v1/servers/discoverable` | 统一为 `/discover` |
+
+##### 命名风格对齐（保持代码现状，功能等价）
+
+| # | 方案方法名 | 代码方法名 | 决议 |
+|---|-----------|----------|------|
+| 8 | `CategoryService`（独立） | category 方法在 `ChannelService` | 与 04-migration.md 一致，保持现状 |
+| 9 | `ChannelService.getSingle` | `getChannel` | 保持现状（mallchat 风格） |
+| 10 | `ChannelService.getNestedList` | `getChannels` | 保持现状 |
+| 11 | `MemberService.getMemberList` | `getMembers` | 保持现状 |
+| 12 | `RoleService.assignRole`（单数） | `assignRoles`（批量） | 保持现状（支持批量） |
+| 13 | `ChannelPermissionService.setOverwrite` | `upsertPermission` | 保持现状 |
+| 14 | `ChannelPermissionService.getOverwrites` | `getPermissions` | 保持现状 |
+| 15 | `ChannelPermissionService.deleteOverwrite` | `deletePermission` | 保持现状 |
+| 16 | `EmojiService.listEmojis` | `getEmojis` | 保持现状 |
+| 17 | `PermissionService.resolvePermission` (独立) | 内联在 `checkPermission` | 保持现状（功能等价） |
+
+##### 结构简化（功能等价，后续按需补）
+
+| # | 方案要求 | 代码现状 | 决议 |
+|---|---------|---------|------|
+| 18 | 独立 Adapter 类 6 个 | Service 内 private `toXxxVO()` | 保持现状，Phase 4+ 可提取 |
+| 19 | 权限算法单元测试 (3.5.7) | 未写 | Phase 3.9 集成验证时补 |
+| 20 | Server 实体 `join_mode` 字段 | 未加 | 当前仅 invite 加入，无需区分 |
+| 21 | `getDiscoverableServers` 光标分页 | 全量列表 | 简化实现，数据量小时无差异 |
+
 ---
 
 ### Phase 4: 消息模块（Message/Thread/Reaction）
