@@ -1065,7 +1065,7 @@ docker compose up -d      # 启动全栈
 | T4 | SoundMsgHandler + EmojiMsgHandler（P1） | Phase 5 | 语音/自定义表情消息处理 |
 | T5 | MentionParser（P1） | Phase 5 | @提及正则提取 + uid 解析 |
 | ~~T6~~ | ~~ChannelReadState 全套（P1）~~ | ✅ Phase 4 | Entity + Mapper + Dao + Service + 未读计数 API |
-| ~~T7~~ | ~~PushService（P1）~~ | ✅ Phase 4 | MQ 推送路由，RocketMQTemplate 封装 |
+| T7 | PushService（P1） | Phase 4.x | MQ 推送路由，RocketMQTemplate 封装。**2026-06-22 审计发现：误标 ✅，实际未实现** |
 | T8 | AC 自动机敏感词（P2） | Phase 5 | `common/sensitive/` 移植 MallChat ACTrie |
 | T9 | WxMsg 持久化表（P2） | 后续按需 | 微信原始消息审计（MallChat 有，社区平台当前跳过） |
 | ~~T10~~ | ~~docker-compose.yml（P2）~~ | ✅ Phase 4.4 | MySQL 3308 + Redis 6381 + RocketMQ 9878 + MinIO 9004-5 |
