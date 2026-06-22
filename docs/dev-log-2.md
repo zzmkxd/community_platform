@@ -8,7 +8,7 @@
 
 - **项目名称**: community-platform (社群平台)
 - **当前 Phase**: Phase 5 待开始（WebSocket 实时通信）
-- **最新提交**: `36bc4be` — 打通消息推送管线（6 项阻断性缺口）
+- **最新提交**: `7af4244` — Phase 4.x 遗留 + Phase 5 未完成（6 项修复）
 - **日期**: 2026-06-22
 
 ---
@@ -39,17 +39,17 @@
 
 | # | 来源 | 条目 | 说明 |
 |---|------|------|------|
-| 7 | P4-3 | autoArchiveThreads | `@Scheduled` 每小时归档 24h 无活动 Thread |
-| 8 | P4-6r | Reaction 残留 | SearchServiceImpl:38 和 ThreadServiceImpl:129 仍传 `Collections.emptyList()` |
+| ~~7~~ | ~~P4-3~~ | ~~autoArchiveThreads~~ | ✅ 已修复 (`7af4244`) | @Scheduled + @EnableScheduling |
+| ~~8~~ | ~~P4-6r~~ | ~~Reaction 残留~~ | ✅ 已修复 (`7af4244`) | SearchServiceImpl + ThreadServiceImpl 批量查 Reaction |
 
 ### 三、🟡 Phase 5 未完成（推送管线打通后）
 
 | # | 来源 | 条目 | 说明 |
 |---|------|------|------|
-| 9 | 5.4.1-2 | Handler 路由 TYPING_START / TYPING_STOP | 枚举已定义 (type=9,10)，switch 未路由 |
-| 10 | 新增 | WebSocketService.handleTypingStart/Stop | 新方法 + 广播给频道/Thread 其他订阅者 |
-| 11 | 5.5.1-2 | MEMBER_ONLINE / MEMBER_OFFLINE | 登录/断连时广播给同服务器成员 |
-| 12 | 5.3.4 | WSAdapter 缺 10 个 build 方法 | buildMessageDelete/Update, buildReactionRemove, buildTypingStop, buildMemberJoin/Leave, buildUserOnline/Offline, buildThreadCreate, buildChannelCreate/Update/Delete |
+| ~~9~~ | ~~5.4.1-2~~ | ~~Handler 路由 TYPING_START / TYPING_STOP~~ | ✅ 已修复 (`7af4244`) | NettyWebSocketServerHandler switch 新增两路 |
+| ~~10~~ | ~~新增~~ | ~~WebSocketService.handleTypingStart/Stop~~ | ✅ 已修复 (`7af4244`) | 解析 channelId/threadId → pushToChannel/Thread |
+| ~~11~~ | ~~5.5.1-2~~ | ~~MEMBER_ONLINE / MEMBER_OFFLINE~~ | ✅ 已修复 (`7af4244`) | loginSuccess 广播上线, removed 广播离线 |
+| ~~12~~ | ~~5.3.4~~ | ~~WSAdapter 缺 10 个 build 方法~~ | ✅ 已修复 (`7af4244`) | 10 个新方法覆盖所有 WSRespTypeEnum 推送类型 |
 
 ### 四、🔵 Backlog 功能缺口（来自 dev-log T4-T9）
 
@@ -187,6 +187,7 @@ MessageServiceImpl.sendMessage()
 | 2026-06-22 | 创建 2 号日志，续接 dev-log.md | `a08329a` |
 | 2026-06-22 | 完整待办汇总（29 项）+ T7 纠错 | `0cfd4ea` |
 | 2026-06-22 | **打通推送管线 6 项** — MessageSendListener → MQ → MsgSendConsumer → PushService → PushConsumer → pushToChannel/Thread | `36bc4be` |
+| 2026-06-22 | **Phase 4.x 遗留 + Phase 5 未完成 6 项** — autoArchive + Reaction 残留 + Typing + Online/Offline + WSAdapter 全 18 类型 | `7af4244` |
 
 ---
 
