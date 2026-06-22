@@ -7,13 +7,13 @@
 ## 项目信息
 
 - **项目名称**: community-platform (社群平台)
-- **当前 Phase**: Phase 6 文件模块
-- **最新提交**: 待提交 — 敏感词 + Emoji + MentionParser + JsonUtils + FileService + MinIO
+- **当前 Phase**: Phase 6 文件模块（6.1-6.2 完成，6.3 ES 搜索待补）
+- **最新提交**: 待提交 — Plan-vs-Code 审计 + 计划文档同步
 - **日期**: 2026-06-23
 
 ---
 
-## 完整待办汇总（28 项，2026-06-22 审计生成）
+## 完整待办汇总（32 项，2026-06-23 Plan-vs-Code 审计更新）
 
 ### 一、🔴 阻断性：消息推送管线（Phase 4.x — 阻断 Phase 5.6 验证）
 
@@ -97,6 +97,27 @@
 | 27 | T16 | 包级接口隔离审计（Phase 7+） |
 | 28 | T17 | Nacos + Gateway + Feign 微服务拆分（Phase 8） |
 | 29 | T18 | 配置中心迁移（MySQL/Redis/RocketMQ → Nacos） |
+
+### 十、🔴 Plan-vs-Code 审计新增 (2026-06-23)
+
+> 全量对比 `docs/plan/` 与代码实际状态，共 9 处结构差异（D1-D9）。以下为需实际编码的条目。
+
+| # | 来源 | 条目 | 说明 |
+|---|------|------|------|
+| 30 | D2 | **AOP 切面实现** — `common/aspect/` 目录为空 | `@FrequencyControl` / `@RedissonLock` 注解存在但无切面，运行时频控和分布式锁不生效 |
+| 31 | D3 | **RedisConfig / Redisson 集成** — 无 Redisson Client Bean | `@RedissonLock` 依赖 Redisson，当前 Spring Boot 自动配置仅管理 Redis 连接 |
+| 32 | D5 | **AbstractLocalCache (Caffeine)** — 本地缓存未实现 | 可选组件，当前仅用 Redis 批量缓存 |
+
+### 十一、🔵 补充说明（无需编码）
+
+| # | 来源 | 条目 | 决议 |
+|---|------|------|------|
+| — | D1 | community-transaction 模块 | Phase 8 微服务拆分时按需补（当前单体无需 `@SecureInvoke` 事务安全投递） |
+| — | D4 | RestTemplateConfig | Phase 8 Feign 前无需 |
+| — | D6 | reaction/ 策略目录为空 | 保持现状（ReactionServiceImpl inline 逻辑功能等价） |
+| — | D7 | FileVO 在 message/domain/vo/ | 后续可迁移到 file/domain/vo/ |
+| — | D8 | server/domain/dto/ 为空 | 保持现状 |
+| — | D9 | WxMsgService 是具体类非接口 | 保持现状（功能等价） |
 
 ---
 
@@ -256,6 +277,7 @@ MessageServiceImpl.sendMessage()
 | 2026-06-23 | **Phase 6: MinIOConfiguration + FileServiceImpl** — OssProperties 配置绑定 + MinioClient Bean + 预签名上传/确认/下载 三方法实现 | 待提交 |
 | 2026-06-23 | **审计修复 (A1-A11)** — 端口同步 + SQL注入修复 + FileController.getFile + Server分页 + 文件上传校验 + WS端口外部化 + bind-wx返回值 + @Mapper/@TableId补完 | 待提交 |
 | 2026-06-23 | **API 全量测试 + 运行时修复 (A19-A22)** — MinIO region+bucket 自动创建 + FileServiceImpl getById→lambdaQuery + FileVO.status + PENDING 文件 GET 修复 | 待提交 |
+| 2026-06-23 | **Plan-vs-Code 全量审计** — API 46/46 端点比对通过 + 9 处结构差异 (D1-D9) + 计划文档 checkbox 同步 + 新增待办 30-32 (AOP切面/Redisson/Caffeine) | 待提交 |
 
 ---
 

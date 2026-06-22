@@ -114,18 +114,32 @@ websocket/                →  websocket-server         无数据库
 
 ## 补充：尚待补全的组件
 
-以下组件在现有代码骨架中尚未实现，Phase 4.x~5 推进时补全：
+以下组件在现有代码骨架中尚未实现，Phase 4.x~6 推进时补全：
 
 | 包 | 待加入组件 | 对应 Phase | 状态 |
 |----|----------|-----------|------|
 | server/ | Invite Entity + Mapper + Dao + Service + Controller | Phase 3 | ✅ 已完成 |
 | server/ | ChannelReadState Entity + Mapper + Dao + Service | Phase 4 | ✅ 已完成 |
 | message/ | SoundMsgHandler, MsgHandlerFactory, AbstractMsgHandler, TextMsgHandler, ImageMsgHandler, FileMsgHandler, SystemMsgHandler | Phase 4 | ✅ 已完成 |
-| message/ | PushService, MsgSendConsumer | Phase 4 | ❌ 待补（Phase 4.x） |
-| message/ | MessageSendEvent/Listener | Phase 4 | ⚠️ 骨架存在（仅 log，未发 MQ） |
-| common/ | MentionParser（@提及解析） | 后续 | v1 暂缓 |
-| common/ | sensitive/ (AC 自动机敏感词) | 后续 | v1 暂缓 |
-| file/ | FileService 真实实现（MinIO 预签名） | Phase 6 | ❌ 待补（当前 throw TODO） |
+| message/ | PushService, MsgSendConsumer | Phase 4 | ✅ 已完成 (`36bc4be`) |
+| message/ | MessageSendEvent/Listener | Phase 4 | ✅ 已完成 (`36bc4be`) |
+| common/ | MentionParser（@提及解析） | 后续 | ✅ 已完成 (`待提交`) |
+| common/ | sensitive/ (AC 自动机敏感词) | 后续 | ✅ 已完成 (`待提交`) |
+| file/ | FileService 真实实现（MinIO 预签名） | Phase 6 | ✅ 已完成 (`7f2a54a`) |
 | message/ | SearchService ES 实现 | Phase 6 | ⚠️ 当前用 MySQL LIKE 占位 |
 
-> 详见 [08-microservice-upgrade-path.md](./08-microservice-upgrade-path.md) 微服务拆分操作手册。
+## 补充：已发现的结构差异 (2026-06-23 审计)
+
+以下为规划目录与实际代码之间的差异：
+
+| # | 规划 (5.1 节) | 实际 | 决议 |
+|---|-------------|------|------|
+| D1 | `community-transaction/` 模块（`@SecureInvoke` + `MQProducer`） | 不存在 | 当前单体无需事务安全投递，Phase 8 拆分时按需补 |
+| D2 | `common/aspect/` 含 AOP 切面 | 目录为空（`@FrequencyControl` / `@RedissonLock` 注解存在但无切面实现） | 注解为编译占位，运行时频控/分布式锁未生效 |
+| D3 | `common/config/RedisConfig.java` | 不存在（Spring Boot 自动配置管理 Redis 连接） | Redisson 未集成，`@RedissonLock` 无实际功能 |
+| D4 | `common/config/RestTemplateConfig.java` | 不存在 | Phase 8 Feign 前无需 RestTemplate |
+| D5 | `common/cache/AbstractLocalCache.java`（Caffeine） | 不存在 | 可选组件，当前仅用 Redis 缓存 |
+| D6 | `message/service/strategy/reaction/` | 目录为空（Reaction 使用 Service 内 inline 逻辑） | 保持现状（功能等价） |
+| D7 | `file/domain/vo/` | 目录为空（FileVO 在 `message/domain/vo/` 中） | 后续可迁移到 file 包 |
+| D8 | `server/domain/dto/` | 目录为空（请求 DTO 在其他位置） | 保持现状 |
+| D9 | `WxMsgService` 为接口 + `WxMsgServiceImpl` | `WxMsgService` 是具体 `@Service` 类（无独立接口） | 保持现状（功能等价） |
