@@ -78,6 +78,11 @@ public class RedisUtils {
         redisTemplate.opsForSet().remove(key, values);
     }
 
+    public static java.util.Set<String> sMembers(String key) {
+        java.util.Set<String> members = redisTemplate.opsForSet().members(key);
+        return members != null ? members : java.util.Collections.emptySet();
+    }
+
     // ---- 自增 ----
 
     public static Long inc(String key, long delta) {

@@ -168,12 +168,28 @@ public class WebSocketServiceImpl implements WebSocketService {
 
     @Override
     public void pushToChannel(Long channelId, Object message) {
-        // TODO: 从 Redis Set 读取订阅者，逐个 pushToUser
+        String key = RedisKey.WS_SUB_CHANNEL + channelId;
+        java.util.Set<String> uidStrs = RedisUtils.sMembers(key);
+        for (String uidStr : uidStrs) {
+            try {
+                pushToUser(Long.parseLong(uidStr), message);
+            } catch (NumberFormatException e) {
+                log.warn("Invalid uid in channel subscribers: {}", uidStr);
+            }
+        }
     }
 
     @Override
     public void pushToThread(Long threadId, Object message) {
-        // TODO: 从 Redis Set 读取订阅者，逐个 pushToUser
+        String key = RedisKey.WS_SUB_THREAD + threadId;
+        java.util.Set<String> uidStrs = RedisUtils.sMembers(key);
+        for (String uidStr : uidStrs) {
+            try {
+                pushToUser(Long.parseLong(uidStr), message);
+            } catch (NumberFormatException e) {
+                log.warn("Invalid uid in thread subscribers: {}", uidStr);
+            }
+        }
     }
 
     @Override
