@@ -34,6 +34,10 @@ public enum BusinessErrorEnum implements ErrorEnum {
     // ---- 文件模块 ----
     FILE_NOT_FOUND(4001, "文件不存在"),
     FILE_UPLOAD_FAILED(4002, "文件上传失败"),
+
+    // ---- 系统 ----
+    LOCK_LIMIT(5001, "操作过于频繁，请稍后再试"),
+    FREQUENCY_LIMIT(5002, "请求过于频繁，请稍后再试"),
     ;
 
     private final Integer code;

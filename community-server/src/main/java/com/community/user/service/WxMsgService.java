@@ -40,6 +40,7 @@ public class WxMsgService {
     private final UserDao userDao;
     private final RocketMQTemplate rocketMQTemplate;
 
+    @SuppressWarnings("deprecation")
     public WxMpXmlOutMessage scan(WxMpService wxMpService, WxMpXmlMessage wxMpXmlMessage) {
         String openid = wxMpXmlMessage.getFromUser();
         String eventKey = getEventKey(wxMpXmlMessage);

@@ -89,6 +89,14 @@ public class RedisUtils {
         return redisTemplate.opsForValue().increment(key, delta);
     }
 
+    public static void inc(String key, int timeout, TimeUnit unit) {
+        redisTemplate.opsForValue().increment(key);
+        Long expire = redisTemplate.getExpire(key, TimeUnit.SECONDS);
+        if (expire != null && expire < 0) {
+            redisTemplate.expire(key, timeout, unit);
+        }
+    }
+
     // ---- TTL ----
 
     public static Long getExpire(String key, TimeUnit timeUnit) {

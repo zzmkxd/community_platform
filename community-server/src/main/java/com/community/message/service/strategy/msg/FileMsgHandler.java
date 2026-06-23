@@ -31,7 +31,8 @@ public class FileMsgHandler extends AbstractMsgHandler {
             throw new BusinessException(BusinessErrorEnum.FILE_NOT_FOUND);
         }
         for (Long fileId : req.getFileIds()) {
-            FileAttachment file = fileAttachmentDao.getById(fileId);
+            FileAttachment file = fileAttachmentDao.lambdaQuery()
+                    .eq(FileAttachment::getId, fileId).one();
             if (file == null || !FileStatusEnum.UPLOADED.getStatus().equals(file.getStatus())) {
                 throw new BusinessException(BusinessErrorEnum.FILE_UPLOAD_FAILED);
             }
@@ -43,5 +44,10 @@ public class FileMsgHandler extends AbstractMsgHandler {
         message.setExtra(JSONUtil.toJsonStr(new ExtraBody(req.getFileIds())));
     }
 
-    record ExtraBody(List<Long> fileIds) {}
+    static class ExtraBody {
+        private List<Long> fileIds;
+        ExtraBody(List<Long> fileIds) { this.fileIds = fileIds; }
+        public List<Long> getFileIds() { return fileIds; }
+        public void setFileIds(List<Long> fileIds) { this.fileIds = fileIds; }
+    }
 }

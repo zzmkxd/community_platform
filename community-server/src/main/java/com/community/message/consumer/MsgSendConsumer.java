@@ -1,12 +1,16 @@
 package com.community.message.consumer;
 
+import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.community.common.constant.MQConstant;
+import com.community.file.dao.FileAttachmentDao;
+import com.community.file.domain.entity.FileAttachment;
 import com.community.message.dao.MessageDao;
 import com.community.message.dao.ThreadDao;
 import com.community.message.domain.entity.Message;
 import com.community.message.domain.entity.Thread;
+import com.community.message.domain.vo.FileVO;
 import com.community.message.domain.vo.MessageVO;
 import com.community.message.service.PushService;
 import com.community.message.service.adapter.MessageAdapter;
@@ -17,6 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Slf4j
 @Component
@@ -31,6 +37,7 @@ public class MsgSendConsumer implements RocketMQListener<String> {
     private final ThreadDao threadDao;
     private final UserDao userDao;
     private final PushService pushService;
+    private final FileAttachmentDao fileAttachmentDao;
 
     @Override
     public void onMessage(String msg) {
@@ -55,6 +62,9 @@ public class MsgSendConsumer implements RocketMQListener<String> {
 
             MessageVO messageVO = MessageAdapter.buildMessageVO(message, fromUser, null, thread);
 
+            // 填充附件列表
+            messageVO.setAttachments(buildAttachments(message));
+
             // 推送到频道订阅者
             pushService.pushToChannel(channelId, fromUid, messageVO);
 
@@ -66,6 +76,25 @@ public class MsgSendConsumer implements RocketMQListener<String> {
             log.info("MsgSendConsumer dispatched: msgId={}, channelId={}, threadId={}", messageId, channelId, threadId);
         } catch (Exception e) {
             log.error("MsgSendConsumer error: {}", msg, e);
+        }
+    }
+
+    private List<FileVO> buildAttachments(Message message) {
+        if (message.getExtra() == null || message.getExtra().isEmpty()) {
+            return null;
+        }
+        try {
+            JSONObject extra = JSONUtil.parseObj(message.getExtra());
+            JSONArray fileIdsArr = extra.getJSONArray("fileIds");
+            if (fileIdsArr == null || fileIdsArr.isEmpty()) {
+                return null;
+            }
+            List<Long> fileIds = fileIdsArr.toList(Long.class);
+            List<FileAttachment> files = fileAttachmentDao.lambdaQuery()
+                    .in(FileAttachment::getId, fileIds).list();
+            return files.stream().map(MessageAdapter::buildFileVO).toList();
+        } catch (Exception e) {
+            return null;
         }
     }
 }

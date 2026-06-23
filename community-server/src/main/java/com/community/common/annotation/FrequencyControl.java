@@ -3,23 +3,30 @@ package com.community.common.annotation;
 import java.lang.annotation.*;
 import java.util.concurrent.TimeUnit;
 
-/**
- * 频控注解
- */
 @Repeatable(FrequencyControlContainer.class)
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface FrequencyControl {
 
-    /** 时间窗口数量 */
-    int windowSize() default 5;
+    /** key 前缀，默认取方法全限定名 */
+    String prefixKey() default "";
 
-    /** 时间窗口 */
-    int period();
+    /** 限流目标类型 */
+    Target target() default Target.EL;
 
-    /** 时间单位，默认秒 */
+    /** SpEL 表达式（target=EL 时使用） */
+    String spEl() default "";
+
+    /** 单位时间内最大访问次数 */
+    int count();
+
+    /** 频控时间 */
+    int time();
+
+    /** 频控时间单位，默认秒 */
     TimeUnit unit() default TimeUnit.SECONDS;
 
-    /** 限流 key，支持 SpEL 表达式 */
-    String key();
+    enum Target {
+        UID, EL, IP
+    }
 }

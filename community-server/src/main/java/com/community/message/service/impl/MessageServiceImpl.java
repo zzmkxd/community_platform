@@ -1,11 +1,16 @@
 package com.community.message.service.impl;
 
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import com.community.common.domain.vo.request.CursorPageBaseReq;
 import com.community.common.domain.vo.response.CursorPageBaseResp;
 import com.community.common.exception.BusinessErrorEnum;
 import com.community.common.exception.BusinessException;
 import com.community.common.utils.CursorUtils;
 import com.community.common.utils.RequestHolder;
+import com.community.file.dao.FileAttachmentDao;
+import com.community.file.domain.entity.FileAttachment;
 import com.community.message.dao.MessageDao;
 import com.community.message.dao.ReactionDao;
 import com.community.message.dao.ThreadDao;
@@ -13,6 +18,7 @@ import com.community.message.domain.dto.SendMsgReq;
 import com.community.message.domain.entity.Message;
 import com.community.message.domain.entity.Reaction;
 import com.community.message.domain.entity.Thread;
+import com.community.message.domain.vo.FileVO;
 import com.community.message.domain.vo.MessageVO;
 import com.community.message.domain.vo.ReactionVO;
 import com.community.message.event.ChannelMessageSendEvent;
@@ -49,6 +55,7 @@ public class MessageServiceImpl implements MessageService {
     private final ReactionDao reactionDao;
     private final PermissionService permissionService;
     private final ApplicationEventPublisher eventPublisher;
+    private final FileAttachmentDao fileAttachmentDao;
 
     @Override
     @Transactional
@@ -89,7 +96,9 @@ public class MessageServiceImpl implements MessageService {
 
         Message saved = messageDao.getById(msgId);
         User user = userDao.getById(uid);
-        return MessageAdapter.buildMessageVO(saved, user, Collections.emptyList(), thread);
+        MessageVO vo = MessageAdapter.buildMessageVO(saved, user, Collections.emptyList(), thread);
+        vo.setAttachments(buildAttachments(saved));
+        return vo;
     }
 
     @Override
@@ -127,7 +136,9 @@ public class MessageServiceImpl implements MessageService {
                 .orElseThrow(() -> new BusinessException(BusinessErrorEnum.MESSAGE_NOT_FOUND));
 
         User user = userDao.getById(message.getFromUid());
-        return MessageAdapter.buildMessageVO(message, user, Collections.emptyList(), null);
+        MessageVO vo = MessageAdapter.buildMessageVO(message, user, Collections.emptyList(), null);
+        vo.setAttachments(buildAttachments(message));
+        return vo;
     }
 
     @Override
@@ -152,7 +163,9 @@ public class MessageServiceImpl implements MessageService {
 
         log.info("Message edited: msgId={}, channelId={}, uid={}", msgId, channelId, uid);
         User user = userDao.getById(uid);
-        return MessageAdapter.buildMessageVO(message, user, Collections.emptyList(), null);
+        MessageVO vo = MessageAdapter.buildMessageVO(message, user, Collections.emptyList(), null);
+        vo.setAttachments(buildAttachments(message));
+        return vo;
     }
 
     @Override
@@ -196,10 +209,16 @@ public class MessageServiceImpl implements MessageService {
         List<Long> msgIds = messages.stream().map(Message::getId).toList();
         Map<Long, List<ReactionVO>> reactionMap = buildReactionMap(msgIds);
 
+        Map<Long, List<FileVO>> attachmentMap = buildAttachmentMap(messages);
+
         return messages.stream()
-                .map(msg -> MessageAdapter.buildMessageVO(
-                        msg, userMap.get(msg.getFromUid()),
-                        reactionMap.getOrDefault(msg.getId(), List.of()), null))
+                .map(msg -> {
+                    MessageVO vo = MessageAdapter.buildMessageVO(
+                            msg, userMap.get(msg.getFromUid()),
+                            reactionMap.getOrDefault(msg.getId(), List.of()), null);
+                    vo.setAttachments(attachmentMap.get(msg.getId()));
+                    return vo;
+                })
                 .toList();
     }
 
@@ -231,6 +250,65 @@ public class MessageServiceImpl implements MessageService {
                 vo.setReacted(vo.getUserIds().contains(currentUid));
             }
             result.put(entry.getKey(), list);
+        }
+        return result;
+    }
+
+    private List<FileVO> buildAttachments(Message message) {
+        if (message.getExtra() == null || message.getExtra().isEmpty()) {
+            return null;
+        }
+        try {
+            JSONObject extra = JSONUtil.parseObj(message.getExtra());
+            JSONArray fileIdsArr = extra.getJSONArray("fileIds");
+            if (fileIdsArr == null || fileIdsArr.isEmpty()) {
+                return null;
+            }
+            List<Long> fileIds = fileIdsArr.toList(Long.class);
+            List<FileAttachment> files = fileAttachmentDao.lambdaQuery()
+                    .in(FileAttachment::getId, fileIds).list();
+            return files.stream().map(MessageAdapter::buildFileVO).toList();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Map<Long, List<FileVO>> buildAttachmentMap(List<Message> messages) {
+        List<Long> allFileIds = new java.util.ArrayList<>();
+        Map<Long, List<Long>> msgFileIdsMap = new java.util.HashMap<>();
+
+        for (Message msg : messages) {
+            if (msg.getExtra() == null || msg.getExtra().isEmpty()) continue;
+            try {
+                JSONObject extra = JSONUtil.parseObj(msg.getExtra());
+                JSONArray fileIdsArr = extra.getJSONArray("fileIds");
+                if (fileIdsArr == null || fileIdsArr.isEmpty()) continue;
+                List<Long> fileIds = fileIdsArr.toList(Long.class);
+                allFileIds.addAll(fileIds);
+                msgFileIdsMap.put(msg.getId(), fileIds);
+            } catch (Exception e) {
+                // ignore parse errors
+            }
+        }
+
+        if (allFileIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, FileVO> fileMap = fileAttachmentDao.lambdaQuery()
+                .in(FileAttachment::getId, allFileIds).list()
+                .stream()
+                .collect(Collectors.toMap(FileAttachment::getId, MessageAdapter::buildFileVO));
+
+        Map<Long, List<FileVO>> result = new java.util.HashMap<>();
+        for (var entry : msgFileIdsMap.entrySet()) {
+            List<FileVO> files = entry.getValue().stream()
+                    .map(fileMap::get)
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+            if (!files.isEmpty()) {
+                result.put(entry.getKey(), files);
+            }
         }
         return result;
     }

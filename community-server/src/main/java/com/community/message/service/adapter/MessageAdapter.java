@@ -1,7 +1,9 @@
 package com.community.message.service.adapter;
 
+import com.community.file.domain.entity.FileAttachment;
 import com.community.message.domain.entity.Message;
 import com.community.message.domain.entity.Thread;
+import com.community.message.domain.vo.FileVO;
 import com.community.message.domain.vo.MessageVO;
 import com.community.message.domain.vo.ReactionVO;
 import com.community.user.domain.entity.User;
@@ -9,6 +11,18 @@ import com.community.user.domain.entity.User;
 import java.util.List;
 
 public class MessageAdapter {
+
+    public static FileVO buildFileVO(FileAttachment file) {
+        FileVO vo = new FileVO();
+        vo.setId(file.getId());
+        vo.setFileName(file.getFileName());
+        vo.setFileSize(file.getFileSize());
+        vo.setMimeType(file.getMimeType());
+        vo.setWidth(file.getWidth());
+        vo.setHeight(file.getHeight());
+        vo.setStatus(file.getStatus());
+        return vo;
+    }
 
     public static MessageVO buildMessageVO(Message message, User fromUser, List<ReactionVO> reactions, Thread thread) {
         MessageVO vo = new MessageVO();

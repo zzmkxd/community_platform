@@ -13,6 +13,7 @@ import java.util.function.Consumer;
 
 public class CursorUtils {
 
+    @SuppressWarnings("unchecked")
     public static <T> CursorPageBaseResp<T> getCursorPageByMysql(IService<T> mapper, CursorPageBaseReq request,
                                                                    Consumer<LambdaQueryWrapper<T>> initWrapper,
                                                                    SFunction<T, ?> cursorColumn) {

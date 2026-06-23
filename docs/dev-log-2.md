@@ -7,8 +7,8 @@
 ## 项目信息
 
 - **项目名称**: community-platform (社群平台)
-- **当前 Phase**: Phase 6 文件模块（6.1-6.2 完成，6.3 ES 搜索待补）
-- **最新提交**: 待提交 — Plan-vs-Code 审计 + 计划文档同步
+- **当前 Phase**: Phase 6 文件模块（6.1-6.2 完成，6.3 ES 搜索待补）+ Bug 修复 + 功能缺口补全
+- **最新提交**: 待提交 — Round 1-4 Bug 修复 + 功能缺口补全
 - **日期**: 2026-06-23
 
 ---
@@ -66,7 +66,7 @@
 |---|------|------|
 | ~~17~~ | ~~FileService 3 方法~~ | ✅ 已实现 | MinIO presigned URL upload + confirm + download |
 | ~~18~~ | ~~MinIOConfiguration~~ | ✅ 已创建 | file/config/MinIOConfiguration.java + common/config/OssProperties.java |
-| 19 | MessageAdapter 文件关联 | ImageMsgHandler/FileMsgHandler 需校验 fileId 已确认上传 |
+| ~~19~~ | ~~MessageAdapter 文件关联~~ | ✅ 已修复 — MessageAdapter.buildFileVO + attachments 组装（send/get/edit/list + WS 推送） |
 | 20 | docker-compose 验证 MinIO | 已配置 9004-5，需联调 |
 
 ### 六、🔵 Search 模块预检（Phase 6 前置）
@@ -81,8 +81,8 @@
 | # | 来源 | 条目 |
 |---|------|------|
 | 23 | T12 | @SecureInvoke + MQProducer 事务安全投递 |
-| 24 | T14 | CursorUtils.java unchecked 泛型警告 |
-| 25 | T15 | WxMsgService.java deprecated API (weixin-java-mp 4.4.0) |
+| ~~24~~ | ~~T14~~ | ~~CursorUtils.java unchecked 泛型警告~~ ✅ `@SuppressWarnings` |
+| ~~25~~ | ~~T15~~ | ~~WxMsgService.java deprecated API~~ ✅ `@SuppressWarnings("deprecation")` |
 
 ### 八、⚪ 文档
 
@@ -104,9 +104,9 @@
 
 | # | 来源 | 条目 | 说明 |
 |---|------|------|------|
-| 30 | D2 | **AOP 切面实现** — `common/aspect/` 目录为空 | `@FrequencyControl` / `@RedissonLock` 注解存在但无切面，运行时频控和分布式锁不生效 |
-| 31 | D3 | **RedisConfig / Redisson 集成** — 无 Redisson Client Bean | `@RedissonLock` 依赖 Redisson，当前 Spring Boot 自动配置仅管理 Redis 连接 |
-| 32 | D5 | **AbstractLocalCache (Caffeine)** — 本地缓存未实现 | 可选组件，当前仅用 Redis 批量缓存 |
+| ~~30~~ | ~~D2~~ | ~~**AOP 切面实现**~~ | ✅ 已修复 — RedissonLockAspect + FrequencyControlAspect + spring-boot-starter-aop |
+| ~~31~~ | ~~D3~~ | ~~**RedisConfig / Redisson 集成**~~ | ✅ 已修复 — RedisConfig (RedissonClient + RedisTemplate Bean) |
+| ~~32~~ | ~~D5~~ | ~~**AbstractLocalCache (Caffeine)**~~ | ✅ 已创建 — Caffeine LoadingCache 本地缓存抽象 |
 
 ### 十一、🔵 补充说明（无需编码）
 
@@ -218,7 +218,7 @@ MessageServiceImpl.sendMessage()
 
 | # | 问题 | 位置 |
 |---|------|------|
-| A5 | **ImageMsgHandler/FileMsgHandler** 不校验 fileId 是否已 `confirmUpload`，可引用未上传完成的文件 | Handler `checkMsg()` |
+| ~~A5~~ | ~~**ImageMsgHandler/FileMsgHandler getById bug**~~ | ✅ 已修复 — `getById` → `lambdaQuery().eq(id).one()` |
 | A6 | **SensitiveWordMapper** 缺少 `@Mapper` 注解（15 个其他 Mapper 都有，打破惯例） | `SensitiveWordMapper.java` |
 | A7 | **DDL 注释过时** — message 表 `msg_type` 注释缺 `6=EMOJI` | `ddl.sql:197` |
 | A8 | **WebSocket 端口硬编码** — `NettyWebSocketServer.WEB_SOCKET_PORT = 8091` 未外部化到配置 | `NettyWebSocketServer.java:29` |
@@ -278,6 +278,11 @@ MessageServiceImpl.sendMessage()
 | 2026-06-23 | **审计修复 (A1-A11)** — 端口同步 + SQL注入修复 + FileController.getFile + Server分页 + 文件上传校验 + WS端口外部化 + bind-wx返回值 + @Mapper/@TableId补完 | 待提交 |
 | 2026-06-23 | **API 全量测试 + 运行时修复 (A19-A22)** — MinIO region+bucket 自动创建 + FileServiceImpl getById→lambdaQuery + FileVO.status + PENDING 文件 GET 修复 | 待提交 |
 | 2026-06-23 | **Plan-vs-Code 全量审计** — API 46/46 端点比对通过 + 9 处结构差异 (D1-D9) + 计划文档 checkbox 同步 + 新增待办 30-32 (AOP切面/Redisson/Caffeine) | 待提交 |
+| 2026-06-23 | **Round 1: Bug 修复 (A1-A3)** — ImageMsgHandler/FileMsgHandler getById→lambdaQuery + MessageAdapter attachments 组装 (4 路径) | 待提交 |
+| 2026-06-23 | **Round 2: Redisson 分布式锁 (B1)** — RedisConfig + SpElUtils + RedissonLockAspect + LockService + spring-boot-starter-aop | 待提交 |
+| 2026-06-23 | **Round 3: 频控 AOP (B2)** — FrequencyControlAspect + TotalCountWithInFixTime + 策略工厂 + RedisUtils.inc(TTL) | 待提交 |
+| 2026-06-23 | **Round 4: 收尾 (B3-B5)** — AbstractLocalCache + CursorUtils @SuppressWarnings + WxMsgService @SuppressWarnings | 待提交 |
+| 2026-06-23 | **Bug 修复: ExtraBody 序列化** — ImageMsgHandler/FileMsgHandler 中 Java `record` 改为 static class（Hutool JSONUtil 无法序列化 record 导致 extra 为 `{}`） | 待提交 |
 
 ---
 

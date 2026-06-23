@@ -10,6 +10,9 @@ import java.util.concurrent.TimeUnit;
 @Target(ElementType.METHOD)
 public @interface RedissonLock {
 
+    /** key 的前缀，默认取方法全限定名 */
+    String prefixKey() default "";
+
     /** 锁的 key，支持 SpEL 表达式 */
     String key();
 
