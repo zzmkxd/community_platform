@@ -7,8 +7,8 @@
 ## 项目信息
 
 - **项目名称**: community-platform (社群平台)
-- **当前 Phase**: Phase 6 文件模块（6.1-6.2 完成，6.3 ES 搜索待补）+ 代码质量审计
-- **最新提交**: `7fff1c6` — 清理死代码与过时文档 + 审计表同步
+- **当前 Phase**: Phase 6 文件模块（6.1-6.2 完成，6.3 ES 搜索待补）+ 代码质量审计 + @SecureInvoke 移植完成
+- **最新提交**: `7aad1db` — @SecureInvoke 移植 + 重复代码抽取
 - **日期**: 2026-06-23
 
 ---
@@ -43,7 +43,7 @@
 |---|------|------|
 | G10 | **6 个事件未实现** — MemberJoin/Kick/RoleUpdate/OwnershipTransfer/ServerCreate/ThreadCreate | 仅 `ChannelMessageSendEvent` 存在 |
 | G11 | **WxMsg 持久化表** — 微信原始消息审计（#16，后续按需） | 无 DDL/Entity/Mapper |
-| G12 | **@SecureInvoke + MQProducer** — 事务安全投递（#23，Phase 8） | 直接 RocketMQTemplate 发送 |
+| G12 | ~~**@SecureInvoke + MQProducer**~~ ✅ **已修复** — 事务安全投递，at-least-once MQ 保障 | `com.community.common.transaction/` 包 10 文件 |
 | G13 | **Server 实体缺 join_mode 字段** — FREE/INVITE/APPLY 三种加入模式 | 仅 INVITE 模式 |
 | G14 | ~~**getDiscoverableServers 无游标分页**~~ ✅ **误报** — `ServerServiceImpl.java:121` 已使用 `CursorUtils.getCursorPageByMysql()`，返回 `CursorPageBaseResp<ServerVO>` | `ServerServiceImpl.java:121-141` |
 | G15 | **ServerMemberApply 实体/VO/DDL 缺失** — 加入审批流（Phase 7） | 架构预留 |
@@ -78,15 +78,18 @@
 | — | G14 确认误报 — getDiscoverableServers 已有游标分页 |
 | — | N1 WS 推送补全 (本次提交) |
 | — | N4 死配置清理 (本次提交) |
+| — | G12 @SecureInvoke + MQProducer 事务安全投递 (提交 `7aad1db`) |
+| — | CQ1-CQ4 重复代码抽取: buildReactionMap + buildAttachments + requireMember + requireServerOwner (提交 `7aad1db`) |
+| — | CR1 @SecureInvoke 本地消息表移植 (提交 `7aad1db`) |
 
 ### 📊 缺口状态总表 (16+4=20 项)
 
 | 状态 | 数量 | 条目 |
 |------|------|------|
-| ✅ 已修复/排除 | **16** | G1-G4, G7, G8, G9, G14, N1, N4 + A1-A3, D2/D3, D5, B4, B5, ExtraBody |
+| ✅ 已修复/排除 | **17** | G1-G4, G7, G8, G9, G12, G14, N1, N4 + A1-A3, D2/D3, D5, B4, B5, ExtraBody |
 | 🔶 Phase 6.3 | **2** | G5 (ES搜索), G6 (ES容器) |
 | 🔷 Phase 7+ 规划 | **5** | G10, G13, G15 + N2 (VIDEO) + N3 (零测试) |
-| ⬜ 无限期延后 | **3** | G11 (WxMsg表), G12 (@SecureInvoke), G16 (flows-visual.html) |
+| ⬜ 无限期延后 | **2** | G11 (WxMsg表), G16 (flows-visual.html) |
 
 ---
 
@@ -157,7 +160,7 @@
 
 | # | 来源 | 条目 |
 |---|------|------|
-| 23 | T12 | @SecureInvoke + MQProducer 事务安全投递 |
+| ~~23~~ | ~~T12~~ | ~~@SecureInvoke + MQProducer 事务安全投递~~ ✅ 已完成 (`7aad1db`) |
 | ~~24~~ | ~~T14~~ | ~~CursorUtils.java unchecked 泛型警告~~ ✅ `@SuppressWarnings` |
 | ~~25~~ | ~~T15~~ | ~~WxMsgService.java deprecated API~~ ✅ `@SuppressWarnings("deprecation")` |
 
@@ -189,7 +192,7 @@
 
 | # | 来源 | 条目 | 决议 |
 |---|------|------|------|
-| — | D1 | community-transaction 模块 | Phase 8 微服务拆分时按需补（当前单体无需 `@SecureInvoke` 事务安全投递） |
+| — | D1 | community-transaction 模块 | ✅ 已实现 — `com.community.common.transaction/` 包（非独立模块，内嵌 common-server 中），后续微服务拆分时可提取为独立 JAR |
 | — | D4 | RestTemplateConfig | Phase 8 Feign 前无需 |
 | — | D6 | reaction/ 策略目录为空 | 保持现状（ReactionServiceImpl inline 逻辑功能等价） |
 | — | D7 | FileVO 在 message/domain/vo/ | 后续可迁移到 file/domain/vo/ |
@@ -204,10 +207,10 @@
 
 | # | 类型 | 条目 | 位置 | 严重度 |
 |---|------|------|------|--------|
-| CQ1 | 重复代码 | **buildReactionMap 三处重复** — Reaction 聚合逻辑（按 emoji 分组、计数、判断当前用户）在 MessageServiceImpl/SearchServiceImpl/ThreadServiceImpl 各实现一遍，~30行×3 | `MessageServiceImpl.java:223-253` `SearchServiceImpl.java:69-102` `ThreadServiceImpl.java:186-219` | 🟡 |
-| CQ2 | 重复代码 | **buildAttachments 两处重复** — FileAttachment 批量查询+分组逻辑在 MessageServiceImpl/MsgSendConsumer 各实现一遍 | `MessageServiceImpl.java:255-296` `MsgSendConsumer.java:82-90` | 🟡 |
-| CQ3 | 重复代码 | **requireMember 三处重复** — 成员身份校验 10 行代码在 ChannelServiceImpl/ChannelPermissionServiceImpl/EmojiServiceImpl 逐字重复 | 3 个 ServiceImpl，各 ~10 行 | 🟡 |
-| CQ4 | 重复代码 | **requireServerOwner 两处重复** — Server owner 校验在 ChannelPermissionServiceImpl/RoleServiceImpl 重复 | 2 个 ServiceImpl，各 ~10 行 | 🟡 |
+| CQ1 | 重复代码 | ~~**buildReactionMap 三处重复**~~ ✅ **已修复** — 提取到 `MessageAdapter.buildReactionMap()` 静态方法，MessageServiceImpl/SearchServiceImpl/ThreadServiceImpl 统一调用 | `MessageAdapter.java` + 3 ServiceImpl | ✅ |
+| CQ2 | 重复代码 | ~~**buildAttachments 两处重复**~~ ✅ **已修复** — 提取到 `MessageAdapter.buildAttachments()` + `buildAttachmentMap()` 静态方法 | `MessageAdapter.java` + MessageServiceImpl + MsgSendConsumer | ✅ |
+| CQ3 | 重复代码 | ~~**requireMember 三处重复**~~ ✅ **已修复** — 提取到 `MembershipValidator.requireMember()` 统一校验，改为返回 member 对象 | `MembershipValidator.java` + Channel/ChannelPermission/EmojiServiceImpl | ✅ |
+| CQ4 | 重复代码 | ~~**requireServerOwner 两处重复**~~ ✅ **已修复** — 追加至 `MembershipValidator.requireServerOwner()` | `MembershipValidator.java` + ChannelPermission/RoleServiceImpl | ✅ |
 | CQ5 | 重复代码 | **Entity→VO 转换重复** — toChannelVO/toCategoryVO + 频道分组（含"未分类"桶）在 ChannelServiceImpl/ServerServiceImpl 各自实现 | `ChannelServiceImpl.java:126-159,242-259` `ServerServiceImpl.java:157-192,307-315` | 🟡 |
 | CQ6 | 硬编码 | **hasPower = uid==1L** — 管理员判断写死用户 ID 1，任何拿到 uid=1 的用户自动拥有 power | `WebSocketServiceImpl.java:278` | 🔴 |
 | CQ7 | 硬编码 | **分页默认值分散** — pageSize 默认值在 MessageServiceImpl(50)/MemberServiceImpl(10)/ServerServiceImpl(30)/ThreadServiceImpl(25,50) 各自定义，无统一常量 | 4 个 ServiceImpl | 🟡 |
@@ -228,7 +231,7 @@
 
 | # | 模式 | 说明 | MallChat 参考 | 优先级 |
 |---|------|------|-------------|--------|
-| CR1 | **@SecureInvoke 本地消息表** | MQ 发送无重试保障，MessageSendListener 发 RocketMQ 失败→消息静默丢失。MallChat 用 @SecureInvoke + secure_invoke_record 表 + @Scheduled 重试实现 at-least-once | `mallchat-transaction/` 模块 (SecureInvokeAspect + MQProducer + SecureInvokeRecord) | 🔴 |
+| CR1 | ~~**@SecureInvoke 本地消息表**~~ ✅ **已移植** — `com.community.common.transaction/` 包 10 文件：SecureInvoke 注解 + AOP 切面 + secure_invoke_record 本地消息表 + @Scheduled 指数退避重试（2m/4m/8m）+ MQProducer.sendSecureMsg()。已通过故障注入验证（MQ 不可用→重试→MQ 恢复→补发成功） | `common/transaction/` 包 10 文件 | ✅ |
 | CR2 | **PushConsumer BROADCASTING** | 当前用 RocketMQListener<String> 手动 JSON 解析，未用 BROADCASTING 模式。多实例部署时消息重复消费 | MallChat PushConsumer 用 `messageModel = BROADCASTING` + `RocketMQListener<PushMessageDTO>` | 🟡 |
 | CR3 | **完整事件系统** | 社区平台仅 1 个 Event (ChannelMessageSendEvent)，MallChat 有 10+ (UserOnline/Offline/Register/Black/Apply/GroupMemberAdd/MessageMark/Recall 等)。WebSocketServiceImpl 直接处理在线/离线逻辑，未通过事件解耦 | `mallchat-chat-server/.../common/event/` 目录 10+ 事件 | 🟡 |
 | CR4 | **URL 链接预览** | 文本消息中的 URL 无预览卡片。MallChat 有 UrlDiscover 策略链 (通用URL + 微信特化 WxUrlDiscover + 优先级选择 PrioritizedUrlDiscover)，发消息时自动抓取标题 | `common/utils/discover/` 目录 (UrlDiscover + AbstractUrlDiscover + WxUrlDiscover + CommonUrlDiscover) | 🟡 |
@@ -551,12 +554,12 @@ if (member == null) { throw new BusinessException(BusinessErrorEnum.NOT_MEMBER);
 
 | 类别 | 条目数 | 🔴 严重 | 🟡 中等 | ⚪ 轻微 |
 |------|--------|---------|---------|---------|
-| 重复代码 | 5 (CQ1-CQ5) | — | 5 | — |
+| 重复代码 | 5 (CQ1-CQ5) ✅4/5 | — | 1 (CQ5) | — |
 | 硬编码 | 3 类 (CQ6-CQ9) | 1 | 1 | 1 |
 | 异常处理 | 3 (CQ10-CQ12) | 1 | 2 | — |
 | 性能 | 4 (CQ13-CQ16) | 1 | 3 | — |
-| MallChat 差距 | 10 (CR1-CR10) | 1 | 4 | 5 |
-| **合计** | **25** | **4** | **15** | **6** |
+| MallChat 差距 | 10 (CR1-CR10) ✅1/10 | — | 4 (CR2-CR5) | 5 (CR6-CR10) |
+| **合计** | **25** ✅5/25 | **3** | **11** | **6** |
 
 ---
 
@@ -591,6 +594,9 @@ if (member == null) { throw new BusinessException(BusinessErrorEnum.NOT_MEMBER);
 | 2026-06-23 | **细小问题修复: WSRespTypeEnum + WSAdapter** — 新增 MEMBER_KICK(32) + buildMemberKick() | `04a5877` |
 | 2026-06-23 | **细小问题修复: 死配置清理** — application-local.properties 注释 community.es.uris | `04a5877` |
 | 2026-06-23 | **细小问题修复: 计划文档同步** — 更新 P4-6 (reaction 残留) 为已修复 | `04a5877` |
+| 2026-06-23 | **@SecureInvoke 移植 (CR1)** — 本地消息表 + AOP 切面 + @Scheduled 指数退避重试 + MQProducer.sendSecureMsg()。通过故障注入验证（MQ 中断→重试→MQ 恢复→补发成功）。com.community.common.transaction/ 包 10 文件 + DDL + MessageServiceImpl 改造，删除 ChannelMessageSendEvent + MessageSendListener | `7aad1db` |
+| 2026-06-23 | **重复代码抽取 (CQ1-CQ4)** — MembershipValidator (requireMember + requireServerOwner) 统一 5 处校验 + MessageAdapter (buildReactionMap + buildAttachments + buildAttachmentMap) 合并 5 处组装逻辑。净减少 ~315 行重复代码 | `7aad1db` |
+| 2026-06-23 | **API 全量冒烟测试** — 12 类端点全部通过（Server/Channel/Role/Emoji/Permission/Message 含 @SecureInvoke + MessageAdapter 渲染）。修复 broker.conf brokerIP1 + docker-compose 端口映射 | 待提交 |
 
 ---
 

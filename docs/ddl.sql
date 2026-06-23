@@ -283,3 +283,20 @@ CREATE TABLE IF NOT EXISTS `file_attachment` (
     KEY `idx_message_id` (`message_id`),
     KEY `idx_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文件附件表';
+
+-- =============================================
+-- 17. secure_invoke_record 本地消息表
+-- =============================================
+CREATE TABLE IF NOT EXISTS `secure_invoke_record` (
+    `id`                BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键 ID',
+    `secure_invoke_json` JSON        NOT NULL COMMENT '方法调用快照 (className+methodName+parameterTypes+args)',
+    `status`            TINYINT      NOT NULL DEFAULT 1 COMMENT '状态: 1=待执行 2=已失败',
+    `next_retry_time`   DATETIME     NOT NULL COMMENT '下次重试时间',
+    `retry_times`       INT          NOT NULL DEFAULT 0 COMMENT '已重试次数',
+    `max_retry_times`   INT          NOT NULL DEFAULT 3 COMMENT '最大重试次数',
+    `fail_reason`       VARCHAR(500) DEFAULT NULL COMMENT '失败原因',
+    `create_time`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_status_next_retry` (`status`, `next_retry_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='安全执行本地消息表';

@@ -80,7 +80,7 @@ services:
     command: sh mqbroker -n rocketmq-namesrv:9876 -c /home/rocketmq/conf/broker.conf
     ports:
       - "10919:10909"
-      - "11911:10911"
+      - "10911:10911"
     volumes:
       - ./broker.conf:/home/rocketmq/conf/broker.conf
     networks:
