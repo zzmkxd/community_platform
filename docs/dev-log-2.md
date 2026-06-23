@@ -7,8 +7,8 @@
 ## 项目信息
 
 - **项目名称**: community-platform (社群平台)
-- **当前 Phase**: Phase 6 文件模块（6.1-6.2 完成，6.3 ES 搜索待补）+ Bug 修复 + 功能缺口补全
-- **最新提交**: `931f8ac` — 计划文档同步 (WS 协议表 + Phase 进度)
+- **当前 Phase**: Phase 6 文件模块（6.1-6.2 完成，6.3 ES 搜索待补）+ 代码质量审计
+- **最新提交**: `7fff1c6` — 清理死代码与过时文档 + 审计表同步
 - **日期**: 2026-06-23
 
 ---
@@ -196,6 +196,60 @@
 | — | D8 | server/domain/dto/ 为空 | 保持现状 |
 | — | D9 | WxMsgService 是具体类非接口 | 保持现状（功能等价） |
 
+### 十二、🔴 代码质量与可复用性审计 (2026-06-23)
+
+> 全量对比 community-platform 自身质量 + MallChat 可复用模式，识别重复代码、硬编码、性能隐患、缺失模式。
+
+#### 十二-A: 自身代码质量问题 (CQ 系列)
+
+| # | 类型 | 条目 | 位置 | 严重度 |
+|---|------|------|------|--------|
+| CQ1 | 重复代码 | **buildReactionMap 三处重复** — Reaction 聚合逻辑（按 emoji 分组、计数、判断当前用户）在 MessageServiceImpl/SearchServiceImpl/ThreadServiceImpl 各实现一遍，~30行×3 | `MessageServiceImpl.java:223-253` `SearchServiceImpl.java:69-102` `ThreadServiceImpl.java:186-219` | 🟡 |
+| CQ2 | 重复代码 | **buildAttachments 两处重复** — FileAttachment 批量查询+分组逻辑在 MessageServiceImpl/MsgSendConsumer 各实现一遍 | `MessageServiceImpl.java:255-296` `MsgSendConsumer.java:82-90` | 🟡 |
+| CQ3 | 重复代码 | **requireMember 三处重复** — 成员身份校验 10 行代码在 ChannelServiceImpl/ChannelPermissionServiceImpl/EmojiServiceImpl 逐字重复 | 3 个 ServiceImpl，各 ~10 行 | 🟡 |
+| CQ4 | 重复代码 | **requireServerOwner 两处重复** — Server owner 校验在 ChannelPermissionServiceImpl/RoleServiceImpl 重复 | 2 个 ServiceImpl，各 ~10 行 | 🟡 |
+| CQ5 | 重复代码 | **Entity→VO 转换重复** — toChannelVO/toCategoryVO + 频道分组（含"未分类"桶）在 ChannelServiceImpl/ServerServiceImpl 各自实现 | `ChannelServiceImpl.java:126-159,242-259` `ServerServiceImpl.java:157-192,307-315` | 🟡 |
+| CQ6 | 硬编码 | **hasPower = uid==1L** — 管理员判断写死用户 ID 1，任何拿到 uid=1 的用户自动拥有 power | `WebSocketServiceImpl.java:278` | 🔴 |
+| CQ7 | 硬编码 | **分页默认值分散** — pageSize 默认值在 MessageServiceImpl(50)/MemberServiceImpl(10)/ServerServiceImpl(30)/ThreadServiceImpl(25,50) 各自定义，无统一常量 | 4 个 ServiceImpl | 🟡 |
+| CQ8 | 硬编码 | **配置未外部化** — 24h 归档阈值、MinIO region("us-east-1")、WS 端口 8091、Token TTL 5天、登录码过期 1h、文件上传 10min/下载 1h 过期、@everyone 默认权限掩码 | 8 处 | 🟡 |
+| CQ9 | 硬编码 | **"@everyone" 魔法字符串** — 3 处使用裸字符串，无公共常量 | `ServerServiceImpl.java:56` `MemberServiceImpl.java:95` `InviteServiceImpl.java:111` | ⚪ |
+| CQ10 | 异常处理 | **MsgSendConsumer/PushConsumer 吞异常** — catch(Exception) 仅 log，不重试不死信，消息静默丢失 | `MsgSendConsumer.java:77-79` `PushConsumer.java:34-36` | 🔴 |
+| CQ11 | 异常处理 | **错误码语义错配** — TextMsgHandler 内容过长返回 MESSAGE_NOT_FOUND；SoundMsgHandler 参数无效返回 FILE_NOT_FOUND；ChannelPermission 记录不存在返回 NO_PERMISSION | `TextMsgHandler.java:27,30` `SoundMsgHandler.java:25` `ChannelPermissionServiceImpl.java:90-91` | 🟡 |
+| CQ12 | 异常处理 | **BusinessException 丢失堆栈** — fillInStackTrace() 覆写为 return this，生产排查困难 | `BusinessException.java:35-37` | 🟡 |
+| CQ13 | 性能 | **pushToServer O(N) 全量加载** — 10 万成员服务器全部 load 进内存 + 10 万次 MQ 发送 | `PushServiceImpl.java:63-75` | 🔴 |
+| CQ14 | 性能 | **getUnreadCounts N+1** — 每个频道各发 2 次 DB 查询（readState + COUNT），50 个频道 = 101 次查询 | `ChannelReadStateServiceImpl.java:59-74` | 🟡 |
+| CQ15 | 性能 | **checkPermission 4 次串行查询无缓存** — 每次消息发送都执行 member→roles→definitions→overrides 全链路 | `PermissionServiceImpl.java:28-87` | 🟡 |
+| CQ16 | 性能 | **buildFileVO 每次调 MinIO** — 批量消息中每个文件都生成预签名 URL，50 条带附件消息 = 50+ MinIO HTTP 调用 | `FileServiceImpl.java:144` | 🟡 |
+| CQ17 | 规范 | **注入方式不统一** — Service 用 @RequiredArgsConstructor 构造器注入，Handler 用 @Autowired 字段注入 | AbstractMsgHandler/TextMsgHandler/FileMsgHandler/ImageMsgHandler | ⚪ |
+| CQ18 | 规范 | **@Scheduled 在 Service 上** — ThreadServiceImpl.autoArchiveThreads() 的 @Scheduled 在普通 Service 类上，若被 @Transactional 代理行为不可预测 | `ThreadServiceImpl.java:170` | ⚪ |
+| CQ19 | 规范 | **MAX_MUM_SIZE 拼写错误** — 应为 MAXIMUM_SIZE | `WebSocketServiceImpl.java:43` | ⚪ |
+
+#### 十二-B: MallChat 可复用模式差距 (CR 系列)
+
+| # | 模式 | 说明 | MallChat 参考 | 优先级 |
+|---|------|------|-------------|--------|
+| CR1 | **@SecureInvoke 本地消息表** | MQ 发送无重试保障，MessageSendListener 发 RocketMQ 失败→消息静默丢失。MallChat 用 @SecureInvoke + secure_invoke_record 表 + @Scheduled 重试实现 at-least-once | `mallchat-transaction/` 模块 (SecureInvokeAspect + MQProducer + SecureInvokeRecord) | 🔴 |
+| CR2 | **PushConsumer BROADCASTING** | 当前用 RocketMQListener<String> 手动 JSON 解析，未用 BROADCASTING 模式。多实例部署时消息重复消费 | MallChat PushConsumer 用 `messageModel = BROADCASTING` + `RocketMQListener<PushMessageDTO>` | 🟡 |
+| CR3 | **完整事件系统** | 社区平台仅 1 个 Event (ChannelMessageSendEvent)，MallChat 有 10+ (UserOnline/Offline/Register/Black/Apply/GroupMemberAdd/MessageMark/Recall 等)。WebSocketServiceImpl 直接处理在线/离线逻辑，未通过事件解耦 | `mallchat-chat-server/.../common/event/` 目录 10+ 事件 | 🟡 |
+| CR4 | **URL 链接预览** | 文本消息中的 URL 无预览卡片。MallChat 有 UrlDiscover 策略链 (通用URL + 微信特化 WxUrlDiscover + 优先级选择 PrioritizedUrlDiscover)，发消息时自动抓取标题 | `common/utils/discover/` 目录 (UrlDiscover + AbstractUrlDiscover + WxUrlDiscover + CommonUrlDiscover) | 🟡 |
+| CR5 | **BatchCache 缓存框架** | AbstractRedisStringCache + AbstractLocalCache 刚被清理删除，但 PermissionService.checkPermission() 等高频操作急需 Caffeine 本地缓存 + Redis 二级缓存 | MallChat `common/service/cache/` 目录 (BatchCache + AbstractRedisStringCache + AbstractLocalCache) | 🟡 |
+| CR6 | **MsgMark 策略模式** | Reaction 功能用 inline 逻辑，未用策略模式。后续扩展自定义 emoji/reaction 策略时需重构 | MallChat `chat/service/strategy/mark/` (MsgMarkFactory + AbstractMsgMarkStrategy + LikeStrategy + DisLikeStrategy) | ⚪ |
+| CR7 | **AbstractMsgHandler 泛型** | 社区版 AbstractMsgHandler 丢失 MallChat 的 `<Req>` 泛型参数，无法做类型安全的消息体反序列化 | MallChat `AbstractMsgHandler<Req>` 泛型 + `toBean()` | ⚪ |
+| CR8 | **WS 扇出线程池** | WebSocketServiceImpl.sendToAllOnline/sendToUid 同步遍历，阻塞 Netty EventLoop。MallChat 每次 send 包 threadPoolTaskExecutor.execute() | MallChat WebSocketServiceImpl 使用 executor 异步发送 | ⚪ |
+| CR9 | **敏感词 AC 过滤器** | 当前仅有 DFAFilter，MallChat 额外有 ACFilter + ACProFilter，大数据量下 AC 自动机性能优于 DFA | MallChat `algorithm/sensitiveWord/ACFilter.java` + `ACProFilter.java` | ⚪ |
+| CR10 | **错误码按域分离** | 社区平台全部错误码在 BusinessErrorEnum，MallChat 按 CommonErrorEnum/BusinessErrorEnum/GroupErrorEnum/HttpErrorEnum 分域管理 | MallChat 4 个 ErrorEnum 分域 | ⚪ |
+
+### 十三、社区平台优于 MallChat 的设计 (已实现，无需行动)
+
+| # | 设计 | 说明 |
+|---|------|------|
+| ✅ | **RBAC 权限系统** | 13 位权限位掩码 + 角色层级 position + 频道级 allow/deny 覆盖，远超 MallChat 的 ADMIN/CHAT_MANAGER 二元角色 |
+| ✅ | **Thread 话题系统** | MallChat 完全没有，含自动归档 @Scheduled |
+| ✅ | **频道已读追踪** | channel_read_state 表 + 未读计数 API，MallChat 无此能力 |
+| ✅ | **WS 频道/Thread 订阅** | 比 MallChat 的全局广播更细粒度，Redis Set 存储订阅关系 |
+| ✅ | **WS Token 提取** | HttpHeadersHandler 在 HTTP 升级阶段提取 token，比 MallChat 的 WS AUTHORIZE 消息更干净 |
+| ✅ | **MentionParser** | @username/@all/@everyone/@所有人 文本解析，MallChat 靠请求体传 atUidList | |
+
 ---
 
 ## Phase 4.x: 消息推送管线缺口
@@ -341,6 +395,171 @@ MessageServiceImpl.sendMessage()
 
 ---
 
+## 代码质量与可复用性审计 (2026-06-23)
+
+> 全量审查 community-platform 215 个 Java 文件 + 对比 MallChat 设计模式，识别重复代码、硬编码、性能隐患、缺失模式。
+
+### 一、重复代码（5 处）
+
+#### CQ1: buildReactionMap 三处重复
+
+完全相同的算法——按 emoji 分组、COUNT、GROUP_CONCAT user_id、当前用户是否已反应——在三个 ServiceImpl 独立实现，每处 ~30 行：
+
+| 文件 | 方法 | 行号 |
+|------|------|------|
+| `MessageServiceImpl.java` | `buildReactionMap()` | 223-253 |
+| `SearchServiceImpl.java` | `buildReactionMap()` | 69-102 |
+| `ThreadServiceImpl.java` | `buildReactionMapForMessages()` | 186-219 |
+
+SearchServiceImpl 版本多了一个 `RequestHolder.get()` null 守卫，其余两份没有——行为不一致的隐患。**建议**：提取到 `MessageAdapter.buildReactionMap(List<Long> msgIds)`。
+
+#### CQ2: buildAttachments 两处重复
+
+FileAttachment 批量查询 + `Map<Long, List<FileVO>>` 分组逻辑在 `MessageServiceImpl:255-296` 和 `MsgSendConsumer:82-90` 独立实现，结构完全相同。
+
+#### CQ3: requireMember 三处重复
+
+```java
+ServerMember member = memberDao.lambdaQuery()
+    .eq(ServerMember::getServerId, serverId)
+    .eq(ServerMember::getUserId, userId)
+    .eq(ServerMember::getStatus, MemberStatusEnum.ACTIVE.getCode()).one();
+if (member == null) { throw new BusinessException(BusinessErrorEnum.NOT_MEMBER); }
+```
+
+在 `ChannelServiceImpl:219-229`、`ChannelPermissionServiceImpl:113-123`、`EmojiServiceImpl:84-93` 逐字重复。**建议**：提取到 `server/service/MembershipValidator`。
+
+#### CQ4: requireServerOwner 两处重复
+
+同在 `ChannelPermissionServiceImpl:101-111` 和 `RoleServiceImpl:160-170`。
+
+#### CQ5: Entity→VO 转换重复
+
+`toChannelVO()`/`toCategoryVO()` + 频道分组（含"未分类"桶）在 `ChannelServiceImpl:126-159,242-259` 和 `ServerServiceImpl:157-192,307-315` 各自实现。
+
+---
+
+### 二、硬编码值
+
+#### 严重 (CQ6)
+
+**`hasPower = uid==1L`** — `WebSocketServiceImpl.java:278`。管理员判断写死用户 ID 1，应查角色权限。
+
+#### 中等 (CQ7-CQ8)
+
+| 位置 | 硬编码值 | 应及时 |
+|------|---------|--------|
+| 4 个 ServiceImpl | pageSize 默认值 10/25/30/50 各不相同 | 统一常量 |
+| `ThreadServiceImpl:172` | `minusHours(24)` | `@Value` 配置化 |
+| `MinIOConfiguration:18` | `region("us-east-1")` | `@Value` 或 OssProperties |
+| `NettyWebSocketServer:29` | `WEB_SOCKET_PORT = 8091` | 外部化到配置 |
+| `AuthServiceImpl:26` | `TOKEN_TTL = TimeUnit.DAYS.toSeconds(5)` | `@Value` 配置化 |
+| `WebSocketServiceImpl:39-43` | `EXPIRE_TIME = 1h`, `MAX_MUM_SIZE = 10000` | 配置化 + 拼写修正 |
+| `ServerServiceImpl:56-62` | `@everyone` 默认权限掩码硬编码 OR 运算 | `application.yml` 模板 |
+| `FileServiceImpl:28-29` | `UPLOAD_EXPIRE_MINUTES = 10`, `DOWNLOAD_EXPIRE_HOURS = 1` | 移入 OssProperties |
+
+#### 轻微 (CQ9)
+
+`"@everyone"` 魔法字符串在 3 处使用裸字符串，无 `EVERYONE_ROLE_NAME` 公共常量。
+
+---
+
+### 三、异常处理缺陷
+
+#### CQ10: Consumer 吞异常（严重）
+
+`MsgSendConsumer.java:77-79`、`PushConsumer.java:34-36` — `catch(Exception)` 仅 log，不重试不死信，消息静默丢失。
+
+#### CQ11: 错误码语义错配
+
+| 位置 | 场景 | 返回错误码 | 应返回 |
+|------|------|-----------|--------|
+| `TextMsgHandler:27,30` | content 空白/超 4000 字符 | `MESSAGE_NOT_FOUND` | `MESSAGE_CONTENT_INVALID` |
+| `FileMsgHandler:35` | 文件未上传 | `FILE_UPLOAD_FAILED` | `FILE_NOT_UPLOADED` |
+| `SoundMsgHandler:25` | 语音参数无效 | `FILE_NOT_FOUND` | `SOUND_MSG_INVALID` |
+| `ChannelPermissionServiceImpl:90-91` | 权限记录不存在 | `NO_PERMISSION` | `PERMISSION_RECORD_NOT_FOUND` |
+
+#### CQ12: BusinessException 零堆栈
+
+`BusinessException.java:35-37` 覆写 `fillInStackTrace()` 为 `return this`，业务异常无堆栈，生产排查只能靠 grep。
+
+---
+
+### 四、性能隐患
+
+#### CQ13: pushToServer 全量加载（严重）
+
+`PushServiceImpl.java:63-75`：10 万成员服务器 → 10 万条 Member load 进内存 + 10 万次 MQ 发送。应改游标分页 + 批量 MQ。
+
+#### CQ14: getUnreadCounts N+1
+
+`ChannelReadStateServiceImpl.java:59-74`：每个频道各发 readState + COUNT 查询。50 个频道 = **101 次 DB 往返**。应改为单条 JOIN SQL。
+
+#### CQ15: checkPermission 4 次串行查询无缓存
+
+`PermissionServiceImpl.java:28-87`：每次消息发送 → member → roles → definitions → overrides，全无缓存。应加 Caffeine 本地缓存（TTL 30s）。
+
+#### CQ16: buildFileVO 每次调 MinIO
+
+`FileServiceImpl.java:144`：批量消息中每个文件的 VO 都生成预签名 URL，50 条消息各带附件 = 50+ MinIO HTTP 调用。应改为客户端按需请求 `/files/{id}/download`。
+
+---
+
+### 五、MallChat 可复用但未移植的模式
+
+#### 高优先级（有可靠性/性能风险）
+
+| # | 模式 | 风险 | MallChat 参考 |
+|---|------|------|-------------|
+| **CR1** | **@SecureInvoke 本地消息表** | MQ 发送无重试→消息丢失(at-most-once) | `mallchat-transaction/` 模块 5 个文件 ~300 行 |
+| **CR2** | **PushConsumer BROADCASTING** | 多实例消息重复消费 + 手动 JSON 解析 | MallChat `messageModel = BROADCASTING` + 类型化 DTO |
+
+#### 中优先级（扩展性提升）
+
+| # | 模式 | 收益 | 文件量 |
+|---|------|------|--------|
+| **CR3** | **完整事件系统** | 解耦 WS 连接管理 vs DB/Cache 操作 | 10+ Event + Listener |
+| **CR4** | **URL 链接预览** | 文本消息中 URL 自动生成预览卡片 | 6 文件 (UrlDiscover 策略链) |
+| **CR5** | **BatchCache 缓存框架** | CQ15 直接受益（PermissionService 加缓存） | 3 文件（已删除，可从 MallChat 恢复） |
+
+#### 低优先级（锦上添花）
+
+| # | 模式 | 何时补 |
+|---|------|--------|
+| CR6 | MsgMark 策略模式 | 新增 Reaction 类型时 |
+| CR7 | AbstractMsgHandler `<Req>` 泛型 | 重构消息处理链时 |
+| CR8 | WS 扇出加线程池 | 大服务器场景 |
+| CR9 | 敏感词 AC/ACPro 过滤器 | 敏感词库 > 1 万条 |
+| CR10 | 错误码按域分离 (Common/Business/Group/Http) | 新增模块时 |
+
+---
+
+### 六、社区平台优于 MallChat 的设计（已实现，无需行动）
+
+| 设计 | 说明 |
+|------|------|
+| RBAC 权限系统 | 13 位权限位掩码 + 角色层级 + 频道级 allow/deny 覆盖 |
+| Thread 话题系统 | MallChat 完全没有，含自动归档 |
+| 频道已读追踪 | channel_read_state 表 + 未读计数 API |
+| WS 频道/Thread 订阅 | Redis Set 存储订阅关系，比 MallChat 全局广播更细粒度 |
+| WS Token 提取 | HttpHeadersHandler 在 HTTP 升级阶段提取，比 MallChat 的 WS AUTHORIZE 消息更干净 |
+| MentionParser | @username/@all/@everyone 文本解析 |
+
+---
+
+### 汇总
+
+| 类别 | 条目数 | 🔴 严重 | 🟡 中等 | ⚪ 轻微 |
+|------|--------|---------|---------|---------|
+| 重复代码 | 5 (CQ1-CQ5) | — | 5 | — |
+| 硬编码 | 3 类 (CQ6-CQ9) | 1 | 1 | 1 |
+| 异常处理 | 3 (CQ10-CQ12) | 1 | 2 | — |
+| 性能 | 4 (CQ13-CQ16) | 1 | 3 | — |
+| MallChat 差距 | 10 (CR1-CR10) | 1 | 4 | 5 |
+| **合计** | **25** | **4** | **15** | **6** |
+
+---
+
 ## 变更记录
 
 | 日期 | 内容 | 提交 |
@@ -353,6 +572,7 @@ MessageServiceImpl.sendMessage()
 | 2026-06-23 | **Backlog: MentionParser + JsonUtils + FutureUtils** — @提及正则解析器 + Jackson 工具类 + CompletableFuture 工具集 | `6ee4354` |
 | 2026-06-23 | **Phase 6: MinIOConfiguration + FileServiceImpl** — OssProperties 配置绑定 + MinioClient Bean + 预签名上传/确认/下载 三方法实现 | `6ee4354` |
 | 2026-06-23 | **审计修复 (A1-A11)** — 端口同步 + SQL注入修复 + FileController.getFile + Server分页 + 文件上传校验 + WS端口外部化 + bind-wx返回值 + @Mapper/@TableId补完 | `6ee4354` |
+| 2026-06-23 | **代码质量与可复用性审计** — 识别 25 项问题 (CQ1-CQ16 + CR1-CR10)：重复代码 5 处、硬编码 8+ 处、异常处理 3 项、性能隐患 4 项、MallChat 可复用模式 10 项 | `7fff1c6` |
 | 2026-06-23 | **API 全量测试 + 运行时修复 (A19-A22)** — MinIO region+bucket 自动创建 + FileServiceImpl getById→lambdaQuery + FileVO.status + PENDING 文件 GET 修复 | `6ee4354` |
 | 2026-06-23 | **Plan-vs-Code 全量审计** — API 46/46 端点比对通过 + 9 处结构差异 (D1-D9) + 计划文档 checkbox 同步 + 新增待办 30-32 (AOP切面/Redisson/Caffeine) | `6ee4354` |
 | 2026-06-23 | **Round 1: Bug 修复 (A1-A3)** — ImageMsgHandler/FileMsgHandler getById→lambdaQuery + MessageAdapter attachments 组装 (4 路径) | `6ee4354` |
