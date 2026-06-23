@@ -1,9 +1,10 @@
-package com.community.message.service;
-
-import com.community.common.domain.dto.PushMessageDTO;
+package com.community.websocket.service;
 
 /**
- * 推送路由服务 — 封装 RocketMQ PUSH_TOPIC 发送。
+ * WebSocket 推送路由服务 — 封装 RocketMQ PUSH_TOPIC 发送。
+ * <p>
+ * 注：从 message.service 迁移到 websocket.service，推送能力属于实时通信模块。
+ * 微服务拆分后由 websocket-service 暴露 /internal/push/** REST 端点供其他服务 Feign 调用。
  */
 public interface PushService {
 

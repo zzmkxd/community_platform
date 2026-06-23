@@ -20,4 +20,7 @@ public class ChannelVO {
 
     @Schema(description = "排序")
     private Integer sortOrder;
+
+    @Schema(description = "所属服务器 ID")
+    private Long serverId;
 }

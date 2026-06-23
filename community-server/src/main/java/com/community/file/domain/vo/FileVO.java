@@ -1,8 +1,14 @@
-package com.community.message.domain.vo;
+package com.community.file.domain.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+/**
+ * 文件附件 VO
+ * <p>
+ * 注：从 message.domain.vo 迁移到 file.domain.vo，file 模块是 FileVO 的生产者，
+ * message 只是消费者。避免微服务拆分后 file-service 反向依赖 message-service。
+ */
 @Data
 public class FileVO {
 

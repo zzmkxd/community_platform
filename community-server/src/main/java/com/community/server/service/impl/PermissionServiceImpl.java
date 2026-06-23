@@ -5,7 +5,7 @@ import com.community.server.dao.MemberDao;
 import com.community.server.dao.MemberRoleDao;
 import com.community.server.dao.RoleDao;
 import com.community.server.domain.entity.*;
-import com.community.server.domain.enums.PermissionBit;
+import com.community.common.enums.PermissionBit;
 import com.community.server.service.PermissionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

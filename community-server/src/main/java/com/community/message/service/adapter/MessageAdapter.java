@@ -8,10 +8,10 @@ import com.community.message.domain.entity.Message;
 import com.community.message.domain.entity.MessageExtra;
 import com.community.message.domain.entity.Reaction;
 import com.community.message.domain.entity.Thread;
-import com.community.message.domain.vo.FileVO;
+import com.community.file.domain.vo.FileVO;
 import com.community.message.domain.vo.MessageVO;
 import com.community.message.domain.vo.ReactionVO;
-import com.community.user.domain.entity.User;
+import com.community.user.domain.vo.UserVO;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,7 +35,7 @@ public class MessageAdapter {
         return vo;
     }
 
-    public static MessageVO buildMessageVO(Message message, User fromUser, List<ReactionVO> reactions, Thread thread) {
+    public static MessageVO buildMessageVO(Message message, UserVO fromUser, List<ReactionVO> reactions, Thread thread) {
         MessageVO vo = new MessageVO();
         vo.setId(message.getId());
         vo.setChannelId(message.getChannelId());
@@ -110,7 +110,9 @@ public class MessageAdapter {
 
     /**
      * 为单条消息构建附件列表
+     * @deprecated 请改用 {@link #buildAttachments(Message, List)}
      */
+    @Deprecated
     public static List<FileVO> buildAttachments(Message message, FileAttachmentDao fileAttachmentDao) {
         MessageExtra extra = message.getExtra();
         if (extra == null || extra.getFileIds() == null || extra.getFileIds().isEmpty()) {
@@ -123,7 +125,9 @@ public class MessageAdapter {
 
     /**
      * 为一批消息批量构建附件映射（msgId → List<FileVO>）
+     * @deprecated 请改用 {@link #buildAttachmentMap(List, Map)}
      */
+    @Deprecated
     public static Map<Long, List<FileVO>> buildAttachmentMap(List<Message> messages, FileAttachmentDao fileAttachmentDao) {
         List<Long> allFileIds = new ArrayList<>();
         Map<Long, List<Long>> msgFileIdsMap = new HashMap<>();
@@ -144,16 +148,46 @@ public class MessageAdapter {
                 .stream()
                 .collect(Collectors.toMap(FileAttachment::getId, MessageAdapter::buildFileVO));
 
+        return buildAttachmentMap(messages, fileMap);
+    }
+
+    /**
+     * 为一批消息批量构建附件映射（msgId → List<FileVO>）
+     * @param messages 消息列表
+     * @param fileMap  文件 ID → FileVO 映射
+     */
+    public static Map<Long, List<FileVO>> buildAttachmentMap(List<Message> messages, Map<Long, FileVO> fileMap) {
+        if (fileMap == null || fileMap.isEmpty()) {
+            return Map.of();
+        }
         Map<Long, List<FileVO>> result = new HashMap<>();
-        for (var entry : msgFileIdsMap.entrySet()) {
-            List<FileVO> files = entry.getValue().stream()
+        for (Message msg : messages) {
+            MessageExtra extra = msg.getExtra();
+            if (extra == null || extra.getFileIds() == null || extra.getFileIds().isEmpty()) continue;
+            List<FileVO> files = extra.getFileIds().stream()
                     .map(fileMap::get)
                     .filter(Objects::nonNull)
                     .toList();
             if (!files.isEmpty()) {
-                result.put(entry.getKey(), files);
+                result.put(msg.getId(), files);
             }
         }
         return result;
+    }
+
+    /**
+     * 为单条消息构建附件列表
+     * @param message 消息
+     * @param files   文件 ID → FileVO 映射
+     */
+    public static List<FileVO> buildAttachments(Message message, Map<Long, FileVO> files) {
+        MessageExtra extra = message.getExtra();
+        if (extra == null || extra.getFileIds() == null || extra.getFileIds().isEmpty() || files == null || files.isEmpty()) {
+            return null;
+        }
+        return extra.getFileIds().stream()
+                .map(files::get)
+                .filter(Objects::nonNull)
+                .toList();
     }
 }

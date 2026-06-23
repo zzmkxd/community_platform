@@ -7,9 +7,10 @@ import com.community.common.exception.BusinessException;
 import com.community.common.utils.RequestHolder;
 import com.community.file.dao.FileAttachmentDao;
 import com.community.file.domain.entity.FileAttachment;
-import com.community.file.domain.enums.FileStatusEnum;
+import com.community.common.enums.FileStatusEnum;
 import com.community.file.service.FileService;
-import com.community.message.domain.vo.FileVO;
+import com.community.file.domain.vo.FileVO;
+
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.StatObjectArgs;
@@ -18,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -103,6 +105,27 @@ public class FileServiceImpl implements FileService {
             throw new BusinessException(BusinessErrorEnum.FILE_NOT_FOUND);
         }
         return buildFileVO(file);
+    }
+
+    @Override
+    public List<FileVO> getFiles(List<Long> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) {
+            return List.of();
+        }
+        return fileAttachmentDao.lambdaQuery()
+                .in(FileAttachment::getId, fileIds)
+                .list()
+                .stream()
+                .map(this::buildFileVO)
+                .toList();
+    }
+
+    @Override
+    public boolean isFileUploaded(Long fileId) {
+        FileAttachment file = fileAttachmentDao.lambdaQuery()
+                .eq(FileAttachment::getId, fileId)
+                .one();
+        return file != null && FileStatusEnum.UPLOADED.getStatus().equals(file.getStatus());
     }
 
     @Override

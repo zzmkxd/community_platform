@@ -10,8 +10,9 @@ import com.community.message.domain.vo.MessageVO;
 import com.community.message.domain.vo.ReactionVO;
 import com.community.message.service.SearchService;
 import com.community.message.service.adapter.MessageAdapter;
-import com.community.user.dao.UserDao;
-import com.community.user.domain.entity.User;
+import com.community.user.domain.vo.UserVO;
+import com.community.user.service.UserService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -27,7 +28,7 @@ import java.util.stream.Collectors;
 public class SearchServiceImpl implements SearchService {
 
     private final MessageDao messageDao;
-    private final UserDao userDao;
+    private final UserService userService;
     private final ReactionDao reactionDao;
 
     @Override
@@ -45,11 +46,9 @@ public class SearchServiceImpl implements SearchService {
                 .list();
 
         List<Long> userIds = messages.stream().map(Message::getFromUid).distinct().toList();
-        Map<Long, User> userMap = userDao.lambdaQuery()
-                .in(User::getId, userIds)
-                .list()
-                .stream()
-                .collect(Collectors.toMap(User::getId, u -> u));
+        List<UserVO> users = userService.getBatchUsers(userIds);
+        Map<Long, UserVO> userMap = users.stream()
+                .collect(Collectors.toMap(UserVO::getId, u -> u));
 
         List<Long> msgIds = messages.stream().map(Message::getId).toList();
         Map<Long, List<ReactionVO>> reactionMap = MessageAdapter.buildReactionMap(msgIds, reactionDao);

@@ -3,7 +3,7 @@ package com.community.server.service.impl;
 import com.community.common.exception.BusinessErrorEnum;
 import com.community.common.exception.BusinessException;
 import com.community.common.utils.RequestHolder;
-import com.community.message.service.PushService;
+import com.community.websocket.service.PushService;
 import com.community.server.dao.CategoryDao;
 import com.community.server.dao.ChannelDao;
 import com.community.server.dao.MemberDao;
@@ -174,6 +174,27 @@ public class ChannelServiceImpl implements ChannelService {
     }
 
     @Override
+    public ChannelVO getById(Long channelId) {
+        Channel channel = channelDao.getById(channelId);
+        if (channel == null || channel.getStatus() != 1) {
+            return null;
+        }
+        return toChannelVO(channel);
+    }
+
+    @Override
+    public List<ChannelVO> listByServerId(Long serverId) {
+        return channelDao.lambdaQuery()
+                .eq(Channel::getServerId, serverId)
+                .eq(Channel::getStatus, 1)
+                .orderByAsc(Channel::getSortOrder)
+                .list()
+                .stream()
+                .map(this::toChannelVO)
+                .toList();
+    }
+
+    @Override
     @Transactional
     public ChannelVO updateChannel(Long serverId, Long channelId, String name, String topic) {
         MembershipValidator.requireMember(memberDao, serverId);
@@ -240,6 +261,7 @@ public class ChannelServiceImpl implements ChannelService {
     private ChannelVO toChannelVO(Channel channel) {
         ChannelVO vo = new ChannelVO();
         vo.setId(channel.getId());
+        vo.setServerId(channel.getServerId());
         vo.setName(channel.getName());
         vo.setType(channel.getType());
         vo.setTopic(channel.getTopic());

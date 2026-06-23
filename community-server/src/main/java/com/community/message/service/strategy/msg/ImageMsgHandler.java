@@ -2,9 +2,9 @@ package com.community.message.service.strategy.msg;
 
 import com.community.common.exception.BusinessErrorEnum;
 import com.community.common.exception.BusinessException;
-import com.community.file.dao.FileAttachmentDao;
-import com.community.file.domain.entity.FileAttachment;
-import com.community.file.domain.enums.FileStatusEnum;
+import com.community.file.service.FileService;
+
+import com.community.common.enums.FileStatusEnum;
 import com.community.message.domain.dto.SendMsgReq;
 import com.community.message.domain.entity.Message;
 import com.community.message.domain.entity.MessageExtra;
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 public class ImageMsgHandler extends AbstractMsgHandler {
 
     @Autowired
-    private FileAttachmentDao fileAttachmentDao;
+    private FileService fileService;
 
     @Override
     protected MessageTypeEnum getMsgType() {
@@ -29,9 +29,7 @@ public class ImageMsgHandler extends AbstractMsgHandler {
             throw new BusinessException(BusinessErrorEnum.FILE_NOT_FOUND);
         }
         for (Long fileId : req.getFileIds()) {
-            FileAttachment file = fileAttachmentDao.lambdaQuery()
-                    .eq(FileAttachment::getId, fileId).one();
-            if (file == null || !FileStatusEnum.UPLOADED.getStatus().equals(file.getStatus())) {
+            if (!fileService.isFileUploaded(fileId)) {
                 throw new BusinessException(BusinessErrorEnum.FILE_UPLOAD_FAILED);
             }
         }

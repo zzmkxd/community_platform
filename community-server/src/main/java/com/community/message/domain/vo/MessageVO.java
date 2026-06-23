@@ -1,5 +1,6 @@
 package com.community.message.domain.vo;
 
+import com.community.file.domain.vo.FileVO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 

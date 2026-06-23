@@ -8,9 +8,9 @@ import com.community.common.utils.CursorUtils;
 import com.community.common.utils.RequestHolder;
 import com.community.server.dao.*;
 import com.community.server.domain.entity.*;
-import com.community.server.domain.enums.PermissionBit;
+import com.community.common.enums.PermissionBit;
 import com.community.server.domain.vo.*;
-import com.community.message.service.PushService;
+import com.community.websocket.service.PushService;
 import com.community.server.service.PermissionService;
 import com.community.server.service.ServerService;
 import com.community.websocket.service.adapter.WSAdapter;
@@ -307,6 +307,7 @@ public class ServerServiceImpl implements ServerService {
     private ChannelVO toChannelVO(Channel channel) {
         ChannelVO vo = new ChannelVO();
         vo.setId(channel.getId());
+        vo.setServerId(channel.getServerId());
         vo.setName(channel.getName());
         vo.setType(channel.getType());
         vo.setTopic(channel.getTopic());

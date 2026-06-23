@@ -1,11 +1,13 @@
-package com.community.server.domain.enums;
+package com.community.common.enums;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 /**
- * 13 位权限位图 (BIGINT 位掩码)
+ * 社群平台 13 位权限位图 (BIGINT 位掩码)
  * 位掩码递增: 0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080, 0x0100, 0x0200, 0x0400, 0x0800, 0x1000
+ * <p>
+ * 注：该枚举下沉到 common 模块，server/message 共享，避免微服务拆分后跨服务依赖 ORM Entity 包。
  */
 @AllArgsConstructor
 @Getter

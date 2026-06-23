@@ -7,7 +7,7 @@ import com.community.server.dao.*;
 import com.community.server.domain.entity.*;
 import com.community.server.domain.vo.InviteVO;
 import com.community.server.domain.vo.ServerVO;
-import com.community.message.service.PushService;
+import com.community.websocket.service.PushService;
 import com.community.server.service.InviteService;
 import com.community.websocket.service.adapter.WSAdapter;
 import lombok.RequiredArgsConstructor;

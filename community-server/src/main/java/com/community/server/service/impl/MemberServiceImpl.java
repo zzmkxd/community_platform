@@ -8,14 +8,15 @@ import com.community.common.utils.CursorUtils;
 import com.community.common.utils.RequestHolder;
 import com.community.server.dao.*;
 import com.community.server.domain.entity.*;
-import com.community.server.domain.enums.PermissionBit;
+import com.community.common.enums.PermissionBit;
 import com.community.server.domain.vo.MemberVO;
 import com.community.server.domain.vo.RoleVO;
-import com.community.message.service.PushService;
+import com.community.websocket.service.PushService;
 import com.community.server.service.MemberService;
 import com.community.server.service.PermissionService;
-import com.community.user.dao.UserDao;
-import com.community.user.domain.entity.User;
+import com.community.user.domain.vo.UserVO;
+import com.community.user.service.UserService;
+
 import com.community.websocket.service.adapter.WSAdapter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +32,7 @@ import java.util.stream.Collectors;
 public class MemberServiceImpl implements MemberService {
 
     private final MemberDao memberDao;
-    private final UserDao userDao;
+    private final UserService userService;
     private final RoleDao roleDao;
     private final MemberRoleDao memberRoleDao;
     private final ServerDao serverDao;
@@ -162,6 +163,18 @@ public class MemberServiceImpl implements MemberService {
     }
 
     @Override
+    public List<Long> getServerMemberUids(Long serverId, Long excludeUid) {
+        return memberDao.lambdaQuery()
+                .eq(ServerMember::getServerId, serverId)
+                .eq(ServerMember::getStatus, 1)
+                .list()
+                .stream()
+                .map(ServerMember::getUserId)
+                .filter(uid -> excludeUid == null || !uid.equals(excludeUid))
+                .toList();
+    }
+
+    @Override
     @Transactional
     public void transferOwnership(Long serverId, Long newOwnerId) {
         Long uid = RequestHolder.get().getUid();
@@ -199,11 +212,9 @@ public class MemberServiceImpl implements MemberService {
         }
 
         List<Long> userIds = members.stream().map(ServerMember::getUserId).distinct().toList();
-        Map<Long, User> userMap = userDao.lambdaQuery()
-                .in(User::getId, userIds)
-                .list()
-                .stream()
-                .collect(Collectors.toMap(User::getId, u -> u));
+        List<UserVO> users = userService.getBatchUsers(userIds);
+        Map<Long, UserVO> userMap = users.stream()
+                .collect(Collectors.toMap(UserVO::getId, u -> u));
 
         List<Long> memberIds = members.stream().map(ServerMember::getId).toList();
         Map<Long, List<RoleVO>> roleMap = buildRoleMapByMemberIds(memberIds);
@@ -216,12 +227,12 @@ public class MemberServiceImpl implements MemberService {
     }
 
     private MemberVO buildSingleMemberVO(ServerMember member) {
-        User user = userDao.getById(member.getUserId());
+        UserVO user = userService.getUserById(member.getUserId());
         Map<Long, List<RoleVO>> roleMap = buildRoleMapByMemberIds(List.of(member.getId()));
         return toMemberVO(member, user, roleMap);
     }
 
-    private MemberVO toMemberVO(ServerMember member, User user, Map<Long, List<RoleVO>> roleMap) {
+    private MemberVO toMemberVO(ServerMember member, UserVO user, Map<Long, List<RoleVO>> roleMap) {
         MemberVO vo = new MemberVO();
         vo.setUserId(member.getUserId());
         vo.setNickname(user != null ? user.getNickname() : null);

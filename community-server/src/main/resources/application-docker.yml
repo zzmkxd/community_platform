@@ -27,10 +27,11 @@ community:
     uris: http://elasticsearch:9200
 
 spring:
-  redis:
-    host: redis
-    port: 6379
-    password: 123456
+  data: 
+    redis:
+      host: redis
+      port: 6379
+      password: 123456
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientAutoConfiguration

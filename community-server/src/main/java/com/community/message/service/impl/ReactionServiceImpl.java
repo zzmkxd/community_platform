@@ -7,7 +7,9 @@ import com.community.message.dao.ReactionDao;
 import com.community.message.domain.entity.Reaction;
 import com.community.message.domain.vo.ReactionVO;
 import com.community.message.service.ReactionService;
-import com.community.server.domain.enums.PermissionBit;
+import com.community.common.enums.PermissionBit;
+import com.community.server.domain.vo.ChannelVO;
+import com.community.server.service.ChannelService;
 import com.community.server.service.PermissionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +29,7 @@ public class ReactionServiceImpl implements ReactionService {
     private final ReactionDao reactionDao;
     private final PermissionService permissionService;
     private final com.community.message.dao.MessageDao messageDao;
-    private final com.community.server.dao.ChannelDao channelDao;
+    private final ChannelService channelService;
 
     @Override
     @Transactional
@@ -39,7 +41,7 @@ public class ReactionServiceImpl implements ReactionService {
             throw new BusinessException(BusinessErrorEnum.MESSAGE_NOT_FOUND);
         }
 
-        com.community.server.domain.entity.Channel channel = channelDao.getById(message.getChannelId());
+        ChannelVO channel = channelService.getById(message.getChannelId());
         if (channel != null && !permissionService.checkPermission(
                 channel.getServerId(), uid, message.getChannelId(),
                 PermissionBit.ADD_REACTIONS.getBit())) {

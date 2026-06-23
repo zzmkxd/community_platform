@@ -11,6 +11,8 @@ import com.community.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -83,6 +85,19 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException(BusinessErrorEnum.USER_NOT_FOUND);
         }
         return toVO(user);
+    }
+
+    @Override
+    public List<UserVO> getBatchUsers(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return userDao.lambdaQuery()
+                .in(User::getId, ids)
+                .list()
+                .stream()
+                .map(this::toVO)
+                .toList();
     }
 
     private UserVO toVO(User user) {

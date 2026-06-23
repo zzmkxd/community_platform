@@ -3,19 +3,20 @@ package com.community.message.consumer;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.community.common.constant.MQConstant;
-import com.community.file.dao.FileAttachmentDao;
-import com.community.file.domain.entity.FileAttachment;
+import com.community.file.service.FileService;
+
 import com.community.message.dao.MessageDao;
 import com.community.message.dao.ThreadDao;
 import com.community.message.domain.entity.Message;
 import com.community.message.domain.entity.MessageExtra;
 import com.community.message.domain.entity.Thread;
-import com.community.message.domain.vo.FileVO;
+import com.community.file.domain.vo.FileVO;
 import com.community.message.domain.vo.MessageVO;
-import com.community.message.service.PushService;
+import com.community.websocket.service.PushService;
 import com.community.message.service.adapter.MessageAdapter;
-import com.community.user.dao.UserDao;
-import com.community.user.domain.entity.User;
+import com.community.user.domain.vo.UserVO;
+import com.community.user.service.UserService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
@@ -23,6 +24,8 @@ import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -35,9 +38,9 @@ public class MsgSendConsumer implements RocketMQListener<String> {
 
     private final MessageDao messageDao;
     private final ThreadDao threadDao;
-    private final UserDao userDao;
+    private final UserService userService;
     private final PushService pushService;
-    private final FileAttachmentDao fileAttachmentDao;
+    private final FileService fileService;
 
     @Override
     public void onMessage(String msg) {
@@ -53,7 +56,7 @@ public class MsgSendConsumer implements RocketMQListener<String> {
                 log.warn("MsgSendConsumer: message not found, msgId={}", messageId);
                 return;
             }
-            User fromUser = userDao.getById(fromUid);
+            UserVO fromUser = userService.getUserById(fromUid);
 
             Thread thread = null;
             if (threadId != null) {
@@ -63,7 +66,7 @@ public class MsgSendConsumer implements RocketMQListener<String> {
             MessageVO messageVO = MessageAdapter.buildMessageVO(message, fromUser, null, thread);
 
             // 填充附件列表
-            messageVO.setAttachments(MessageAdapter.buildAttachments(message, fileAttachmentDao));
+            messageVO.setAttachments(buildAttachments(message));
 
             // 推送到频道订阅者
             pushService.pushToChannel(channelId, fromUid, messageVO);
@@ -79,4 +82,12 @@ public class MsgSendConsumer implements RocketMQListener<String> {
         }
     }
 
+    private List<FileVO> buildAttachments(Message message) {
+        MessageExtra extra = message.getExtra();
+        if (extra == null || extra.getFileIds() == null || extra.getFileIds().isEmpty()) {
+            return null;
+        }
+        List<FileVO> files = fileService.getFiles(extra.getFileIds());
+        return files.isEmpty() ? null : files;
+    }
 }

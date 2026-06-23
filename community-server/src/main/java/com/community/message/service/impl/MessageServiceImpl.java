@@ -9,29 +9,27 @@ import com.community.common.exception.BusinessException;
 import com.community.common.transaction.service.MQProducer;
 import com.community.common.utils.CursorUtils;
 import com.community.common.utils.RequestHolder;
-import com.community.file.dao.FileAttachmentDao;
-import com.community.file.domain.entity.FileAttachment;
+import com.community.file.domain.vo.FileVO;
+import com.community.file.service.FileService;
 import com.community.message.dao.MessageDao;
 import com.community.message.dao.ReactionDao;
 import com.community.message.dao.ThreadDao;
 import com.community.message.domain.dto.SendMsgReq;
 import com.community.message.domain.entity.Message;
 import com.community.message.domain.entity.MessageExtra;
-import com.community.message.domain.entity.Reaction;
 import com.community.message.domain.entity.Thread;
-import com.community.message.domain.vo.FileVO;
 import com.community.message.domain.vo.MessageVO;
 import com.community.message.domain.vo.ReactionVO;
 import com.community.message.service.MessageService;
 import com.community.message.service.adapter.MessageAdapter;
 import com.community.message.service.strategy.msg.AbstractMsgHandler;
 import com.community.message.service.strategy.msg.MsgHandlerFactory;
-import com.community.server.dao.ChannelDao;
-import com.community.server.domain.entity.Channel;
-import com.community.server.domain.enums.PermissionBit;
+import com.community.common.enums.PermissionBit;
+import com.community.server.domain.vo.ChannelVO;
+import com.community.server.service.ChannelService;
 import com.community.server.service.PermissionService;
-import com.community.user.dao.UserDao;
-import com.community.user.domain.entity.User;
+import com.community.user.domain.vo.UserVO;
+import com.community.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,12 +47,12 @@ public class MessageServiceImpl implements MessageService {
 
     private final MessageDao messageDao;
     private final ThreadDao threadDao;
-    private final ChannelDao channelDao;
-    private final UserDao userDao;
+    private final ChannelService channelService;
+    private final UserService userService;
     private final ReactionDao reactionDao;
     private final PermissionService permissionService;
     private final MQProducer mqProducer;
-    private final FileAttachmentDao fileAttachmentDao;
+    private final FileService fileService;
 
     @Override
     @Transactional
@@ -62,11 +60,10 @@ public class MessageServiceImpl implements MessageService {
                                   Long replyMsgId, List<Long> fileIds) {
         Long uid = RequestHolder.get().getUid();
 
-        Channel channel = channelDao.lambdaQuery()
-                .eq(Channel::getId, channelId)
-                .eq(Channel::getStatus, 1)
-                .oneOpt()
-                .orElseThrow(() -> new BusinessException(BusinessErrorEnum.CHANNEL_NOT_FOUND));
+        ChannelVO channel = channelService.getById(channelId);
+        if (channel == null) {
+            throw new BusinessException(BusinessErrorEnum.CHANNEL_NOT_FOUND);
+        }
 
         Thread thread = null;
         if (threadId != null) {
@@ -99,9 +96,9 @@ public class MessageServiceImpl implements MessageService {
         mqProducer.sendSecureMsg(MQConstant.SEND_MSG_TOPIC, body);
 
         Message saved = messageDao.getById(msgId);
-        User user = userDao.getById(uid);
+        UserVO user = userService.getUserById(uid);
         MessageVO vo = MessageAdapter.buildMessageVO(saved, user, Collections.emptyList(), thread);
-        vo.setAttachments(MessageAdapter.buildAttachments(saved, fileAttachmentDao));
+        vo.setAttachments(buildAttachments(saved));
         return vo;
     }
 
@@ -139,9 +136,9 @@ public class MessageServiceImpl implements MessageService {
                 .oneOpt()
                 .orElseThrow(() -> new BusinessException(BusinessErrorEnum.MESSAGE_NOT_FOUND));
 
-        User user = userDao.getById(message.getFromUid());
+        UserVO user = userService.getUserById(message.getFromUid());
         MessageVO vo = MessageAdapter.buildMessageVO(message, user, Collections.emptyList(), null);
-        vo.setAttachments(MessageAdapter.buildAttachments(message, fileAttachmentDao));
+        vo.setAttachments(buildAttachments(message));
         return vo;
     }
 
@@ -166,9 +163,9 @@ public class MessageServiceImpl implements MessageService {
         messageDao.updateById(message);
 
         log.info("Message edited: msgId={}, channelId={}, uid={}", msgId, channelId, uid);
-        User user = userDao.getById(uid);
+        UserVO user = userService.getUserById(uid);
         MessageVO vo = MessageAdapter.buildMessageVO(message, user, Collections.emptyList(), null);
-        vo.setAttachments(MessageAdapter.buildAttachments(message, fileAttachmentDao));
+        vo.setAttachments(buildAttachments(message));
         return vo;
     }
 
@@ -184,7 +181,7 @@ public class MessageServiceImpl implements MessageService {
                 .oneOpt()
                 .orElseThrow(() -> new BusinessException(BusinessErrorEnum.MESSAGE_NOT_FOUND));
 
-        Channel channel = channelDao.getById(channelId);
+        ChannelVO channel = channelService.getById(channelId);
         boolean isAdmin = channel != null && permissionService.checkPermission(
                 channel.getServerId(), uid, channelId,
                 PermissionBit.ADMINISTRATOR.getBit());
@@ -204,16 +201,14 @@ public class MessageServiceImpl implements MessageService {
         }
 
         List<Long> userIds = messages.stream().map(Message::getFromUid).distinct().toList();
-        Map<Long, User> userMap = userDao.lambdaQuery()
-                .in(User::getId, userIds)
-                .list()
-                .stream()
-                .collect(Collectors.toMap(User::getId, u -> u));
+        List<UserVO> users = userService.getBatchUsers(userIds);
+        Map<Long, UserVO> userMap = users.stream()
+                .collect(Collectors.toMap(UserVO::getId, u -> u));
 
         List<Long> msgIds = messages.stream().map(Message::getId).toList();
         Map<Long, List<ReactionVO>> reactionMap = MessageAdapter.buildReactionMap(msgIds, reactionDao);
 
-        Map<Long, List<FileVO>> attachmentMap = MessageAdapter.buildAttachmentMap(messages, fileAttachmentDao);
+        Map<Long, List<FileVO>> attachmentMap = buildAttachmentMap(messages);
 
         return messages.stream()
                 .map(msg -> {
@@ -224,5 +219,29 @@ public class MessageServiceImpl implements MessageService {
                     return vo;
                 })
                 .toList();
+    }
+
+    private List<FileVO> buildAttachments(Message message) {
+        MessageExtra extra = message.getExtra();
+        if (extra == null || extra.getFileIds() == null || extra.getFileIds().isEmpty()) {
+            return null;
+        }
+        List<FileVO> files = fileService.getFiles(extra.getFileIds());
+        return files.isEmpty() ? null : files;
+    }
+
+    private Map<Long, List<FileVO>> buildAttachmentMap(List<Message> messages) {
+        List<Long> allFileIds = new java.util.ArrayList<>();
+        for (Message msg : messages) {
+            MessageExtra extra = msg.getExtra();
+            if (extra == null || extra.getFileIds() == null || extra.getFileIds().isEmpty()) continue;
+            allFileIds.addAll(extra.getFileIds());
+        }
+        if (allFileIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, FileVO> fileMap = fileService.getFiles(allFileIds).stream()
+                .collect(Collectors.toMap(FileVO::getId, f -> f));
+        return MessageAdapter.buildAttachmentMap(messages, fileMap);
     }
 }

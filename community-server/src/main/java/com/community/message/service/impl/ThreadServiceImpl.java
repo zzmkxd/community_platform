@@ -17,12 +17,12 @@ import com.community.message.domain.vo.ReactionVO;
 import com.community.message.domain.vo.ThreadVO;
 import com.community.message.service.ThreadService;
 import com.community.message.service.adapter.MessageAdapter;
-import com.community.server.dao.ChannelDao;
-import com.community.server.domain.entity.Channel;
-import com.community.server.domain.enums.PermissionBit;
+import com.community.common.enums.PermissionBit;
+import com.community.server.domain.vo.ChannelVO;
+import com.community.server.service.ChannelService;
 import com.community.server.service.PermissionService;
-import com.community.user.dao.UserDao;
-import com.community.user.domain.entity.User;
+import com.community.user.domain.vo.UserVO;
+import com.community.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -42,8 +42,8 @@ public class ThreadServiceImpl implements ThreadService {
 
     private final ThreadDao threadDao;
     private final MessageDao messageDao;
-    private final ChannelDao channelDao;
-    private final UserDao userDao;
+    private final ChannelService channelService;
+    private final UserService userService;
     private final ReactionDao reactionDao;
     private final PermissionService permissionService;
 
@@ -52,11 +52,10 @@ public class ThreadServiceImpl implements ThreadService {
     public ThreadVO createThread(Long channelId, Long rootMsgId, String name) {
         Long uid = RequestHolder.get().getUid();
 
-        Channel channel = channelDao.lambdaQuery()
-                .eq(Channel::getId, channelId)
-                .eq(Channel::getStatus, 1)
-                .oneOpt()
-                .orElseThrow(() -> new BusinessException(BusinessErrorEnum.CHANNEL_NOT_FOUND));
+        ChannelVO channel = channelService.getById(channelId);
+        if (channel == null) {
+            throw new BusinessException(BusinessErrorEnum.CHANNEL_NOT_FOUND);
+        }
 
         if (!permissionService.checkPermission(channel.getServerId(), uid, channelId,
                 PermissionBit.USE_THREADS.getBit())) {
@@ -73,7 +72,7 @@ public class ThreadServiceImpl implements ThreadService {
         thread.setLastActive(LocalDateTime.now());
         threadDao.save(thread);
 
-        User user = userDao.getById(uid);
+        UserVO user = userService.getUserById(uid);
         log.info("Thread created: id={}, name={}, channelId={}", thread.getId(), name, channelId);
         return toThreadVO(thread, user);
     }
@@ -93,11 +92,9 @@ public class ThreadServiceImpl implements ThreadService {
 
         List<Thread> threads = page.getList();
         List<Long> creatorIds = threads.stream().map(Thread::getCreatorId).distinct().toList();
-        Map<Long, User> userMap = userDao.lambdaQuery()
-                .in(User::getId, creatorIds)
-                .list()
-                .stream()
-                .collect(Collectors.toMap(User::getId, u -> u));
+        List<UserVO> creators = userService.getBatchUsers(creatorIds);
+        Map<Long, UserVO> userMap = creators.stream()
+                .collect(Collectors.toMap(UserVO::getId, u -> u));
 
         List<ThreadVO> voList = threads.stream()
                 .map(t -> toThreadVO(t, userMap.get(t.getCreatorId())))
@@ -111,7 +108,7 @@ public class ThreadServiceImpl implements ThreadService {
         if (thread == null) {
             throw new BusinessException(BusinessErrorEnum.THREAD_NOT_FOUND);
         }
-        User creator = userDao.getById(thread.getCreatorId());
+        UserVO creator = userService.getUserById(thread.getCreatorId());
         return toThreadVO(thread, creator);
     }
 
@@ -129,11 +126,9 @@ public class ThreadServiceImpl implements ThreadService {
         }
 
         List<Long> userIds = page.getList().stream().map(Message::getFromUid).distinct().toList();
-        Map<Long, User> userMap = userDao.lambdaQuery()
-                .in(User::getId, userIds)
-                .list()
-                .stream()
-                .collect(Collectors.toMap(User::getId, u -> u));
+        List<UserVO> users = userService.getBatchUsers(userIds);
+        Map<Long, UserVO> userMap = users.stream()
+                .collect(Collectors.toMap(UserVO::getId, u -> u));
 
         List<Long> msgIds = page.getList().stream().map(Message::getId).toList();
         Map<Long, List<ReactionVO>> reactionMap = MessageAdapter.buildReactionMap(msgIds, reactionDao);
@@ -162,7 +157,7 @@ public class ThreadServiceImpl implements ThreadService {
         }
         threadDao.updateById(thread);
 
-        User creator = userDao.getById(thread.getCreatorId());
+        UserVO creator = userService.getUserById(thread.getCreatorId());
         log.info("Thread updated: id={}, name={}, status={}", threadId, name, status);
         return toThreadVO(thread, creator);
     }
@@ -183,7 +178,7 @@ public class ThreadServiceImpl implements ThreadService {
         }
     }
 
-    private ThreadVO toThreadVO(Thread thread, User creator) {
+    private ThreadVO toThreadVO(Thread thread, UserVO creator) {
         ThreadVO vo = new ThreadVO();
         vo.setId(thread.getId());
         vo.setChannelId(thread.getChannelId());
@@ -193,13 +188,7 @@ public class ThreadServiceImpl implements ThreadService {
         vo.setMessageCount(thread.getMessageCount());
         vo.setLastActive(thread.getLastActive());
         vo.setCreateTime(thread.getCreateTime());
-        if (creator != null) {
-            com.community.user.domain.vo.UserVO cv = new com.community.user.domain.vo.UserVO();
-            cv.setId(creator.getId());
-            cv.setNickname(creator.getNickname());
-            cv.setAvatar(creator.getAvatar());
-            vo.setCreator(cv);
-        }
+        vo.setCreator(creator);
         return vo;
     }
 }

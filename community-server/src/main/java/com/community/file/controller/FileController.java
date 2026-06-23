@@ -2,7 +2,7 @@ package com.community.file.controller;
 
 import com.community.common.domain.vo.response.ApiResult;
 import com.community.file.service.FileService;
-import com.community.message.domain.vo.FileVO;
+import com.community.file.domain.vo.FileVO;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;

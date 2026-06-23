@@ -8,8 +8,8 @@ import com.community.common.domain.dto.WSChannelExtraDTO;
 import com.community.common.utils.RedisUtils;
 import com.community.common.websocket.WSRespTypeEnum;
 import com.community.common.websocket.dto.WSBaseResp;
-import com.community.user.dao.UserDao;
-import com.community.user.domain.entity.User;
+import com.community.user.domain.vo.UserVO;
+import com.community.user.service.UserService;
 import com.community.user.service.AuthService;
 import com.community.websocket.NettyUtil;
 import com.community.websocket.service.WebSocketService;
@@ -54,7 +54,7 @@ public class WebSocketServiceImpl implements WebSocketService {
 
     private final WxMpService wxMpService;
     private final AuthService authService;
-    private final UserDao userDao;
+    private final UserService userService;
 
     @Override
     public void connect(Channel channel) {
@@ -67,7 +67,7 @@ public class WebSocketServiceImpl implements WebSocketService {
         boolean verifySuccess = authService.verify(token);
         if (verifySuccess) {
             Long uid = authService.getValidUid(token);
-            User user = userDao.getById(uid);
+            UserVO user = userService.getUserById(uid);
             loginSuccess(channel, user, token);
         } else {
             sendMsg(channel, WSAdapter.buildInvalidateTokenResp());
@@ -188,7 +188,7 @@ public class WebSocketServiceImpl implements WebSocketService {
         if (Objects.isNull(channel)) {
             return Boolean.FALSE;
         }
-        User user = userDao.getById(uid);
+        UserVO user = userService.getUserById(uid);
         WAIT_LOGIN_MAP.invalidate(loginCode);
         String token = authService.login(uid);
         loginSuccess(channel, user, token);
@@ -273,7 +273,7 @@ public class WebSocketServiceImpl implements WebSocketService {
         return inc;
     }
 
-    private void loginSuccess(Channel channel, User user, String token) {
+    private void loginSuccess(Channel channel, UserVO user, String token) {
         online(channel, user.getId());
         boolean hasPower = user.getId() != null && user.getId() == 1L;
         sendMsg(channel, WSAdapter.buildLoginSuccessResp(user, token, hasPower));

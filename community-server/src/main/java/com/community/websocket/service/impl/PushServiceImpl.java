@@ -1,11 +1,10 @@
-package com.community.message.service.impl;
+package com.community.websocket.service.impl;
 
 import cn.hutool.json.JSONUtil;
 import com.community.common.constant.MQConstant;
 import com.community.common.domain.dto.PushMessageDTO;
-import com.community.message.service.PushService;
-import com.community.server.dao.MemberDao;
-import com.community.server.domain.entity.ServerMember;
+import com.community.server.service.MemberService;
+import com.community.websocket.service.PushService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
@@ -20,7 +19,7 @@ import java.util.List;
 public class PushServiceImpl implements PushService {
 
     private final RocketMQTemplate rocketMQTemplate;
-    private final MemberDao memberDao;
+    private final MemberService memberService;
 
     @Override
     public void pushToChannel(Long channelId, Long excludeUid, Object data) {
@@ -61,14 +60,7 @@ public class PushServiceImpl implements PushService {
 
     @Override
     public void pushToServer(Long serverId, Long excludeUid, Object data) {
-        List<Long> uids = memberDao.lambdaQuery()
-                .eq(ServerMember::getServerId, serverId)
-                .eq(ServerMember::getStatus, 1)
-                .list()
-                .stream()
-                .map(ServerMember::getUserId)
-                .filter(uid -> !uid.equals(excludeUid))
-                .toList();
+        List<Long> uids = memberService.getServerMemberUids(serverId, excludeUid);
         for (Long uid : uids) {
             pushToUser(uid, data);
         }

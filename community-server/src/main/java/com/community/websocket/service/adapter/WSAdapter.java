@@ -2,7 +2,7 @@ package com.community.websocket.service.adapter;
 
 import com.community.common.websocket.WSRespTypeEnum;
 import com.community.common.websocket.dto.WSBaseResp;
-import com.community.user.domain.entity.User;
+import com.community.user.domain.vo.UserVO;
 import com.community.user.domain.vo.response.ws.WSLoginSuccess;
 import com.community.user.domain.vo.response.ws.WSLoginUrl;
 import me.chanjar.weixin.mp.bean.result.WxMpQrCodeTicket;
@@ -19,7 +19,7 @@ public class WSAdapter {
         return wsBaseResp;
     }
 
-    public static WSBaseResp<WSLoginSuccess> buildLoginSuccessResp(User user, String token, boolean hasPower) {
+    public static WSBaseResp<WSLoginSuccess> buildLoginSuccessResp(UserVO user, String token, boolean hasPower) {
         WSBaseResp<WSLoginSuccess> wsBaseResp = new WSBaseResp<>();
         wsBaseResp.setType(WSRespTypeEnum.LOGIN_SUCCESS.getType());
         WSLoginSuccess wsLoginSuccess = WSLoginSuccess.builder()

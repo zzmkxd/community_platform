@@ -4,8 +4,9 @@ import com.community.common.utils.RequestHolder;
 import com.community.message.dao.ChannelReadStateDao;
 import com.community.message.domain.entity.ChannelReadState;
 import com.community.message.service.ChannelReadStateService;
-import com.community.server.dao.ChannelDao;
-import com.community.server.domain.entity.Channel;
+import com.community.server.domain.vo.ChannelVO;
+import com.community.server.service.ChannelService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,7 +22,7 @@ import java.util.Map;
 public class ChannelReadStateServiceImpl implements ChannelReadStateService {
 
     private final ChannelReadStateDao channelReadStateDao;
-    private final ChannelDao channelDao;
+    private final ChannelService channelService;
     private final com.community.message.dao.MessageDao messageDao;
 
     @Override
@@ -50,13 +51,10 @@ public class ChannelReadStateServiceImpl implements ChannelReadStateService {
     public Map<Long, Long> getUnreadCounts(Long serverId) {
         Long uid = RequestHolder.get().getUid();
 
-        List<Channel> channels = channelDao.lambdaQuery()
-                .eq(Channel::getServerId, serverId)
-                .eq(Channel::getStatus, 1)
-                .list();
+        List<ChannelVO> channels = channelService.listByServerId(serverId);
 
         Map<Long, Long> unreadCounts = new HashMap<>();
-        for (Channel channel : channels) {
+        for (ChannelVO channel : channels) {
             ChannelReadState state = channelReadStateDao.lambdaQuery()
                     .eq(ChannelReadState::getUserId, uid)
                     .eq(ChannelReadState::getChannelId, channel.getId())
