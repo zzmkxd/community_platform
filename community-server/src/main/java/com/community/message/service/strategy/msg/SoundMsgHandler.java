@@ -1,10 +1,10 @@
 package com.community.message.service.strategy.msg;
 
-import cn.hutool.json.JSONUtil;
 import com.community.common.exception.BusinessErrorEnum;
 import com.community.common.exception.BusinessException;
 import com.community.message.domain.dto.SendMsgReq;
 import com.community.message.domain.entity.Message;
+import com.community.message.domain.entity.MessageExtra;
 import com.community.message.domain.enums.MessageTypeEnum;
 import org.springframework.stereotype.Component;
 
@@ -28,6 +28,6 @@ public class SoundMsgHandler extends AbstractMsgHandler {
 
     @Override
     protected void saveMsg(Message message, SendMsgReq req) {
-        message.setExtra(JSONUtil.toJsonStr(req.getSoundMsg()));
+        message.setExtra(new MessageExtra(null, req.getSoundMsg()));
     }
 }

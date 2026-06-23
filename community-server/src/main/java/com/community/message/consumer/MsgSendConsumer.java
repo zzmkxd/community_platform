@@ -1,6 +1,5 @@
 package com.community.message.consumer;
 
-import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.community.common.constant.MQConstant;
@@ -9,6 +8,7 @@ import com.community.file.domain.entity.FileAttachment;
 import com.community.message.dao.MessageDao;
 import com.community.message.dao.ThreadDao;
 import com.community.message.domain.entity.Message;
+import com.community.message.domain.entity.MessageExtra;
 import com.community.message.domain.entity.Thread;
 import com.community.message.domain.vo.FileVO;
 import com.community.message.domain.vo.MessageVO;
@@ -80,21 +80,12 @@ public class MsgSendConsumer implements RocketMQListener<String> {
     }
 
     private List<FileVO> buildAttachments(Message message) {
-        if (message.getExtra() == null || message.getExtra().isEmpty()) {
+        MessageExtra extra = message.getExtra();
+        if (extra == null || extra.getFileIds() == null || extra.getFileIds().isEmpty()) {
             return null;
         }
-        try {
-            JSONObject extra = JSONUtil.parseObj(message.getExtra());
-            JSONArray fileIdsArr = extra.getJSONArray("fileIds");
-            if (fileIdsArr == null || fileIdsArr.isEmpty()) {
-                return null;
-            }
-            List<Long> fileIds = fileIdsArr.toList(Long.class);
-            List<FileAttachment> files = fileAttachmentDao.lambdaQuery()
-                    .in(FileAttachment::getId, fileIds).list();
-            return files.stream().map(MessageAdapter::buildFileVO).toList();
-        } catch (Exception e) {
-            return null;
-        }
+        List<FileAttachment> files = fileAttachmentDao.lambdaQuery()
+                .in(FileAttachment::getId, extra.getFileIds()).list();
+        return files.stream().map(MessageAdapter::buildFileVO).toList();
     }
 }

@@ -1,8 +1,5 @@
 package com.community.message.service.impl;
 
-import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONObject;
-import cn.hutool.json.JSONUtil;
 import com.community.common.domain.vo.request.CursorPageBaseReq;
 import com.community.common.domain.vo.response.CursorPageBaseResp;
 import com.community.common.exception.BusinessErrorEnum;
@@ -16,6 +13,7 @@ import com.community.message.dao.ReactionDao;
 import com.community.message.dao.ThreadDao;
 import com.community.message.domain.dto.SendMsgReq;
 import com.community.message.domain.entity.Message;
+import com.community.message.domain.entity.MessageExtra;
 import com.community.message.domain.entity.Reaction;
 import com.community.message.domain.entity.Thread;
 import com.community.message.domain.vo.FileVO;
@@ -255,22 +253,13 @@ public class MessageServiceImpl implements MessageService {
     }
 
     private List<FileVO> buildAttachments(Message message) {
-        if (message.getExtra() == null || message.getExtra().isEmpty()) {
+        MessageExtra extra = message.getExtra();
+        if (extra == null || extra.getFileIds() == null || extra.getFileIds().isEmpty()) {
             return null;
         }
-        try {
-            JSONObject extra = JSONUtil.parseObj(message.getExtra());
-            JSONArray fileIdsArr = extra.getJSONArray("fileIds");
-            if (fileIdsArr == null || fileIdsArr.isEmpty()) {
-                return null;
-            }
-            List<Long> fileIds = fileIdsArr.toList(Long.class);
-            List<FileAttachment> files = fileAttachmentDao.lambdaQuery()
-                    .in(FileAttachment::getId, fileIds).list();
-            return files.stream().map(MessageAdapter::buildFileVO).toList();
-        } catch (Exception e) {
-            return null;
-        }
+        List<FileAttachment> files = fileAttachmentDao.lambdaQuery()
+                .in(FileAttachment::getId, extra.getFileIds()).list();
+        return files.stream().map(MessageAdapter::buildFileVO).toList();
     }
 
     private Map<Long, List<FileVO>> buildAttachmentMap(List<Message> messages) {
@@ -278,17 +267,10 @@ public class MessageServiceImpl implements MessageService {
         Map<Long, List<Long>> msgFileIdsMap = new java.util.HashMap<>();
 
         for (Message msg : messages) {
-            if (msg.getExtra() == null || msg.getExtra().isEmpty()) continue;
-            try {
-                JSONObject extra = JSONUtil.parseObj(msg.getExtra());
-                JSONArray fileIdsArr = extra.getJSONArray("fileIds");
-                if (fileIdsArr == null || fileIdsArr.isEmpty()) continue;
-                List<Long> fileIds = fileIdsArr.toList(Long.class);
-                allFileIds.addAll(fileIds);
-                msgFileIdsMap.put(msg.getId(), fileIds);
-            } catch (Exception e) {
-                // ignore parse errors
-            }
+            MessageExtra extra = msg.getExtra();
+            if (extra == null || extra.getFileIds() == null || extra.getFileIds().isEmpty()) continue;
+            allFileIds.addAll(extra.getFileIds());
+            msgFileIdsMap.put(msg.getId(), extra.getFileIds());
         }
 
         if (allFileIds.isEmpty()) {

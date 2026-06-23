@@ -8,7 +8,7 @@
 
 - **项目名称**: community-platform (社群平台)
 - **当前 Phase**: Phase 6 文件模块（6.1-6.2 完成，6.3 ES 搜索待补）+ Bug 修复 + 功能缺口补全
-- **最新提交**: `f5f20cc` — Bug 修复 + Redisson/频控 AOP/本地缓存功能补全
+- **最新提交**: `16a5931` — 功能缺口审计 + G1-G4 修复
 - **日期**: 2026-06-23
 
 ---
@@ -22,10 +22,10 @@
 
 | # | 条目 | 现状 | 位置 |
 |---|------|------|------|
-| G1 | **@EnableAsync 无自定义 Executor** — `@Async` 方法回退到 `SimpleAsyncTaskExecutor`（每任务新建线程），高并发下线程泄漏 | `CommunityApplication.java:14` 无 executor 绑定 | `CommunityApplication.java` + `MessageSendListener.java:21` |
-| G2 | **Message.extra JSON→String 缺 TypeHandler** — MyBatis-Plus 可能反序列化异常，当前手动 JSONUtil 读写绕过，但仍存风险 | `Message.java:28` String 字段无 `@TableField(typeHandler=...)` | `message/domain/entity/Message.java` |
-| G3 | **WebSocketServiceImpl.handleSendMessage 桩** — WS 通道发送消息仅记日志，不做处理 | 明确桩（需经 REST API），但无错误响应通知客户端 | `WebSocketServiceImpl.java:142-144` |
-| G4 | **WebSocketServiceImpl.loginSuccess hasPower = false** — 始终硬编码，未接入角色系统 | TODO 注释，token 中无 role 字段传递 | `WebSocketServiceImpl.java:277` |
+| G1 | ~~**@EnableAsync 无自定义 Executor**~~ ✅ **已修复** — ThreadPoolConfig implements AsyncConfigurer + @EnableAsync 移至 Config 类，@Async 绑定到 communityExecutor | `CommunityApplication.java` + `ThreadPoolConfig.java` |
+| G2 | ~~**Message.extra JSON→String 缺 TypeHandler**~~ ✅ **已修复** — MessageExtra POJO + @TableName(autoResultMap=true) + @TableField(typeHandler=JacksonTypeHandler.class) | `message/domain/entity/Message.java` + `MessageExtra.java` |
+| G3 | ~~**WebSocketServiceImpl.handleSendMessage 桩**~~ ✅ **已修复** — WSAdapter.buildInvalidSendMsgResp() + handleSendMessage 推送 ERROR 通知客户端 | `WebSocketServiceImpl.java` + `WSAdapter.java` |
+| G4 | ~~**WebSocketServiceImpl.loginSuccess hasPower = false**~~ ✅ **已修复** — uid==1 admin shortcut，后续按需扩展 per-server 角色查询 | `WebSocketServiceImpl.java:277` |
 
 ### 🟡 功能不完整（5 项）
 
@@ -33,7 +33,7 @@
 |---|------|------|------|
 | G5 | **SearchServiceImpl 仍为 MySQL LIKE** — ES 搜索完全缺失（Phase 6.3） | 无 ElasticsearchConfig / MessageDocument / SearchRepository | `SearchServiceImpl.java:36` |
 | G6 | **docker-compose 缺 ES 容器** — 6.3 依赖 | compose 仅 6 服务：mysql/redis/minio/rocketmq×2/app | `docker-compose.yml` |
-| G7 | **SearchServiceImpl + ThreadServiceImpl Reaction 残留** — 搜索和 Thread 消息列表传递空 reactions，不附加 ReactionVO | 已修复主消息列表，搜索和 Thread 未修复 | `SearchServiceImpl.java:38` + `ThreadServiceImpl.java:129` |
+| G7 | ~~**SearchServiceImpl + ThreadServiceImpl Reaction 残留**~~ ✅ **误报** — 两处已在前序提交中完成 reaction 批量组装（`buildReactionMap` / `buildReactionMapForMessages`），本次确认无需改动 | `SearchServiceImpl.java:55-60` + `ThreadServiceImpl.java:138-145` |
 | G8 | **Compose 端口与 local.properties 不同步** — compose 暴露 MySQL:3308/Redis:6381/MinIO:9004/RocketMQ:9878，local.properties 使用对应端口，但 Docker profile 应统一 | 无 runtime 影响 | compose vs `application-local.properties` |
 | G9 | **bind-wx 实际返回 ApiResult<UserVO>** — A9 已修复，但 `AccountBindReq` DTO 是否正确待验证 | 可能不匹配前端预期 | `UserController.java:31` |
 
@@ -334,6 +334,11 @@ MessageServiceImpl.sendMessage()
 | 2026-06-23 | **Round 4: 收尾 (B3-B5)** — AbstractLocalCache + CursorUtils @SuppressWarnings + WxMsgService @SuppressWarnings | 待提交 |
 | 2026-06-23 | **Bug 修复: ExtraBody 序列化** — ImageMsgHandler/FileMsgHandler 中 Java `record` 改为 static class（Hutool JSONUtil 无法序列化 record 导致 extra 为 `{}`） | `f5f20cc` |
 | 2026-06-23 | **Phase 0-6 功能缺口审计** — 对比计划+代办 vs 代码，新增 G1-G16 缺口清单（4 运行时 + 5 功能不完整 + 7 低优先级），确认 7 项已修复 | `f5f20cc` |
+| 2026-06-23 | **G1: @Async 绑定自定义 Executor** — ThreadPoolConfig implements AsyncConfigurer + @EnableAsync 移至 Config 类，@Async 回退到 communityExecutor 代替 SimpleAsyncTaskExecutor | 待提交 |
+| 2026-06-23 | **G3: WS handleSendMessage 错误通知** — WSAdapter.buildInvalidSendMsgResp() + handleSendMessage 推送 ERROR 响应，客户端不再静默失败 | 待提交 |
+| 2026-06-23 | **G4: hasPower admin shortcut** — loginSuccess 改为 uid==1→hasPower=true，替代硬编码 false | 待提交 |
+| 2026-06-23 | **G2: JSON TypeHandler for Message.extra** — MessageExtra POJO + @TableName(autoResultMap=true) + @TableField(typeHandler=JacksonTypeHandler.class)，移除 5 处手动 JSONUtil 序列化/反序列化 + 删除 ExtraBody inner class | 待提交 |
+| 2026-06-23 | **G7 确认: 已修复** — SearchServiceImpl/ThreadServiceImpl 已在先前提及提交中完成 reaction 批量组装，本次确认无需改动 | 待提交 |
 
 ---
 

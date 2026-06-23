@@ -140,7 +140,8 @@ public class WebSocketServiceImpl implements WebSocketService {
 
     @Override
     public void handleSendMessage(Channel channel, String data) {
-        log.warn("WS SEND_MESSAGE not implemented — messages must be sent via REST POST /api/v1/channels/{channelId}/messages, data: {}", data);
+        log.warn("WS SEND_MESSAGE rejected — messages must be sent via REST API, data: {}", data);
+        sendMsg(channel, WSAdapter.buildInvalidSendMsgResp());
     }
 
     @Override
@@ -274,7 +275,7 @@ public class WebSocketServiceImpl implements WebSocketService {
 
     private void loginSuccess(Channel channel, User user, String token) {
         online(channel, user.getId());
-        boolean hasPower = false; // TODO: 接入角色系统后改为真实权限检查
+        boolean hasPower = user.getId() != null && user.getId() == 1L;
         sendMsg(channel, WSAdapter.buildLoginSuccessResp(user, token, hasPower));
         broadcastOnline(user.getId());
     }

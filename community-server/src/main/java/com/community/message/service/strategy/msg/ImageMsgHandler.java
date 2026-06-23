@@ -1,6 +1,5 @@
 package com.community.message.service.strategy.msg;
 
-import cn.hutool.json.JSONUtil;
 import com.community.common.exception.BusinessErrorEnum;
 import com.community.common.exception.BusinessException;
 import com.community.file.dao.FileAttachmentDao;
@@ -8,11 +7,10 @@ import com.community.file.domain.entity.FileAttachment;
 import com.community.file.domain.enums.FileStatusEnum;
 import com.community.message.domain.dto.SendMsgReq;
 import com.community.message.domain.entity.Message;
+import com.community.message.domain.entity.MessageExtra;
 import com.community.message.domain.enums.MessageTypeEnum;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
 
 @Component
 public class ImageMsgHandler extends AbstractMsgHandler {
@@ -41,13 +39,6 @@ public class ImageMsgHandler extends AbstractMsgHandler {
 
     @Override
     protected void saveMsg(Message message, SendMsgReq req) {
-        message.setExtra(JSONUtil.toJsonStr(new ExtraBody(req.getFileIds())));
-    }
-
-    static class ExtraBody {
-        private List<Long> fileIds;
-        ExtraBody(List<Long> fileIds) { this.fileIds = fileIds; }
-        public List<Long> getFileIds() { return fileIds; }
-        public void setFileIds(List<Long> fileIds) { this.fileIds = fileIds; }
+        message.setExtra(new MessageExtra(req.getFileIds(), null));
     }
 }

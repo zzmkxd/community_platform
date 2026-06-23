@@ -141,4 +141,9 @@ public class WSAdapter {
     public static WSBaseResp buildError(String message) {
         return WSBaseResp.of(WSRespTypeEnum.ERROR.getType(), message);
     }
+
+    public static WSBaseResp<String> buildInvalidSendMsgResp() {
+        return WSBaseResp.of(WSRespTypeEnum.ERROR.getType(),
+                "Messages must be sent via REST API: POST /api/v1/channels/{channelId}/messages");
+    }
 }

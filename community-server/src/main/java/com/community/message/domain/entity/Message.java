@@ -1,12 +1,13 @@
 package com.community.message.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 @Data
-@TableName("message")
+@TableName(value = "message", autoResultMap = true)
 public class Message {
 
     @TableId(type = IdType.AUTO)
@@ -25,7 +26,8 @@ public class Message {
     private Integer msgType;
 
     /** JSON 扩展：附件ID列表、@提及列表、URL预览等 */
-    private String extra;
+    @TableField(value = "extra", typeHandler = JacksonTypeHandler.class)
+    private MessageExtra extra;
 
     /** 0=正常, 1=删除, 2=编辑过 */
     private Integer status;

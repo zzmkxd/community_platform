@@ -2,15 +2,25 @@ package com.community.common.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.scheduling.annotation.AsyncConfigurer;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
 @Configuration
-public class ThreadPoolConfig {
+@EnableAsync
+public class ThreadPoolConfig implements AsyncConfigurer {
+
+    @Override
+    public Executor getAsyncExecutor() {
+        return communityExecutor();
+    }
 
     @Bean("communityExecutor")
+    @Primary
     public Executor communityExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(10);
