@@ -8,7 +8,7 @@
 
 - **项目名称**: community-platform (社群平台)
 - **当前 Phase**: Phase 6 文件模块（6.1-6.2 完成，6.3 ES 搜索待补）+ Bug 修复 + 功能缺口补全
-- **最新提交**: 待提交 — WS 推送通知补全 (Member/Channel/Server)
+- **最新提交**: `931f8ac` — 计划文档同步 (WS 协议表 + Phase 进度)
 - **日期**: 2026-06-23
 
 ---
@@ -367,10 +367,10 @@ MessageServiceImpl.sendMessage()
 | 2026-06-23 | **G2: JSON TypeHandler for Message.extra** — MessageExtra POJO + @TableName(autoResultMap=true) + @TableField(typeHandler=JacksonTypeHandler.class)，移除 5 处手动 JSONUtil 序列化/反序列化 + 删除 ExtraBody inner class | `6ee4354` |
 | 2026-06-23 | **G7 确认: 已修复** — SearchServiceImpl/ThreadServiceImpl 已在先前提及提交中完成 reaction 批量组装，本次确认无需改动 | `6ee4354` |
 | 2026-06-23 | **二次审计: G8/G14 纠正 + 新增 N1-N4** — G8 端口确认一致、G14 游标分页确认存在（误报）；新增 N1(WSAdapter死代码)、N2(VIDEO缺失)、N3(零测试)、N4(ES uris残留) | `62c916f` |
-| 2026-06-23 | **细小问题修复: WS 推送补全** — PushService.pushToServer() + MemberServiceImpl (join/leave/kick) + ChannelServiceImpl (create/update/delete) + ServerServiceImpl (update) + InviteServiceImpl (joinByInvite) WS 通知 | 待提交 |
-| 2026-06-23 | **细小问题修复: WSRespTypeEnum + WSAdapter** — 新增 MEMBER_KICK(32) + buildMemberKick() | 待提交 |
-| 2026-06-23 | **细小问题修复: 死配置清理** — application-local.properties 注释 community.es.uris | 待提交 |
-| 2026-06-23 | **细小问题修复: 计划文档同步** — 更新 P4-6 (reaction 残留) 为已修复 | 待提交 |
+| 2026-06-23 | **细小问题修复: WS 推送补全** — PushService.pushToServer() + MemberServiceImpl (join/leave/kick) + ChannelServiceImpl (create/update/delete) + ServerServiceImpl (update) + InviteServiceImpl (joinByInvite) WS 通知 | `04a5877` |
+| 2026-06-23 | **细小问题修复: WSRespTypeEnum + WSAdapter** — 新增 MEMBER_KICK(32) + buildMemberKick() | `04a5877` |
+| 2026-06-23 | **细小问题修复: 死配置清理** — application-local.properties 注释 community.es.uris | `04a5877` |
+| 2026-06-23 | **细小问题修复: 计划文档同步** — 更新 P4-6 (reaction 残留) 为已修复 | `04a5877` |
 
 ---
 

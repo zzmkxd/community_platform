@@ -123,8 +123,8 @@ websocket/                →  websocket-server         无数据库
 | message/ | SoundMsgHandler, MsgHandlerFactory, AbstractMsgHandler, TextMsgHandler, ImageMsgHandler, FileMsgHandler, SystemMsgHandler | Phase 4 | ✅ 已完成 |
 | message/ | PushService, MsgSendConsumer | Phase 4 | ✅ 已完成 (`36bc4be`) |
 | message/ | MessageSendEvent/Listener | Phase 4 | ✅ 已完成 (`36bc4be`) |
-| common/ | MentionParser（@提及解析） | 后续 | ✅ 已完成 (`待提交`) |
-| common/ | sensitive/ (AC 自动机敏感词) | 后续 | ✅ 已完成 (`待提交`) |
+| common/ | MentionParser（@提及解析） | 后续 | ✅ 已完成 (`7f2a54a`) |
+| common/ | sensitive/ (AC 自动机敏感词) | 后续 | ✅ 已完成 (`7f2a54a`) |
 | file/ | FileService 真实实现（MinIO 预签名） | Phase 6 | ✅ 已完成 (`7f2a54a`) |
 | message/ | SearchService ES 实现 | Phase 6 | ⚠️ 当前用 MySQL LIKE 占位 |
 
@@ -135,10 +135,10 @@ websocket/                →  websocket-server         无数据库
 | # | 规划 (5.1 节) | 实际 | 决议 |
 |---|-------------|------|------|
 | D1 | `community-transaction/` 模块（`@SecureInvoke` + `MQProducer`） | 不存在 | 当前单体无需事务安全投递，Phase 8 拆分时按需补 |
-| D2 | `common/aspect/` 含 AOP 切面 | 目录为空（`@FrequencyControl` / `@RedissonLock` 注解存在但无切面实现） | 注解为编译占位，运行时频控/分布式锁未生效 |
-| D3 | `common/config/RedisConfig.java` | 不存在（Spring Boot 自动配置管理 Redis 连接） | Redisson 未集成，`@RedissonLock` 无实际功能 |
+| D2 | `common/aspect/` 含 AOP 切面 | ✅ 已补全（`FrequencyControlAspect.java` + `RedissonLockAspect.java`） | `f5f20cc` 移植自 MallChat，频控 + 分布式锁运行时可用 |
+| D3 | `common/config/RedisConfig.java` | ✅ 已创建（`RedissonClient` + `RedisTemplate` Bean） | `f5f20cc` 创建，Redisson 已集成，`@RedissonLock` 可用 |
 | D4 | `common/config/RestTemplateConfig.java` | 不存在 | Phase 8 Feign 前无需 RestTemplate |
-| D5 | `common/cache/AbstractLocalCache.java`（Caffeine） | 不存在 | 可选组件，当前仅用 Redis 缓存 |
+| D5 | `common/cache/AbstractLocalCache.java`（Caffeine） | 已删除（曾移植自 MallChat，无业务使用场景） | 保持现状，按需重建 |
 | D6 | `message/service/strategy/reaction/` | 目录为空（Reaction 使用 Service 内 inline 逻辑） | 保持现状（功能等价） |
 | D7 | `file/domain/vo/` | 目录为空（FileVO 在 `message/domain/vo/` 中） | 后续可迁移到 file 包 |
 | D8 | `server/domain/dto/` | 目录为空（请求 DTO 在其他位置） | 保持现状 |
