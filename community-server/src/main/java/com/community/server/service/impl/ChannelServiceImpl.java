@@ -3,6 +3,7 @@ package com.community.server.service.impl;
 import com.community.common.exception.BusinessErrorEnum;
 import com.community.common.exception.BusinessException;
 import com.community.common.utils.RequestHolder;
+import com.community.message.service.PushService;
 import com.community.server.dao.CategoryDao;
 import com.community.server.dao.ChannelDao;
 import com.community.server.dao.MemberDao;
@@ -12,6 +13,7 @@ import com.community.server.domain.entity.ServerMember;
 import com.community.server.domain.vo.CategoryVO;
 import com.community.server.domain.vo.ChannelVO;
 import com.community.server.service.ChannelService;
+import com.community.websocket.service.adapter.WSAdapter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ public class ChannelServiceImpl implements ChannelService {
     private final CategoryDao categoryDao;
     private final ChannelDao channelDao;
     private final MemberDao memberDao;
+    private final PushService pushService;
 
     // ==================== Category ====================
 
@@ -111,6 +114,7 @@ public class ChannelServiceImpl implements ChannelService {
         channelDao.save(channel);
 
         log.info("Channel created: id={}, name={}, serverId={}", channel.getId(), name, serverId);
+        pushService.pushToServer(serverId, null, WSAdapter.buildChannelCreate(toChannelVO(channel)));
         return toChannelVO(channel);
     }
 
@@ -188,6 +192,7 @@ public class ChannelServiceImpl implements ChannelService {
         }
         channelDao.updateById(channel);
 
+        pushService.pushToServer(serverId, null, WSAdapter.buildChannelUpdate(toChannelVO(channel)));
         return toChannelVO(channel);
     }
 
@@ -206,6 +211,7 @@ public class ChannelServiceImpl implements ChannelService {
         channel.setStatus(0);
         channelDao.updateById(channel);
         log.info("Channel soft-deleted: id={}, name={}, serverId={}", channelId, channel.getName(), serverId);
+        pushService.pushToServer(serverId, null, WSAdapter.buildChannelDelete(channelId));
     }
 
     // ==================== private helpers ====================

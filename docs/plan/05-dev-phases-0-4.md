@@ -304,7 +304,7 @@
 |---|---------|---------|------|
 | P4-4 | **MessageSendListener** (4.5.2) → RocketMQ `SEND_MSG_TOPIC` | ✅ 已修复 (`36bc4be`) — 注入 RocketMQTemplate → SEND_MSG_TOPIC | 已与 P4-1/P4-2 联动完成 |
 | P4-5 | **getThreads** (4.6.2) 按 `last_active DESC` 排序 | 默认按 `id` 排序 | **已修复**（`ThreadServiceImpl:82` 传入 `Thread::getLastActive`） |
-| P4-6 | **消息列表附带 reactions** (4.7.4) | `buildMessageVOList` 传 `Collections.emptyList()` | **已修复**（主流程 `MessageServiceImpl:197` 调用 `buildReactionMap`）。残留：`SearchServiceImpl:38` 和 `ThreadServiceImpl:129` 仍传 `emptyList()`，搜索和 Thread 消息列表暂不附带 Reaction |
+| P4-6 | **消息列表附带 reactions** (4.7.4) | `buildMessageVOList` 传 `Collections.emptyList()` | **已修复** — 主流程 `MessageServiceImpl:197` + `SearchServiceImpl:55-60` + `ThreadServiceImpl:138-145` 均已实现 `buildReactionMap` |
 | P4-7 | **ThreadVO.creator** (4.9.3) — 应包含创建者 UserVO | `toThreadVO()` 未设置 `creator` | **已修复**（`ThreadServiceImpl:166-172` 查 User 后设置） |
 | P4-8 | **deleteMessage** (4.4.5) — "作者或 MANAGE_MESSAGES 权限" | 代码用 `ADMINISTRATOR` | **保持现状**。`MANAGE_MESSAGES` 在 PermissionBit 中不存在，`ADMINISTRATOR` 等价且更简单 |
 

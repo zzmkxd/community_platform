@@ -10,8 +10,10 @@ import com.community.server.dao.*;
 import com.community.server.domain.entity.*;
 import com.community.server.domain.enums.PermissionBit;
 import com.community.server.domain.vo.*;
+import com.community.message.service.PushService;
 import com.community.server.service.PermissionService;
 import com.community.server.service.ServerService;
+import com.community.websocket.service.adapter.WSAdapter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,6 +34,7 @@ public class ServerServiceImpl implements ServerService {
     private final CategoryDao categoryDao;
     private final ChannelDao channelDao;
     private final PermissionService permissionService;
+    private final PushService pushService;
 
     @Override
     @Transactional
@@ -252,7 +255,9 @@ public class ServerServiceImpl implements ServerService {
                 .eq(ServerMember::getStatus, 1)
                 .count();
 
-        return toServerVO(server, memberCount);
+        ServerVO vo = toServerVO(server, memberCount);
+        pushService.pushToServer(serverId, null, WSAdapter.buildServerUpdate(vo));
+        return vo;
     }
 
     @Override

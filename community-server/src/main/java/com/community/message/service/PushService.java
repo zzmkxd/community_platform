@@ -15,4 +15,7 @@ public interface PushService {
 
     /** 向指定用户推送 */
     void pushToUser(Long userId, Object data);
+
+    /** 向服务器所有在线成员推送（排除指定用户） */
+    void pushToServer(Long serverId, Long excludeUid, Object data);
 }

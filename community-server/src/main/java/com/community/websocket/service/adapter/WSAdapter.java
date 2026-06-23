@@ -121,6 +121,11 @@ public class WSAdapter {
                 new Object() { public final Long sid = serverId; public final Long uid = userId; });
     }
 
+    public static WSBaseResp buildMemberKick(Long serverId, Long userId) {
+        return WSBaseResp.of(WSRespTypeEnum.MEMBER_KICK.getType(),
+                new Object() { public final Long sid = serverId; public final Long uid = userId; });
+    }
+
     public static WSBaseResp buildChannelCreate(Object channelVO) {
         return WSBaseResp.of(WSRespTypeEnum.CHANNEL_CREATE.getType(), channelVO);
     }

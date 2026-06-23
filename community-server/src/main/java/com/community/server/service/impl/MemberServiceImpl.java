@@ -11,10 +11,12 @@ import com.community.server.domain.entity.*;
 import com.community.server.domain.enums.PermissionBit;
 import com.community.server.domain.vo.MemberVO;
 import com.community.server.domain.vo.RoleVO;
+import com.community.message.service.PushService;
 import com.community.server.service.MemberService;
 import com.community.server.service.PermissionService;
 import com.community.user.dao.UserDao;
 import com.community.user.domain.entity.User;
+import com.community.websocket.service.adapter.WSAdapter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +36,7 @@ public class MemberServiceImpl implements MemberService {
     private final MemberRoleDao memberRoleDao;
     private final ServerDao serverDao;
     private final PermissionService permissionService;
+    private final PushService pushService;
 
     @Override
     public CursorPageBaseResp<MemberVO> getMembers(Long serverId, String cursor, Integer pageSize) {
@@ -100,6 +103,9 @@ public class MemberServiceImpl implements MemberService {
         }
 
         log.info("User {} joined server {}", uid, serverId);
+
+        pushService.pushToServer(serverId, uid, WSAdapter.buildMemberJoin(serverId, buildSingleMemberVO(member)));
+
         return buildSingleMemberVO(member);
     }
 
@@ -122,17 +128,19 @@ public class MemberServiceImpl implements MemberService {
                 throw new BusinessException(BusinessErrorEnum.NO_PERMISSION);
             }
             target.setStatus(3);
+            memberDao.updateById(target);
             log.info("User {} left server {}", userId, serverId);
+            pushService.pushToServer(serverId, userId, WSAdapter.buildMemberLeave(serverId, userId));
         } else {
             // Requires KICK_MEMBERS permission
             if (!permissionService.checkPermission(serverId, uid, null, PermissionBit.KICK_MEMBERS.getBit())) {
                 throw new BusinessException(BusinessErrorEnum.NO_PERMISSION);
             }
             target.setStatus(2);
+            memberDao.updateById(target);
             log.info("User {} was kicked from server {} by {}", userId, serverId, uid);
+            pushService.pushToServer(serverId, userId, WSAdapter.buildMemberKick(serverId, userId));
         }
-
-        memberDao.updateById(target);
     }
 
     @Override

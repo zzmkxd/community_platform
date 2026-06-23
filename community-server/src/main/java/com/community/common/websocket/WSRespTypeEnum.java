@@ -24,6 +24,7 @@ public enum WSRespTypeEnum {
     THREAD_CREATE(34, "话题创建推送"),
     MEMBER_JOIN(30, "成员加入推送"),
     MEMBER_LEAVE(31, "成员离开推送"),
+    MEMBER_KICK(32, "成员被踢推送"),
     USER_ONLINE(40, "用户上线推送"),
     USER_OFFLINE(41, "用户离线推送"),
     CHANNEL_CREATE(50, "频道创建推送"),

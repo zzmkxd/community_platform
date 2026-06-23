@@ -8,7 +8,7 @@
 
 - **项目名称**: community-platform (社群平台)
 - **当前 Phase**: Phase 6 文件模块（6.1-6.2 完成，6.3 ES 搜索待补）+ Bug 修复 + 功能缺口补全
-- **最新提交**: `6ee4354` — G1-G4 功能缺口修复
+- **最新提交**: 待提交 — WS 推送通知补全 (Member/Channel/Server)
 - **日期**: 2026-06-23
 
 ---
@@ -53,10 +53,10 @@
 
 | # | 条目 | 严重程度 | 现状 |
 |---|------|----------|------|
-| N1 | **WSAdapter 死代码** — `buildMemberJoin()` / `buildMemberLeave()` 定义但全代码库无调用者，成员加入/离开时无 WS 推送 | 🟡 中等 | G10 子项，WSAdapter 方法存在但服务层未触发 |
+| N1 | ~~**WSAdapter 死代码**~~ ✅ **已修复** — MemberServiceImpl/InviteServiceImpl 注入 PushService + pushToServer；ChannelServiceImpl/ServerServiceImpl 同步补全 WS 推送 | 🟡→✅ | `PushService.pushToServer()` + 5 服务文件补全 WS 推送 |
 | N2 | **MessageTypeEnum 缺 VIDEO (type=7)** — 计划标注"留待补充"，无 VideoMsgHandler | ⚪ 低 | `MessageTypeEnum.java` |
 | N3 | **零测试** — 全项目 215 个 Java 文件，0 个 test 目录/测试类/冒烟脚本 | 🟡 中等 | Phase 7.1 规划中 |
-| N4 | **community.es.uris 配置存在但 ES 容器缺失** — `application-local.properties:21` 配置了 `community.es.uris=http://localhost:9200`，无对应 ES 容器 | ⚪ 低 | G5/G6 相关 |
+| N4 | ~~**community.es.uris 配置残留**~~ ✅ **已修复** — 注释掉，标注 Phase 6.3 待 ES 容器 | ⚪→✅ | `application-local.properties:21` |
 
 ### ✅ 已确认修复/排除
 
@@ -76,17 +76,17 @@
 | — | G7 确认误报 — Search/Thread 已有 reaction 组装 |
 | — | G8 确认无问题 — compose 端口与 local.properties 完全一致 |
 | — | G14 确认误报 — getDiscoverableServers 已有游标分页 |
+| — | N1 WS 推送补全 (本次提交) |
+| — | N4 死配置清理 (本次提交) |
 
 ### 📊 缺口状态总表 (16+4=20 项)
 
 | 状态 | 数量 | 条目 |
 |------|------|------|
-| ✅ 已修复/排除 | 14 | G1-G4, G7, G8, G9, G14 + A1-A3, D2/D3, D5, B4, B5, ExtraBody |
-| 🔶 Phase 6.3 | 2 | G5 (ES搜索), G6 (ES容器) |
-| 🔷 Phase 7+ 规划 | 5 | G10, G13, G15 + N2 (VIDEO) + N3 (零测试) |
-| ⬜ 无限期延后 | 3 | G11 (WxMsg表), G12 (@SecureInvoke), G16 (flows-visual.html) |
-| 🟡 死代码 | 1 | N1 (WSAdapter MemberJoin/Leave 未触发) |
-| ⚪ 配置残留 | 1 | N4 (ES uris 配置无对应容器) |
+| ✅ 已修复/排除 | **16** | G1-G4, G7, G8, G9, G14, N1, N4 + A1-A3, D2/D3, D5, B4, B5, ExtraBody |
+| 🔶 Phase 6.3 | **2** | G5 (ES搜索), G6 (ES容器) |
+| 🔷 Phase 7+ 规划 | **5** | G10, G13, G15 + N2 (VIDEO) + N3 (零测试) |
+| ⬜ 无限期延后 | **3** | G11 (WxMsg表), G12 (@SecureInvoke), G16 (flows-visual.html) |
 
 ---
 
@@ -366,7 +366,11 @@ MessageServiceImpl.sendMessage()
 | 2026-06-23 | **G4: hasPower admin shortcut** — loginSuccess 改为 uid==1→hasPower=true，替代硬编码 false | `6ee4354` |
 | 2026-06-23 | **G2: JSON TypeHandler for Message.extra** — MessageExtra POJO + @TableName(autoResultMap=true) + @TableField(typeHandler=JacksonTypeHandler.class)，移除 5 处手动 JSONUtil 序列化/反序列化 + 删除 ExtraBody inner class | `6ee4354` |
 | 2026-06-23 | **G7 确认: 已修复** — SearchServiceImpl/ThreadServiceImpl 已在先前提及提交中完成 reaction 批量组装，本次确认无需改动 | `6ee4354` |
-| 2026-06-23 | **二次审计: G8/G14 纠正 + 新增 N1-N4** — G8 端口确认一致、G14 游标分页确认存在（误报）；新增 N1(WSAdapter死代码)、N2(VIDEO缺失)、N3(零测试)、N4(ES uris残留) | `6ee4354` |
+| 2026-06-23 | **二次审计: G8/G14 纠正 + 新增 N1-N4** — G8 端口确认一致、G14 游标分页确认存在（误报）；新增 N1(WSAdapter死代码)、N2(VIDEO缺失)、N3(零测试)、N4(ES uris残留) | `62c916f` |
+| 2026-06-23 | **细小问题修复: WS 推送补全** — PushService.pushToServer() + MemberServiceImpl (join/leave/kick) + ChannelServiceImpl (create/update/delete) + ServerServiceImpl (update) + InviteServiceImpl (joinByInvite) WS 通知 | 待提交 |
+| 2026-06-23 | **细小问题修复: WSRespTypeEnum + WSAdapter** — 新增 MEMBER_KICK(32) + buildMemberKick() | 待提交 |
+| 2026-06-23 | **细小问题修复: 死配置清理** — application-local.properties 注释 community.es.uris | 待提交 |
+| 2026-06-23 | **细小问题修复: 计划文档同步** — 更新 P4-6 (reaction 残留) 为已修复 | 待提交 |
 
 ---
 

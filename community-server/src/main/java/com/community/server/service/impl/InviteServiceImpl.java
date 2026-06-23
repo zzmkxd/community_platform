@@ -7,7 +7,9 @@ import com.community.server.dao.*;
 import com.community.server.domain.entity.*;
 import com.community.server.domain.vo.InviteVO;
 import com.community.server.domain.vo.ServerVO;
+import com.community.message.service.PushService;
 import com.community.server.service.InviteService;
+import com.community.websocket.service.adapter.WSAdapter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ public class InviteServiceImpl implements InviteService {
     private final MemberDao memberDao;
     private final RoleDao roleDao;
     private final MemberRoleDao memberRoleDao;
+    private final PushService pushService;
 
     @Override
     @Transactional
@@ -133,6 +136,9 @@ public class InviteServiceImpl implements InviteService {
                 .eq(ServerMember::getServerId, invite.getServerId())
                 .eq(ServerMember::getStatus, 1)
                 .count();
+
+        pushService.pushToServer(invite.getServerId(), uid,
+                WSAdapter.buildMemberJoin(invite.getServerId(), null));
 
         ServerVO vo = new ServerVO();
         vo.setId(server.getId());
