@@ -13,6 +13,7 @@ import com.community.server.domain.entity.ServerMember;
 import com.community.server.domain.vo.CategoryVO;
 import com.community.server.domain.vo.ChannelVO;
 import com.community.server.service.ChannelService;
+import com.community.server.service.MembershipValidator;
 import com.community.websocket.service.adapter.WSAdapter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +37,7 @@ public class ChannelServiceImpl implements ChannelService {
     @Override
     @Transactional
     public CategoryVO createCategory(Long serverId, String name, Integer sortOrder) {
-        requireMember(serverId);
+        MembershipValidator.requireMember(memberDao, serverId);
 
         Category category = new Category();
         category.setServerId(serverId);
@@ -51,7 +52,7 @@ public class ChannelServiceImpl implements ChannelService {
     @Override
     @Transactional
     public CategoryVO updateCategory(Long serverId, Long categoryId, String name) {
-        requireMember(serverId);
+        MembershipValidator.requireMember(memberDao, serverId);
 
         Category category = categoryDao.lambdaQuery()
                 .eq(Category::getId, categoryId)
@@ -71,7 +72,7 @@ public class ChannelServiceImpl implements ChannelService {
     @Override
     @Transactional
     public void deleteCategory(Long serverId, Long categoryId) {
-        requireMember(serverId);
+        MembershipValidator.requireMember(memberDao, serverId);
 
         Category category = categoryDao.lambdaQuery()
                 .eq(Category::getId, categoryId)
@@ -101,7 +102,7 @@ public class ChannelServiceImpl implements ChannelService {
     @Override
     @Transactional
     public ChannelVO createChannel(Long serverId, Long categoryId, String name, Integer type, String topic) {
-        requireMember(serverId);
+        MembershipValidator.requireMember(memberDao, serverId);
 
         Channel channel = new Channel();
         channel.setServerId(serverId);
@@ -120,7 +121,7 @@ public class ChannelServiceImpl implements ChannelService {
 
     @Override
     public List<CategoryVO> getChannels(Long serverId) {
-        requireMember(serverId);
+        MembershipValidator.requireMember(memberDao, serverId);
 
         List<Category> categories = categoryDao.lambdaQuery()
                 .eq(Category::getServerId, serverId)
@@ -160,7 +161,7 @@ public class ChannelServiceImpl implements ChannelService {
 
     @Override
     public ChannelVO getChannel(Long serverId, Long channelId) {
-        requireMember(serverId);
+        MembershipValidator.requireMember(memberDao, serverId);
 
         Channel channel = channelDao.lambdaQuery()
                 .eq(Channel::getId, channelId)
@@ -175,7 +176,7 @@ public class ChannelServiceImpl implements ChannelService {
     @Override
     @Transactional
     public ChannelVO updateChannel(Long serverId, Long channelId, String name, String topic) {
-        requireMember(serverId);
+        MembershipValidator.requireMember(memberDao, serverId);
 
         Channel channel = channelDao.lambdaQuery()
                 .eq(Channel::getId, channelId)
@@ -199,7 +200,7 @@ public class ChannelServiceImpl implements ChannelService {
     @Override
     @Transactional
     public void deleteChannel(Long serverId, Long channelId) {
-        requireMember(serverId);
+        MembershipValidator.requireMember(memberDao, serverId);
 
         Channel channel = channelDao.lambdaQuery()
                 .eq(Channel::getId, channelId)
@@ -215,18 +216,6 @@ public class ChannelServiceImpl implements ChannelService {
     }
 
     // ==================== private helpers ====================
-
-    private void requireMember(Long serverId) {
-        Long uid = RequestHolder.get().getUid();
-        boolean exists = memberDao.lambdaQuery()
-                .eq(ServerMember::getServerId, serverId)
-                .eq(ServerMember::getUserId, uid)
-                .eq(ServerMember::getStatus, 1)
-                .exists();
-        if (!exists) {
-            throw new BusinessException(BusinessErrorEnum.NOT_SERVER_MEMBER);
-        }
-    }
 
     private List<ChannelVO> getChannelsByCategory(Long categoryId) {
         return channelDao.lambdaQuery()

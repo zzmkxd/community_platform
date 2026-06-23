@@ -6,6 +6,7 @@ import com.community.common.utils.RequestHolder;
 import com.community.server.dao.*;
 import com.community.server.domain.entity.*;
 import com.community.server.domain.vo.RoleVO;
+import com.community.server.service.MembershipValidator;
 import com.community.server.service.RoleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,7 @@ public class RoleServiceImpl implements RoleService {
     @Override
     @Transactional
     public RoleVO createRole(Long serverId, String name, String color, Long permissions, Integer position) {
-        requireServerOwner(serverId);
+        MembershipValidator.requireServerOwner(serverDao, serverId);
 
         Role role = new Role();
         role.setServerId(serverId);
@@ -55,7 +56,7 @@ public class RoleServiceImpl implements RoleService {
     @Override
     @Transactional
     public RoleVO updateRole(Long serverId, Long roleId, String name, String color, Long permissions) {
-        requireServerOwner(serverId);
+        MembershipValidator.requireServerOwner(serverDao, serverId);
 
         Role role = roleDao.lambdaQuery()
                 .eq(Role::getId, roleId)
@@ -80,7 +81,7 @@ public class RoleServiceImpl implements RoleService {
     @Override
     @Transactional
     public void deleteRole(Long serverId, Long roleId) {
-        requireServerOwner(serverId);
+        MembershipValidator.requireServerOwner(serverDao, serverId);
 
         Role role = roleDao.lambdaQuery()
                 .eq(Role::getId, roleId)
@@ -100,7 +101,7 @@ public class RoleServiceImpl implements RoleService {
     @Override
     @Transactional
     public List<RoleVO> assignRoles(Long serverId, Long userId, List<Long> roleIds) {
-        requireServerOwner(serverId);
+        MembershipValidator.requireServerOwner(serverDao, serverId);
 
         ServerMember member = memberDao.lambdaQuery()
                 .eq(ServerMember::getServerId, serverId)
@@ -140,7 +141,7 @@ public class RoleServiceImpl implements RoleService {
     @Override
     @Transactional
     public void removeRole(Long serverId, Long userId, Long roleId) {
-        requireServerOwner(serverId);
+        MembershipValidator.requireServerOwner(serverDao, serverId);
 
         ServerMember member = memberDao.lambdaQuery()
                 .eq(ServerMember::getServerId, serverId)
@@ -155,18 +156,6 @@ public class RoleServiceImpl implements RoleService {
                 .remove();
 
         log.info("Role removed: userId={}, serverId={}, roleId={}", userId, serverId, roleId);
-    }
-
-    private void requireServerOwner(Long serverId) {
-        Long uid = RequestHolder.get().getUid();
-        Server server = serverDao.lambdaQuery()
-                .eq(Server::getId, serverId)
-                .eq(Server::getStatus, 1)
-                .oneOpt()
-                .orElseThrow(() -> new BusinessException(BusinessErrorEnum.SERVER_NOT_FOUND));
-        if (!server.getOwnerId().equals(uid)) {
-            throw new BusinessException(BusinessErrorEnum.NO_PERMISSION);
-        }
     }
 
     private RoleVO toRoleVO(Role role) {

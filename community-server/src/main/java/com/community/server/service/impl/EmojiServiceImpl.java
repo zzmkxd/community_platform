@@ -11,6 +11,7 @@ import com.community.server.domain.entity.ServerMember;
 import com.community.server.domain.vo.EmojiVO;
 import com.community.server.dao.ServerDao;
 import com.community.server.service.EmojiService;
+import com.community.server.service.MembershipValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,7 +34,7 @@ public class EmojiServiceImpl implements EmojiService {
     public EmojiVO uploadEmoji(Long serverId, String name, byte[] imageBytes) {
         Long uid = RequestHolder.get().getUid();
 
-        requireMember(serverId);
+        MembershipValidator.requireMember(memberDao, serverId);
 
         String objectKey = "emoji/" + serverId + "/" + UUID.randomUUID().toString().substring(0, 8) + "_" + name;
 
@@ -50,7 +51,7 @@ public class EmojiServiceImpl implements EmojiService {
 
     @Override
     public List<EmojiVO> getEmojis(Long serverId) {
-        requireMember(serverId);
+        MembershipValidator.requireMember(memberDao, serverId);
 
         return emojiDao.lambdaQuery()
                 .eq(Emoji::getServerId, serverId)
@@ -63,7 +64,7 @@ public class EmojiServiceImpl implements EmojiService {
     @Override
     @Transactional
     public void deleteEmoji(Long serverId, Long emojiId) {
-        requireMember(serverId);
+        MembershipValidator.requireMember(memberDao, serverId);
 
         Emoji emoji = emojiDao.lambdaQuery()
                 .eq(Emoji::getId, emojiId)
@@ -79,18 +80,6 @@ public class EmojiServiceImpl implements EmojiService {
 
         emojiDao.removeById(emojiId);
         log.info("Emoji deleted: id={}, name={}, serverId={}", emojiId, emoji.getName(), serverId);
-    }
-
-    private void requireMember(Long serverId) {
-        Long uid = RequestHolder.get().getUid();
-        boolean exists = memberDao.lambdaQuery()
-                .eq(ServerMember::getServerId, serverId)
-                .eq(ServerMember::getUserId, uid)
-                .eq(ServerMember::getStatus, 1)
-                .exists();
-        if (!exists) {
-            throw new BusinessException(BusinessErrorEnum.NOT_SERVER_MEMBER);
-        }
     }
 
     private EmojiVO toVO(Emoji emoji) {

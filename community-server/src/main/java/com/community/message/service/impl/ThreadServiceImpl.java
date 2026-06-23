@@ -136,7 +136,7 @@ public class ThreadServiceImpl implements ThreadService {
                 .collect(Collectors.toMap(User::getId, u -> u));
 
         List<Long> msgIds = page.getList().stream().map(Message::getId).toList();
-        Map<Long, List<ReactionVO>> reactionMap = buildReactionMapForMessages(msgIds);
+        Map<Long, List<ReactionVO>> reactionMap = MessageAdapter.buildReactionMap(msgIds, reactionDao);
 
         List<MessageVO> vos = page.getList().stream()
                 .map(msg -> MessageAdapter.buildMessageVO(
@@ -181,41 +181,6 @@ public class ThreadServiceImpl implements ThreadService {
         if (!inactive.isEmpty()) {
             log.info("Auto-archived {} inactive threads", inactive.size());
         }
-    }
-
-    private Map<Long, List<ReactionVO>> buildReactionMapForMessages(List<Long> msgIds) {
-        if (msgIds.isEmpty()) return Map.of();
-        List<Reaction> reactions = reactionDao.lambdaQuery()
-                .in(Reaction::getMessageId, msgIds)
-                .list();
-
-        Map<Long, Map<String, ReactionVO>> grouped = new java.util.HashMap<>();
-        for (Reaction r : reactions) {
-            Map<String, ReactionVO> emojiMap = grouped.computeIfAbsent(r.getMessageId(),
-                    k -> new java.util.LinkedHashMap<>());
-            ReactionVO vo = emojiMap.computeIfAbsent(r.getEmoji(), emoji -> {
-                ReactionVO rvo = new ReactionVO();
-                rvo.setEmoji(emoji);
-                rvo.setCount(0);
-                rvo.setUserIds(new java.util.ArrayList<>());
-                return rvo;
-            });
-            vo.setCount(vo.getCount() + 1);
-            vo.getUserIds().add(r.getUserId());
-        }
-
-        Long currentUid = RequestHolder.get() != null ? RequestHolder.get().getUid() : null;
-        Map<Long, List<ReactionVO>> result = new java.util.HashMap<>();
-        for (var entry : grouped.entrySet()) {
-            List<ReactionVO> list = new java.util.ArrayList<>(entry.getValue().values());
-            if (currentUid != null) {
-                for (ReactionVO vo : list) {
-                    vo.setReacted(vo.getUserIds().contains(currentUid));
-                }
-            }
-            result.put(entry.getKey(), list);
-        }
-        return result;
     }
 
     private ThreadVO toThreadVO(Thread thread, User creator) {

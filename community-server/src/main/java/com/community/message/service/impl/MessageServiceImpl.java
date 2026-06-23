@@ -1,9 +1,12 @@
 package com.community.message.service.impl;
 
+import cn.hutool.json.JSONUtil;
+import com.community.common.constant.MQConstant;
 import com.community.common.domain.vo.request.CursorPageBaseReq;
 import com.community.common.domain.vo.response.CursorPageBaseResp;
 import com.community.common.exception.BusinessErrorEnum;
 import com.community.common.exception.BusinessException;
+import com.community.common.transaction.service.MQProducer;
 import com.community.common.utils.CursorUtils;
 import com.community.common.utils.RequestHolder;
 import com.community.file.dao.FileAttachmentDao;
@@ -19,7 +22,6 @@ import com.community.message.domain.entity.Thread;
 import com.community.message.domain.vo.FileVO;
 import com.community.message.domain.vo.MessageVO;
 import com.community.message.domain.vo.ReactionVO;
-import com.community.message.event.ChannelMessageSendEvent;
 import com.community.message.service.MessageService;
 import com.community.message.service.adapter.MessageAdapter;
 import com.community.message.service.strategy.msg.AbstractMsgHandler;
@@ -32,7 +34,6 @@ import com.community.user.dao.UserDao;
 import com.community.user.domain.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,7 +53,7 @@ public class MessageServiceImpl implements MessageService {
     private final UserDao userDao;
     private final ReactionDao reactionDao;
     private final PermissionService permissionService;
-    private final ApplicationEventPublisher eventPublisher;
+    private final MQProducer mqProducer;
     private final FileAttachmentDao fileAttachmentDao;
 
     @Override
@@ -90,12 +91,17 @@ public class MessageServiceImpl implements MessageService {
         AbstractMsgHandler handler = MsgHandlerFactory.getStrategyNoNull(req.getMsgType());
         Long msgId = handler.checkAndSaveMsg(req, channelId, uid);
 
-        eventPublisher.publishEvent(new ChannelMessageSendEvent(this, msgId, channelId, threadId, uid));
+        String body = JSONUtil.toJsonStr(JSONUtil.createObj()
+                .set("messageId", msgId)
+                .set("channelId", channelId)
+                .set("threadId", threadId)
+                .set("fromUid", uid));
+        mqProducer.sendSecureMsg(MQConstant.SEND_MSG_TOPIC, body);
 
         Message saved = messageDao.getById(msgId);
         User user = userDao.getById(uid);
         MessageVO vo = MessageAdapter.buildMessageVO(saved, user, Collections.emptyList(), thread);
-        vo.setAttachments(buildAttachments(saved));
+        vo.setAttachments(MessageAdapter.buildAttachments(saved, fileAttachmentDao));
         return vo;
     }
 
@@ -135,7 +141,7 @@ public class MessageServiceImpl implements MessageService {
 
         User user = userDao.getById(message.getFromUid());
         MessageVO vo = MessageAdapter.buildMessageVO(message, user, Collections.emptyList(), null);
-        vo.setAttachments(buildAttachments(message));
+        vo.setAttachments(MessageAdapter.buildAttachments(message, fileAttachmentDao));
         return vo;
     }
 
@@ -162,7 +168,7 @@ public class MessageServiceImpl implements MessageService {
         log.info("Message edited: msgId={}, channelId={}, uid={}", msgId, channelId, uid);
         User user = userDao.getById(uid);
         MessageVO vo = MessageAdapter.buildMessageVO(message, user, Collections.emptyList(), null);
-        vo.setAttachments(buildAttachments(message));
+        vo.setAttachments(MessageAdapter.buildAttachments(message, fileAttachmentDao));
         return vo;
     }
 
@@ -205,9 +211,9 @@ public class MessageServiceImpl implements MessageService {
                 .collect(Collectors.toMap(User::getId, u -> u));
 
         List<Long> msgIds = messages.stream().map(Message::getId).toList();
-        Map<Long, List<ReactionVO>> reactionMap = buildReactionMap(msgIds);
+        Map<Long, List<ReactionVO>> reactionMap = MessageAdapter.buildReactionMap(msgIds, reactionDao);
 
-        Map<Long, List<FileVO>> attachmentMap = buildAttachmentMap(messages);
+        Map<Long, List<FileVO>> attachmentMap = MessageAdapter.buildAttachmentMap(messages, fileAttachmentDao);
 
         return messages.stream()
                 .map(msg -> {
@@ -218,80 +224,5 @@ public class MessageServiceImpl implements MessageService {
                     return vo;
                 })
                 .toList();
-    }
-
-    private Map<Long, List<ReactionVO>> buildReactionMap(List<Long> msgIds) {
-        List<Reaction> reactions = reactionDao.lambdaQuery()
-                .in(Reaction::getMessageId, msgIds)
-                .list();
-
-        Map<Long, Map<String, ReactionVO>> grouped = new java.util.HashMap<>();
-        for (Reaction r : reactions) {
-            Map<String, ReactionVO> emojiMap = grouped.computeIfAbsent(r.getMessageId(),
-                    k -> new java.util.LinkedHashMap<>());
-            ReactionVO vo = emojiMap.computeIfAbsent(r.getEmoji(), emoji -> {
-                ReactionVO rvo = new ReactionVO();
-                rvo.setEmoji(emoji);
-                rvo.setCount(0);
-                rvo.setUserIds(new java.util.ArrayList<>());
-                return rvo;
-            });
-            vo.setCount(vo.getCount() + 1);
-            vo.getUserIds().add(r.getUserId());
-        }
-
-        Long currentUid = RequestHolder.get().getUid();
-        Map<Long, List<ReactionVO>> result = new java.util.HashMap<>();
-        for (var entry : grouped.entrySet()) {
-            List<ReactionVO> list = new java.util.ArrayList<>(entry.getValue().values());
-            for (ReactionVO vo : list) {
-                vo.setReacted(vo.getUserIds().contains(currentUid));
-            }
-            result.put(entry.getKey(), list);
-        }
-        return result;
-    }
-
-    private List<FileVO> buildAttachments(Message message) {
-        MessageExtra extra = message.getExtra();
-        if (extra == null || extra.getFileIds() == null || extra.getFileIds().isEmpty()) {
-            return null;
-        }
-        List<FileAttachment> files = fileAttachmentDao.lambdaQuery()
-                .in(FileAttachment::getId, extra.getFileIds()).list();
-        return files.stream().map(MessageAdapter::buildFileVO).toList();
-    }
-
-    private Map<Long, List<FileVO>> buildAttachmentMap(List<Message> messages) {
-        List<Long> allFileIds = new java.util.ArrayList<>();
-        Map<Long, List<Long>> msgFileIdsMap = new java.util.HashMap<>();
-
-        for (Message msg : messages) {
-            MessageExtra extra = msg.getExtra();
-            if (extra == null || extra.getFileIds() == null || extra.getFileIds().isEmpty()) continue;
-            allFileIds.addAll(extra.getFileIds());
-            msgFileIdsMap.put(msg.getId(), extra.getFileIds());
-        }
-
-        if (allFileIds.isEmpty()) {
-            return Map.of();
-        }
-
-        Map<Long, FileVO> fileMap = fileAttachmentDao.lambdaQuery()
-                .in(FileAttachment::getId, allFileIds).list()
-                .stream()
-                .collect(Collectors.toMap(FileAttachment::getId, MessageAdapter::buildFileVO));
-
-        Map<Long, List<FileVO>> result = new java.util.HashMap<>();
-        for (var entry : msgFileIdsMap.entrySet()) {
-            List<FileVO> files = entry.getValue().stream()
-                    .map(fileMap::get)
-                    .filter(java.util.Objects::nonNull)
-                    .toList();
-            if (!files.isEmpty()) {
-                result.put(entry.getKey(), files);
-            }
-        }
-        return result;
     }
 }

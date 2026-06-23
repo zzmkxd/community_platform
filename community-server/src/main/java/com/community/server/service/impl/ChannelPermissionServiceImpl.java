@@ -13,6 +13,7 @@ import com.community.server.domain.entity.ServerMember;
 import com.community.server.domain.vo.ChannelPermissionVO;
 import com.community.server.dao.ServerDao;
 import com.community.server.service.ChannelPermissionService;
+import com.community.server.service.MembershipValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,7 +41,7 @@ public class ChannelPermissionServiceImpl implements ChannelPermissionService {
                 .oneOpt()
                 .orElseThrow(() -> new BusinessException(BusinessErrorEnum.CHANNEL_NOT_FOUND));
 
-        requireServerOwner(channel.getServerId());
+        MembershipValidator.requireServerOwner(serverDao, channel.getServerId());
 
         ChannelPermission perm = channelPermissionDao.lambdaQuery()
                 .eq(ChannelPermission::getChannelId, channelId)
@@ -70,7 +71,7 @@ public class ChannelPermissionServiceImpl implements ChannelPermissionService {
                 .oneOpt()
                 .orElseThrow(() -> new BusinessException(BusinessErrorEnum.CHANNEL_NOT_FOUND));
 
-        requireMember(channel.getServerId());
+        MembershipValidator.requireMember(memberDao, channel.getServerId());
 
         return channelPermissionDao.lambdaQuery()
                 .eq(ChannelPermission::getChannelId, channelId)
@@ -91,35 +92,11 @@ public class ChannelPermissionServiceImpl implements ChannelPermissionService {
 
         Channel channel = channelDao.getById(channelId);
         if (channel != null) {
-            requireServerOwner(channel.getServerId());
+            MembershipValidator.requireServerOwner(serverDao, channel.getServerId());
         }
 
         channelPermissionDao.removeById(permId);
         log.info("ChannelPermission deleted: id={}, channelId={}", permId, channelId);
-    }
-
-    private void requireServerOwner(Long serverId) {
-        Long uid = RequestHolder.get().getUid();
-        Server server = serverDao.lambdaQuery()
-                .eq(Server::getId, serverId)
-                .eq(Server::getStatus, 1)
-                .oneOpt()
-                .orElseThrow(() -> new BusinessException(BusinessErrorEnum.SERVER_NOT_FOUND));
-        if (!server.getOwnerId().equals(uid)) {
-            throw new BusinessException(BusinessErrorEnum.NO_PERMISSION);
-        }
-    }
-
-    private void requireMember(Long serverId) {
-        Long uid = RequestHolder.get().getUid();
-        boolean exists = memberDao.lambdaQuery()
-                .eq(ServerMember::getServerId, serverId)
-                .eq(ServerMember::getUserId, uid)
-                .eq(ServerMember::getStatus, 1)
-                .exists();
-        if (!exists) {
-            throw new BusinessException(BusinessErrorEnum.NOT_SERVER_MEMBER);
-        }
     }
 
     private ChannelPermissionVO toVO(ChannelPermission perm) {

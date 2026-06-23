@@ -52,7 +52,7 @@ public class SearchServiceImpl implements SearchService {
                 .collect(Collectors.toMap(User::getId, u -> u));
 
         List<Long> msgIds = messages.stream().map(Message::getId).toList();
-        Map<Long, List<ReactionVO>> reactionMap = buildReactionMap(msgIds);
+        Map<Long, List<ReactionVO>> reactionMap = MessageAdapter.buildReactionMap(msgIds, reactionDao);
 
         List<MessageVO> vos = messages.stream()
                 .map(msg -> MessageAdapter.buildMessageVO(
@@ -66,38 +66,4 @@ public class SearchServiceImpl implements SearchService {
         return resp;
     }
 
-    private Map<Long, List<ReactionVO>> buildReactionMap(List<Long> msgIds) {
-        if (msgIds.isEmpty()) return Map.of();
-        List<Reaction> reactions = reactionDao.lambdaQuery()
-                .in(Reaction::getMessageId, msgIds)
-                .list();
-
-        Map<Long, Map<String, ReactionVO>> grouped = new HashMap<>();
-        for (Reaction r : reactions) {
-            Map<String, ReactionVO> emojiMap = grouped.computeIfAbsent(r.getMessageId(),
-                    k -> new LinkedHashMap<>());
-            ReactionVO vo = emojiMap.computeIfAbsent(r.getEmoji(), emoji -> {
-                ReactionVO rvo = new ReactionVO();
-                rvo.setEmoji(emoji);
-                rvo.setCount(0);
-                rvo.setUserIds(new ArrayList<>());
-                return rvo;
-            });
-            vo.setCount(vo.getCount() + 1);
-            vo.getUserIds().add(r.getUserId());
-        }
-
-        Long currentUid = RequestHolder.get() != null ? RequestHolder.get().getUid() : null;
-        Map<Long, List<ReactionVO>> result = new HashMap<>();
-        for (var entry : grouped.entrySet()) {
-            List<ReactionVO> list = new ArrayList<>(entry.getValue().values());
-            if (currentUid != null) {
-                for (ReactionVO vo : list) {
-                    vo.setReacted(vo.getUserIds().contains(currentUid));
-                }
-            }
-            result.put(entry.getKey(), list);
-        }
-        return result;
-    }
 }

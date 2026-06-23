@@ -63,7 +63,7 @@ public class MsgSendConsumer implements RocketMQListener<String> {
             MessageVO messageVO = MessageAdapter.buildMessageVO(message, fromUser, null, thread);
 
             // 填充附件列表
-            messageVO.setAttachments(buildAttachments(message));
+            messageVO.setAttachments(MessageAdapter.buildAttachments(message, fileAttachmentDao));
 
             // 推送到频道订阅者
             pushService.pushToChannel(channelId, fromUid, messageVO);
@@ -79,13 +79,4 @@ public class MsgSendConsumer implements RocketMQListener<String> {
         }
     }
 
-    private List<FileVO> buildAttachments(Message message) {
-        MessageExtra extra = message.getExtra();
-        if (extra == null || extra.getFileIds() == null || extra.getFileIds().isEmpty()) {
-            return null;
-        }
-        List<FileAttachment> files = fileAttachmentDao.lambdaQuery()
-                .in(FileAttachment::getId, extra.getFileIds()).list();
-        return files.stream().map(MessageAdapter::buildFileVO).toList();
-    }
 }
