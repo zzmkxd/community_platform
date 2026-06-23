@@ -9,6 +9,11 @@
 ### Phase 5: 实时通信（WebSocket）
 
 **目标**：Netty WebSocket 服务器，频道订阅/退订，实时消息推送，输入状态，在线通知
+**状态**：✅ 全部完成（含消息推送管线修复 + 成员/频道/服务器生命周期 WS 推送）
+
+> Phase 5 初始提交 `7af4244` 完成 Netty + 订阅 + 输入 + 在线。后续加固：
+> - 推送管线打通 (`36bc4be`, `7af4244`)：MessageSendListener → MQ → MsgSendConsumer → PushService → PushConsumer
+> - WS 生命周期推送 (`04a5877`)：Member join/leave/kick + Channel create/update/delete + Server update
 
 #### 5.1 Netty 服务器
 - [x] 5.1.1 `NettyWebSocketServer.java` — 端口 8091，Pipeline 配置（从 MallChat 照搬）
