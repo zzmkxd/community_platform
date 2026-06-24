@@ -6,7 +6,8 @@ logging:
 mybatis-plus:
   mapper-locations: classpath:mapper/**/*.xml
   configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # log-impl: org.apache.ibatis.logging.stdout.StdOutImpl  暂时关闭sql日志，有一个事务消息可靠投递的"兜底重试"，每5秒会定时扫描，输出日志，看着很烦，先关掉，后面再开
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl  # 关掉 SQL 日志
     map-underscore-to-camel-case: true
 
 spring:
