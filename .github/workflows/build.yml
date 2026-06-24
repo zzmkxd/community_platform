@@ -2,7 +2,7 @@ name: Build & Publish
 
 on:
   push:
-    branches: [main]
+    branches: [main, zjwSpringCloud, 'feature/**', 'fix/**']
   pull_request:
     branches: [main]
 
