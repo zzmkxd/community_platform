@@ -50,45 +50,46 @@ public class MsgSendConsumer implements RocketMQListener<String> {
 
     @Override
     public void onMessage(String msg) {
+        JSONObject body;
         try {
-            JSONObject body = JSONUtil.parseObj(msg);
-            Long messageId = body.getLong("messageId");
-            Long channelId = body.getLong("channelId");
-            Long threadId = body.getLong("threadId");
-            Long fromUid = body.getLong("fromUid");
-
-            Message message = messageDao.getById(messageId);
-            if (message == null) {
-                log.warn("MsgSendConsumer: message not found, msgId={}", messageId);
-                return;
-            }
-            UserVO fromUser = userService.getUserById(fromUid);
-
-            Thread thread = null;
-            if (threadId != null) {
-                thread = threadDao.getById(threadId);
-            }
-
-            MessageVO messageVO = MessageAdapter.buildMessageVO(message, fromUser, null, thread);
-
-            // 填充附件列表
-            messageVO.setAttachments(buildAttachments(message));
-
-            // 推送到频道订阅者
-            pushService.pushToChannel(channelId, fromUid, messageVO);
-
-            // 如果属于 Thread，也推送给 Thread 订阅者
-            if (threadId != null) {
-                pushService.pushToThread(threadId, messageVO);
-            }
-
-            log.info("MsgSendConsumer dispatched: msgId={}, channelId={}, threadId={}", messageId, channelId, threadId);
-
-            // ponytail: async ES index, failure logged but doesn't block push
-            indexMessage(message, channelId);
+            body = JSONUtil.parseObj(msg);
         } catch (Exception e) {
-            log.error("MsgSendConsumer error: {}", msg, e);
+            log.error("MsgSendConsumer JSON parse failed, msg discarded: {}", msg, e);
+            return;
         }
+
+        Long messageId = body.getLong("messageId");
+        Long channelId = body.getLong("channelId");
+        Long threadId = body.getLong("threadId");
+        Long fromUid = body.getLong("fromUid");
+
+        Message message = messageDao.getById(messageId);
+        if (message == null) {
+            log.warn("MsgSendConsumer: message not found, msgId={}", messageId);
+            return;
+        }
+        UserVO fromUser = userService.getUserById(fromUid);
+        if (fromUser == null) {
+            log.warn("MsgSendConsumer: user not found, uid={}, msgId={}", fromUid, messageId);
+            return;
+        }
+
+        Thread thread = null;
+        if (threadId != null) {
+            thread = threadDao.getById(threadId);
+        }
+
+        MessageVO messageVO = MessageAdapter.buildMessageVO(message, fromUser, null, thread);
+        messageVO.setAttachments(buildAttachments(message));
+
+        pushService.pushToChannel(channelId, fromUid, messageVO);
+        if (threadId != null) {
+            pushService.pushToThread(threadId, messageVO);
+        }
+
+        log.info("MsgSendConsumer dispatched: msgId={}, channelId={}, threadId={}", messageId, channelId, threadId);
+
+        indexMessage(message, channelId);
     }
 
     private List<FileVO> buildAttachments(Message message) {

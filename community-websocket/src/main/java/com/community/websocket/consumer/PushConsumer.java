@@ -23,16 +23,18 @@ public class PushConsumer implements RocketMQListener<String> {
 
     @Override
     public void onMessage(String msg) {
+        PushMessageDTO dto;
         try {
-            PushMessageDTO dto = JSONUtil.toBean(msg, PushMessageDTO.class);
-            switch (dto.getTargetType()) {
-                case "channel" -> webSocketService.pushToChannel(dto.getTargetId(), dto.getData());
-                case "thread" -> webSocketService.pushToThread(dto.getTargetId(), dto.getData());
-                case "user" -> webSocketService.pushToUser(dto.getTargetId(), dto.getData());
-                default -> log.warn("Unknown push targetType: {}", dto.getTargetType());
-            }
+            dto = JSONUtil.toBean(msg, PushMessageDTO.class);
         } catch (Exception e) {
-            log.error("PushConsumer error: {}", msg, e);
+            log.error("PushConsumer JSON parse failed, msg discarded: {}", msg, e);
+            return;
+        }
+        switch (dto.getTargetType()) {
+            case "channel" -> webSocketService.pushToChannel(dto.getTargetId(), dto.getData());
+            case "thread" -> webSocketService.pushToThread(dto.getTargetId(), dto.getData());
+            case "user" -> webSocketService.pushToUser(dto.getTargetId(), dto.getData());
+            default -> log.warn("Unknown push targetType: {}", dto.getTargetType());
         }
     }
 }
