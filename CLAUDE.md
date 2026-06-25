@@ -11,16 +11,23 @@ mvn clean compile -B
 # 启动基础设施（独立端口，与 MallChat 不冲突）
 docker compose up -d
 
-# 本地启动单个微服务（从 Gateway 统一入口）
-# 注意：除 gateway 外都需 -am 自动编译 common。根 POM 已配 spring-boot-maven-plugin skip，
-#      确保 -am 模式不会在无主类的根 POM 上执行 run 目标失败。
-#      别人克隆后无需 mvn install，-am 直接在 reactor 内编译依赖。
+# 首次启动需发布 Nacos 共享配置（有 2 种方式）
+# 方式 A: docker compose up -d nacos-init 会自动发布模板（含占位符，Docker 模式用）
+# 方式 B: 手动 POST 到 Nacos（本地开发用，需替换为 localhost 硬编码值）
+#   配置模板: docs/nacos-shared-config.yaml
+#   注意: 本地运行时需在 Nacos 中配置 community.redis.host / community.jwt.secret 等自定义属性
+
+# 本地启动单个微服务（需 6 个终端，从 Gateway 统一入口）
+# 每个服务 POM 已配 <skip>false</skip> 覆盖根 POM 的 <skip>true</skip>
 mvn -pl community-gateway spring-boot:run -Dspring-boot.run.profiles=local
 mvn -pl community-user-service -am spring-boot:run -Dspring-boot.run.profiles=local
 mvn -pl community-server-service -am spring-boot:run -Dspring-boot.run.profiles=local
 mvn -pl community-message-service -am spring-boot:run -Dspring-boot.run.profiles=local
 mvn -pl community-file-service -am spring-boot:run -Dspring-boot.run.profiles=local
 mvn -pl community-websocket -am spring-boot:run -Dspring-boot.run.profiles=local
+
+# 冒烟测试（17 个断言覆盖全链路: 鉴权 → Server → Channel → Message → Reaction → Member → Role → Invite）
+bash scripts/smoke-test.sh
 ```
 
 ## 架构
