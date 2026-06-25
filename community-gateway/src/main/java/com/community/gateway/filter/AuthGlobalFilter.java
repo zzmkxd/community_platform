@@ -34,14 +34,16 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
+        String normalized = normalizePath(path);
 
-        // ponytail: 白名单直接放行（登录/注册）
-        if (WHITELIST.contains(path)) {
+        if (WHITELIST.contains(normalized)) {
             return chain.filter(exchange);
         }
 
-        // ponytail: /internal/* 是 Feign 内部调用，不需要鉴权
-        if (path.startsWith("/internal/")) {
+        if (normalized.startsWith("/internal/")) {
+            if (!isInternalRequest(exchange)) {
+                return forbidden(exchange, "Internal endpoints not accessible externally");
+            }
             return chain.filter(exchange);
         }
 
@@ -55,7 +57,6 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             return unauthorized(exchange, "Invalid or expired token");
         }
 
-        // ponytail: 注入 X-Uid header，下游服务 RequestHolder/TraceFilter 可直接使用
         ServerHttpRequest mutated = exchange.getRequest().mutate()
                 .header("X-Uid", String.valueOf(uid))
                 .build();
@@ -76,11 +77,49 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String msg) {
-        log.debug("Auth rejected [{} {}]: {}", exchange.getRequest().getMethod(),
+        log.warn("Auth rejected [{} {}]: {}", exchange.getRequest().getMethod(),
                 exchange.getRequest().getURI().getPath(), msg);
         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
         byte[] body = ("{\"code\":401,\"message\":\"" + msg + "\"}").getBytes(StandardCharsets.UTF_8);
         DataBuffer buffer = exchange.getResponse().bufferFactory().wrap(body);
         return exchange.getResponse().writeWith(Mono.just(buffer));
+    }
+
+    private Mono<Void> forbidden(ServerWebExchange exchange, String msg) {
+        log.warn("Forbidden [{} {}]: {}", exchange.getRequest().getMethod(),
+                exchange.getRequest().getURI().getPath(), msg);
+        exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+        byte[] body = ("{\"code\":403,\"message\":\"" + msg + "\"}").getBytes(StandardCharsets.UTF_8);
+        DataBuffer buffer = exchange.getResponse().bufferFactory().wrap(body);
+        return exchange.getResponse().writeWith(Mono.just(buffer));
+    }
+
+    private String normalizePath(String path) {
+        return path.length() > 1 && path.endsWith("/")
+                ? path.substring(0, path.length() - 1)
+                : path;
+    }
+
+    private boolean isInternalRequest(ServerWebExchange exchange) {
+        if (exchange.getRequest().getRemoteAddress() == null) {
+            return false;
+        }
+        String host = exchange.getRequest().getRemoteAddress().getHostString();
+        if (host.startsWith("10.") || host.startsWith("127.") || host.startsWith("192.168.")
+                || "0:0:0:0:0:0:0:1".equals(host) || "::1".equals(host)) {
+            return true;
+        }
+        if (host.startsWith("172.")) {
+            int dot = host.indexOf('.', 4);
+            if (dot > 0) {
+                try {
+                    int second = Integer.parseInt(host.substring(4, dot));
+                    return second >= 16 && second <= 31;
+                } catch (NumberFormatException e) {
+                    return false;
+                }
+            }
+        }
+        return false;
     }
 }
