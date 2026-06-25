@@ -4,7 +4,7 @@
 
 > Discord-like 社群平台后端，供软件实训课程使用。
 
-基于 Spring Boot 3.3.5 单体架构，支持 **Server → Category → Channel → Thread** 嵌套社群结构 + **RBAC 13 位权限系统**。
+基于 Spring Boot 3.3.5 微服务架构（Spring Cloud Gateway + Nacos + OpenFeign），支持 **Server → Category → Channel → Thread** 嵌套社群结构 + **RBAC 13 位权限系统**。
 
 ---
 
@@ -13,11 +13,12 @@
 | 类别 | 技术 | 版本 |
 |------|------|------|
 | 语言 | Java | 21 |
-| 框架 | Spring Boot | 3.3.5 |
+| 框架 | Spring Boot + Spring Cloud + OpenFeign | 3.3.5 / 2023.0.3 |
+| 网关 | Spring Cloud Gateway | 4.1.x |
+| 服务发现 | Nacos | 2.3.2 |
 | 数据库 | MySQL + MyBatis-Plus | 8.0 / 3.5.10.1 |
 | 缓存 | Redis + Redisson | 7.x / 3.36.0 |
 | 消息队列 | RocketMQ | 5.1.4 |
-| 服务发现 | Nacos | 2.3.2 |
 | 对象存储 | MinIO | latest |
 | 实时通信 | Netty WebSocket | 4.1.114.Final |
 | API 文档 | Springdoc OpenAPI (Swagger UI) | 2.6.0 |
@@ -68,29 +69,37 @@ docker compose up -d
 docker compose down -v
 ```
 
-### 方式 2: 本地开发（依赖 MallChat Docker 基础设施）
-
-复用 MallChat 的 Docker 容器，无需额外启动数据库：
+### 方式 2: 本地开发（微服务模式）
 
 ```bash
-# 1. 确保 MallChat 基础设施已运行
-cd MallChat && docker compose up -d
+# 1. 启动基础设施
+cd community-platform && docker compose up -d
 
 # 2. 初始化数据库（仅首次）
-mysql -u root -p123456 -h 127.0.0.1 -P 3307 < docs/ddl.sql
+mysql -u root -p123456 -h 127.0.0.1 -P 3308 < docs/ddl.sql
 
-# 3. 启动应用
-cd community-platform
+# 3. 在 Nacos 控制台 (http://localhost:8848/nacos) 创建共享配置:
+#    Data ID: community-platform-common.yaml
+#    Group: DEFAULT_GROUP
+#    内容: docs/nacos-shared-config.yaml
+
+# 4. 启动微服务（各开一个终端）
 export JAVA_HOME="/path/to/jdk-21"
-mvn spring-boot:run -pl community-server -Dspring-boot.run.profiles=local
+mvn spring-boot:run -pl community-gateway -Dspring-boot.run.profiles=local &
+mvn spring-boot:run -pl community-user-service -Dspring-boot.run.profiles=local &
+mvn spring-boot:run -pl community-server-service -Dspring-boot.run.profiles=local &
+mvn spring-boot:run -pl community-message-service -Dspring-boot.run.profiles=local &
+mvn spring-boot:run -pl community-file-service -Dspring-boot.run.profiles=local &
+mvn spring-boot:run -pl community-websocket -Dspring-boot.run.profiles=local &
 ```
 
 启动后访问：
 
-| 服务 | 地址 |
-|------|------|
-| **API 文档 (Swagger UI)** | http://localhost:8080/swagger-ui/index.html |
-| **WebSocket** | ws://localhost:8091 |
+| 服务 | 地址 | 端口 |
+|------|------|------|
+| **Gateway 统一入口** | http://localhost:8080 | 8080 |
+| **Nacos 控制台** | http://localhost:8848/nacos | 8848 |
+| **WebSocket** | ws://localhost:8091 | 8091 |
 
 ### 测试账号
 
@@ -163,12 +172,12 @@ curl -X POST http://localhost:8080/api/v1/channels/1/messages \
 | 项目 | 说明 | 计划 |
 |------|------|------|
 | **Thread 自动归档** | @Scheduled 每小时归档 24h 无活动 Thread | Phase 5 |
-| **频控** | @FrequencyControl 注解 + AOP | Phase 5 |
-| **敏感词过滤** | AC 自动机算法（移植 MallChat common/sensitive） | Phase 5 |
+| **频控** | @FrequencyControl 注解 + AOP（已在 common 模块） | Phase 5 |
+| **敏感词过滤** | AC 自动机算法（已在 common 模块移植） | Phase 5 |
 | **Mention 解析** | @用户解析 + 通知 | Phase 5 |
 | **WebSocket 完整协议** | 订阅/取消订阅频道/Thread、Typing 状态、系统通知 | Phase 5 |
 | **ES 全文搜索** | Elasticsearch 替代 MySQL LIKE | Phase 6 |
-| **微服务拆分** | Nacos + Gateway + Feign 拆为 5 个微服务（Nacos 已部署，DAO 泄漏已消除） | Phase 6 |
+| **微服务拆分** | ✅ Nacos + Gateway + Feign，6 服务 + 1 共享库（已在 zjwSpringCloud 分支完成） | Phase 6 |
 | **在线状态** | 用户在线/离线 + 状态广播 | Phase 6 |
 | **语音频道** | WebRTC 信令服务 | Phase 7 |
 | **加入审批** | Server 加入申请 + 审批流程 | Phase 7 |
@@ -179,53 +188,43 @@ curl -X POST http://localhost:8080/api/v1/channels/1/messages \
 
 ```
 community-platform/
-├── pom.xml                              # 根 POM，依赖管理
-├── Dockerfile                           # Docker 镜像
-├── docker-compose.yml                   # 全栈编排
+├── pom.xml                              # 根 POM，依赖管理 (Spring Cloud BOM)
+├── Dockerfile                           # Docker 镜像（单体兼容）
+├── docker-compose.yml                   # 全栈编排 (MySQL+Redis+RocketMQ+MinIO+Nacos)
 ├── broker.conf                          # RocketMQ Broker 配置
-├── community-server/                    # 单体服务
-│   └── src/main/
-│       ├── resources/
-│       │   ├── application.yml          # 主配置，profile=local
-│       │   ├── application-local.properties  # 本地开发（gitignored）
-│       │   └── application-docker.yml   # Docker 环境配置
-│       └── java/com/community/
-│           ├── CommunityApplication.java
-│           ├── common/                  # 基础设施
-│           │   ├── config/              # OpenApi/Swagger 配置
-│           │   ├── constant/            # MQConstant / RedisKey
-│           │   ├── exception/           # 全局异常处理 + 错误码枚举
-│           │   ├── utils/               # JWT / CursorUtils / RequestHolder
-│           │   └── domain/              # ApiResult / CursorPageBaseResp / DTO
-│           ├── user/                    # 用户模块
-│           │   ├── consumer/            # MQ 消费者 (MsgLogin/ScanSuccess)
-│           │   ├── controller/          # Auth / User / WxPortal
-│           │   ├── dao/                 # UserDao + Mapper
-│           │   ├── domain/              # User Entity / VO / DTO
-│           │   └── service/             # AuthService / UserService / WxMsgService
-│           │       ├── adapter/         # TextBuilder / UserAdapter
-│           │       └── handler/         # 微信消息 Handler (Scan/Subscribe/Log)
-│           ├── server/                  # 社群模块
-│           │   ├── controller/          # Server / Channel / Category / Member / Role / Emoji / Invite
-│           │   ├── dao/                 # 7 个 DAO + Mapper
-│           │   ├── domain/              # Entity (7) + VO (10) + enums (PermissionBit)
-│           │   └── service/             # 7 个 Service + PermissionService (RBAC)
-│           ├── message/                 # 消息模块
-│           │   ├── controller/          # Message / Thread / Reaction / Search
-│           │   ├── dao/                 # MessageDao / ThreadDao / ReactionDao / ChannelReadStateDao
-│           │   ├── domain/              # Entity (4) + VO (5) + DTO (SendMsgReq)
-│           │   ├── event/               # ChannelMessageSendEvent + MessageSendListener
-│           │   └── service/             # Message / Thread / Reaction / Search / ChannelReadState
-│           │       ├── adapter/         # MessageAdapter
-│           │       └── strategy/msg/    # 消息策略链 (Abstract + Factory + 5 handlers)
-│           ├── file/                    # 文件模块
-│           │   └── controller/          # FileController (MinIO 预签名)
-│           └── websocket/               # Netty WebSocket (端口 8091)
-│               ├── NettyWebSocketServer.java
-│               └── consumer/            # PushConsumer
+├── community-gateway/                   # 🆕 API 网关 (8080)
+│   └── filter/AuthGlobalFilter.java     # JWT 全局鉴权 + Nacos 路由
+├── community-user-service/              # 🆕 用户服务 (8081)
+│   ├── controller/ (Auth/User/WxPortal)
+│   ├── service/ (AuthService/UserService)
+│   └── interceptor/TokenInterceptor.java
+├── community-server-service/            # 🆕 社群服务 (8082)
+│   ├── controller/ (Server/Channel/Category/Member/Role/Emoji/Invite/Permission)
+│   └── service/ (8 Service + PermissionService + MembershipValidator)
+├── community-message-service/           # 🆕 消息服务 (8083)
+│   ├── controller/ (Message/Thread/Reaction/Search)
+│   ├── consumer/MsgSendConsumer.java    # RocketMQ → WS 推送
+│   └── service/strategy/msg/            # 消息策略链 (6 handlers)
+├── community-file-service/              # 🆕 文件服务 (8084)
+│   ├── controller/FileController.java   # MinIO 预签名
+│   └── config/MinIOConfiguration.java
+├── community-websocket/                 # 🆕 WebSocket 服务 (Netty :8091)
+│   ├── NettyWebSocketServer.java
+│   ├── consumer/PushConsumer.java
+│   └── service/ (PushService/WebSocketService)
+├── community-common/                    # 🆕 共享库（无主类）
+│   ├── utils/ (JWT/JsonUtils/CursorUtils/RedisUtils/RequestHolder)
+│   ├── config/ (ThreadPool/MybatisPlus/Redis/Oss/SensitiveWord)
+│   ├── transaction/ (@SecureInvoke 本地消息表 — 10 文件)
+│   ├── annotation/ (@FrequencyControl/@RedissonLock)
+│   ├── aspect/ (FrequencyControlAspect/SecureInvokeAspect)
+│   ├── exception/ (GlobalExceptionHandler + 全局错误码)
+│   └── domain/ (统一响应体 + 游标分页 + PushMessageDTO)
+├── community-server/                    # 旧单体（已弃用，保留参考）
 └── docs/
-    ├── ddl.sql                          # 15 张表 DDL + 种子数据
-    ├── README.md                        # 文档索引
+    ├── ddl.sql                          # 16 张表 DDL + 种子数据
+    ├── nacos-shared-config.yaml         # Nacos 共享配置模板
+    ├── dev-log.md / dev-log-2.md        # 开发日志
     └── plan/                            # 开发方案文档
 ```
 
@@ -279,13 +278,15 @@ Server (服务器)
 ### 消息发送链路（当前）
 
 ```
-POST /api/v1/channels/{id}/messages
-  → Token 校验 (TokenInterceptor)
-  → 权限检查 (SEND_MESSAGES)
+POST /api/v1/channels/{id}/messages (→ Gateway :8080)
+  → AuthGlobalFilter JWT 校验
+  → Route → community-message-service (:8083)
+  → 权限检查 (Feign → server-service PermissionService)
   → 消息策略链 (MsgHandlerFactory → AbstractMsgHandler.checkAndSaveMsg)
   → MySQL 持久化
-  → ChannelMessageSendEvent → MQProducer.sendSecureMsg (@SecureInvoke at-least-once)
-  → RocketMQ → MsgSendConsumer → PushService → WebSocket 频道广播
+  → MQProducer.sendSecureMsg (@SecureInvoke at-least-once)
+  → RocketMQ → community-websocket PushConsumer
+  → PushService → WebSocket 频道广播
 ```
 
 ### 游标分页
