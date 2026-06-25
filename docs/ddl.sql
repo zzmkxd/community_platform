@@ -195,7 +195,8 @@ CREATE TABLE IF NOT EXISTS `message` (
     `from_uid`    BIGINT       NOT NULL COMMENT '发送者用户 ID',
     `content`     TEXT         NOT NULL COMMENT '消息内容',
     `msg_type`    TINYINT      DEFAULT 1 COMMENT '消息类型: 1=TEXT 2=IMAGE 3=FILE 4=SYSTEM 5=SOUND 6=EMOJI',
-    `extra`       JSON         DEFAULT NULL COMMENT '扩展信息 JSON',
+    -- MySQL 5.7+ 原生 JSON: `extra` JSON DEFAULT NULL COMMENT '扩展信息 JSON',
+    `extra`       TEXT         DEFAULT NULL COMMENT '扩展信息 JSON (MySQL 5.6 兼容: TEXT 替代 JSON; 升级 5.7+ 可切回 JSON 类型)',
     `status`      TINYINT      DEFAULT 0 COMMENT '状态: 0=正常 1=删除 2=已编辑',
     `reply_msg_id` BIGINT      DEFAULT NULL COMMENT '回复的消息 ID',
     `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -289,7 +290,8 @@ CREATE TABLE IF NOT EXISTS `file_attachment` (
 -- =============================================
 CREATE TABLE IF NOT EXISTS `secure_invoke_record` (
     `id`                BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键 ID',
-    `secure_invoke_json` JSON        NOT NULL COMMENT '方法调用快照 (className+methodName+parameterTypes+args)',
+    -- MySQL 5.7+ 原生 JSON: `secure_invoke_json` JSON NOT NULL COMMENT '方法调用快照',
+    `secure_invoke_json` TEXT        NOT NULL COMMENT '方法调用快照 (MySQL 5.6 兼容: TEXT 替代 JSON; 升级 5.7+ 可切回 JSON 类型)',
     `status`            TINYINT      NOT NULL DEFAULT 1 COMMENT '状态: 1=待执行 2=已失败',
     `next_retry_time`   DATETIME     NOT NULL COMMENT '下次重试时间',
     `retry_times`       INT          NOT NULL DEFAULT 0 COMMENT '已重试次数',
