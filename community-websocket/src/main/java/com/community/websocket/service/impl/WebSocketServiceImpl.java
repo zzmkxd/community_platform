@@ -5,12 +5,12 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.json.JSONUtil;
 import com.community.common.constant.RedisKey;
 import com.community.common.domain.dto.WSChannelExtraDTO;
+import com.community.common.utils.JwtUtils;
 import com.community.common.utils.RedisUtils;
 import com.community.common.websocket.WSRespTypeEnum;
 import com.community.common.websocket.dto.WSBaseResp;
 import com.community.common.domain.vo.UserVO;
 import com.community.user.service.UserService;
-import com.community.user.service.AuthService;
 import com.community.websocket.NettyUtil;
 import com.community.websocket.service.WebSocketService;
 import com.community.websocket.service.adapter.WSAdapter;
@@ -36,7 +36,8 @@ public class WebSocketServiceImpl implements WebSocketService {
     /** 所有在线的用户和对应的socket */
     private static final ConcurrentHashMap<Long, CopyOnWriteArrayList<Channel>> ONLINE_UID_MAP = new ConcurrentHashMap<>();
 
-    private final AuthService authService;
+    // ponytail: JWT 本地解析替代 Feign 调 user-service，避免 /internal/auth/verify 注册问题
+    private final JwtUtils jwtUtils;
     private final UserService userService;
 
     @Override
@@ -47,14 +48,14 @@ public class WebSocketServiceImpl implements WebSocketService {
 
     @Override
     public void authorize(Channel channel, String token) {
-        boolean verifySuccess = authService.verify(token);
-        if (verifySuccess) {
-            Long uid = authService.getValidUid(token);
-            UserVO user = userService.getUserById(uid);
-            loginSuccess(channel, user, token);
-        } else {
+        Long uid = jwtUtils.getUidOrNull(token);
+        if (uid == null) {
             sendMsg(channel, WSAdapter.buildInvalidateTokenResp());
+            return;
         }
+        // ponytail: 仅调 userService 获取用户信息，JWT 校验本地完成，省去 2 次 Feign 调用
+        UserVO user = userService.getUserById(uid);
+        loginSuccess(channel, user, token);
     }
 
     @Override

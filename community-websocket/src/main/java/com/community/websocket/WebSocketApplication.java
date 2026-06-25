@@ -1,7 +1,6 @@
 package com.community.websocket;
 
 import com.community.server.service.MemberService;
-import com.community.user.service.AuthService;
 import com.community.user.service.UserService;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -13,7 +12,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
     scanBasePackages = {"com.community.websocket", "com.community.common"},
     exclude = {DataSourceAutoConfiguration.class}
 )
-@EnableFeignClients(clients = {UserService.class, AuthService.class, MemberService.class})
+@EnableFeignClients(clients = {UserService.class, MemberService.class})
 public class WebSocketApplication {
     public static void main(String[] args) {
         SpringApplication.run(WebSocketApplication.class, args);

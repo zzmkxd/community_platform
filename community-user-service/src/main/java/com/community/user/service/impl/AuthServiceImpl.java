@@ -14,15 +14,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.concurrent.TimeUnit;
 
-// ponytail: @RestController 让 Feign 接口的 REST 端点生效
-// 注意：参数注解（@RequestBody/@RequestParam）不随 @Override 继承，必须显式声明
+// ponytail: @Service 实现 AuthService 供 TokenInterceptor 本地调用；REST 端点已移至 InternalAuthController
+// （@RestController + implements @FeignClient 接口 → Spring Cloud 误判为 Feign fallback → 端点不注册）
 @Slf4j
-@RestController
-@RequestMapping("/internal/auth")
+@Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
@@ -33,7 +34,6 @@ public class AuthServiceImpl implements AuthService {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Override
-    @PostMapping("/login")
     public UserVO login(@RequestBody LoginReq req) {
         User user = userDao.lambdaQuery()
                 .eq(User::getUsername, req.getUsername())
@@ -58,7 +58,6 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @PostMapping("/refresh")
     public String refreshToken(@RequestParam("token") String token) {
         Long uid = jwtUtils.getUidOrNull(token);
         if (uid == null) {
@@ -70,7 +69,6 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @GetMapping("/valid-uid")
     public Long getValidUid(@RequestParam("token") String token) {
         Long uid = jwtUtils.getUidOrNull(token);
         if (uid == null) {
@@ -81,7 +79,6 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @GetMapping("/verify")
     public boolean verify(@RequestParam("token") String token) {
         Long uid = jwtUtils.getUidOrNull(token);
         if (uid == null) {
@@ -93,7 +90,6 @@ public class AuthServiceImpl implements AuthService {
 
     @Async
     @Override
-    @PostMapping("/renewal")
     public void renewalTokenIfNecessary(@RequestParam("token") String token) {
         Long uid = jwtUtils.getUidOrNull(token);
         if (uid == null) {
