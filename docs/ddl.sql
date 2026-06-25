@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS `role` (
     `server_id`   BIGINT       NOT NULL COMMENT '所属服务器 ID',
     `name`        VARCHAR(32)  NOT NULL COMMENT '角色名称',
     `color`       VARCHAR(7)   DEFAULT NULL COMMENT '角色颜色 (#hex)',
-    `permissions` BIGINT       DEFAULT 0 COMMENT '权限位图 (14 位)',
+    `permissions` BIGINT       DEFAULT 0 COMMENT '权限位图 (13 位)',
     `position`    INT          DEFAULT 0 COMMENT '排序 (越大越靠上)',
     `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

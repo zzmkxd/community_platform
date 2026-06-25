@@ -183,7 +183,7 @@ community-platform/
 │   ├── exception/ (GlobalExceptionHandler + 全局错误码)
 │   └── domain/ (统一响应体 + 游标分页 + PushMessageDTO)
 └── docs/
-    ├── ddl.sql                          # 16 张表 DDL + 种子数据
+    ├── ddl.sql                          # 17 张表 DDL + 种子数据
     ├── nacos-shared-config.yaml         # Nacos 共享配置模板
     ├── dev-log.md / dev-log-2.md        # 开发日志
     └── plan/                            # 开发方案文档
