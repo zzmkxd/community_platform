@@ -1,5 +1,7 @@
 # Community Platform（社群平台）
 
+[![Build](https://github.com/zzmkxd/community_platform/actions/workflows/build.yml/badge.svg)](https://github.com/zzmkxd/community_platform/actions/workflows/build.yml)
+
 > Discord-like 社群平台后端，供软件实训课程使用。
 
 基于 Spring Boot 3.3.5 单体架构，支持 **Server → Category → Channel → Thread** 嵌套社群结构 + **RBAC 13 位权限系统**。
