@@ -138,6 +138,29 @@ services:
     networks:
       - community-net
 
+  # ==================== Elasticsearch :9200 ====================
+  elasticsearch:
+    image: elasticsearch:8.15
+    build:
+      context: .
+      dockerfile: elasticsearch.Dockerfile
+    container_name: community-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - community-es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - community-net
+
   # ==================== Gateway :8080 ====================
   gateway:
     build:
@@ -219,6 +242,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     networks:
       - community-net
 
@@ -268,6 +293,7 @@ volumes:
   community-mysql-data:
   community-redis-data:
   community-minio-data:
+  community-es-data:
 
 networks:
   community-net:

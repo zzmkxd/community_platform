@@ -4,9 +4,12 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.community.common.constant.MQConstant;
 import com.community.file.service.FileService;
+import com.community.server.domain.vo.ChannelVO;
+import com.community.server.service.ChannelService;
 
 import com.community.message.dao.MessageDao;
 import com.community.message.dao.ThreadDao;
+import com.community.message.domain.document.MessageDocument;
 import com.community.message.domain.entity.Message;
 import com.community.message.domain.entity.MessageExtra;
 import com.community.message.domain.entity.Thread;
@@ -21,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -41,6 +45,8 @@ public class MsgSendConsumer implements RocketMQListener<String> {
     private final UserService userService;
     private final PushService pushService;
     private final FileService fileService;
+    private final ChannelService channelService;
+    private final ElasticsearchOperations esOps;
 
     @Override
     public void onMessage(String msg) {
@@ -77,6 +83,9 @@ public class MsgSendConsumer implements RocketMQListener<String> {
             }
 
             log.info("MsgSendConsumer dispatched: msgId={}, channelId={}, threadId={}", messageId, channelId, threadId);
+
+            // ponytail: async ES index, failure logged but doesn't block push
+            indexMessage(message, channelId);
         } catch (Exception e) {
             log.error("MsgSendConsumer error: {}", msg, e);
         }
@@ -89,5 +98,17 @@ public class MsgSendConsumer implements RocketMQListener<String> {
         }
         List<FileVO> files = fileService.getFiles(extra.getFileIds());
         return files.isEmpty() ? null : files;
+    }
+
+    // ponytail: ES index failure logged, not re-thrown — push already succeeded
+    private void indexMessage(Message message, Long channelId) {
+        try {
+            ChannelVO channel = channelService.getById(channelId);
+            MessageDocument doc = MessageDocument.from(message, channel.getServerId());
+            esOps.save(doc);
+            log.debug("ES indexed: msgId={}, serverId={}", message.getId(), channel.getServerId());
+        } catch (Exception e) {
+            log.warn("ES index failed for msgId={}: {}", message.getId(), e.getMessage());
+        }
     }
 }

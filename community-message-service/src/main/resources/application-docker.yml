@@ -38,10 +38,8 @@ spring:
       host: redis
       port: 6379
       password: 123456
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientAutoConfiguration
-      - org.springframework.boot.autoconfigure.elasticsearch.ReactiveElasticsearchClientAutoConfiguration
+  elasticsearch:
+    uris: http://elasticsearch:9200
 
 rocketmq:
   name-server: rocketmq-namesrv:9876

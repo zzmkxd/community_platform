@@ -12,12 +12,15 @@ mvn clean compile -B
 docker compose up -d
 
 # 本地启动单个微服务（从 Gateway 统一入口）
-mvn spring-boot:run -pl community-gateway -Dspring-boot.run.profiles=local
-mvn spring-boot:run -pl community-user-service -Dspring-boot.run.profiles=local
-mvn spring-boot:run -pl community-server-service -Dspring-boot.run.profiles=local
-mvn spring-boot:run -pl community-message-service -Dspring-boot.run.profiles=local
-mvn spring-boot:run -pl community-file-service -Dspring-boot.run.profiles=local
-mvn spring-boot:run -pl community-websocket -Dspring-boot.run.profiles=local
+# 注意：除 gateway 外都需 -am 自动编译 common。根 POM 已配 spring-boot-maven-plugin skip，
+#      确保 -am 模式不会在无主类的根 POM 上执行 run 目标失败。
+#      别人克隆后无需 mvn install，-am 直接在 reactor 内编译依赖。
+mvn -pl community-gateway spring-boot:run -Dspring-boot.run.profiles=local
+mvn -pl community-user-service -am spring-boot:run -Dspring-boot.run.profiles=local
+mvn -pl community-server-service -am spring-boot:run -Dspring-boot.run.profiles=local
+mvn -pl community-message-service -am spring-boot:run -Dspring-boot.run.profiles=local
+mvn -pl community-file-service -am spring-boot:run -Dspring-boot.run.profiles=local
+mvn -pl community-websocket -am spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
 ## 架构
