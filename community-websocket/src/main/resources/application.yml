@@ -1,0 +1,23 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: community-websocket
+  profiles:
+    active: local
+  config:
+    import: optional:nacos:community-platform-common.yaml
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+      config:
+        server-addr: localhost:8848
+        file-extension: yaml
+        shared-configs:
+          - data-id: community-platform-common.yaml
+            group: DEFAULT_GROUP
+            refresh: true
+    openfeign:
+      lazy-attributes-resolution: true
