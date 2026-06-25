@@ -1,0 +1,6 @@
+# ponytail: 一个 Dockerfile 编译所有微服务，通过 MODULE ARG 区分
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+ARG MODULE
+COPY ${MODULE}/target/${MODULE}-1.0-SNAPSHOT.jar app.jar
+ENTRYPOINT ["java", "-Dfile.encoding=UTF-8", "-jar", "app.jar"]

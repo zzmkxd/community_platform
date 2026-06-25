@@ -10,7 +10,13 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>community-server</module>
+        <module>community-common</module>
+        <module>community-gateway</module>
+        <module>community-user-service</module>
+        <module>community-server-service</module>
+        <module>community-message-service</module>
+        <module>community-file-service</module>
+        <module>community-websocket</module>
     </modules>
 
     <parent>

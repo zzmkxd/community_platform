@@ -57,7 +57,7 @@ MySQL:3308 · Redis:6381 · RocketMQ:9878/10911 · MinIO:9004 · Nacos:8848
 | `websocket` | :8091 | Netty WS 服务端 + 频道订阅制推送 + PushConsumer |
 | `common` | — | 共享库：utils / config / transaction (@SecureInvoke) / annotation / aspect |
 
-旧单体 `community-server/` 仍存在但已不推荐使用。
+旧单体 `community-server/` 已删除。
 
 ## 设计模式
 

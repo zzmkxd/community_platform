@@ -28,70 +28,20 @@
 
 ## 快速开始
 
-### 方式 1: Docker Compose（推荐，一键启动）
-
-有 Java 21 环境：
+### 方式 1: Docker Compose 一键启动（推荐）
 
 ```bash
-# 1. 打包
-export JAVA_HOME="/path/to/jdk-21"
-mvn package -pl community-server -am -DskipTests
+# Windows
+scripts\start-all.bat
 
-# 2. 构建镜像
-docker build -t ghcr.io/zzmkxd/community-platform:latest .
-
-# 3. 启动全栈（MySQL + Redis + MinIO + RocketMQ + App）
-docker compose up -d
+# macOS / Linux
+bash scripts/start-all.sh
 ```
 
-无 Java 环境，直接拉取 CI 已构建的镜像（仅需 Docker）：
+> 脚本自动完成：`mvn package` 全量打包 → Docker Compose 构建镜像并启动。
+> 首次启动 Docker 会弹出文件共享确认，点击 **"Share it"** 允许挂载 `docs/ddl.sql`（自动建表）。
 
-```bash
-docker compose pull app
-docker compose up -d
-```
-
-> `docker compose pull` 从 GitHub Container Registry 拉取，无需本地编译。
-
-首次启动时 Docker Desktop 会弹出文件共享确认窗口，点击 **"Share it"** 允许挂载 `docs/ddl.sql`（数据库自动建表 + 种子数据）。
-
-启动后访问：
-
-| 服务 | 地址 |
-|------|------|
-| **API 文档 (Swagger UI)** | http://localhost:8081/swagger-ui/index.html |
-| **WebSocket** | ws://localhost:8092 |
-| **MinIO Console** | http://localhost:9005 (minioadmin / minioadmin) |
-
-停止并清理数据：
-
-```bash
-docker compose down -v
-```
-
-### 方式 2: 本地开发（微服务模式）
-
-```bash
-# 1. 启动基础设施
-cd community-platform && docker compose up -d
-
-# 2. 初始化数据库（仅首次）
-mysql -u root -p123456 -h 127.0.0.1 -P 3308 < docs/ddl.sql
-
-# 3. 在 Nacos 控制台 (http://localhost:8848/nacos) 创建共享配置:
-#    Data ID: community-platform-common.yaml
-#    Group: DEFAULT_GROUP
-#    内容: docs/nacos-shared-config.yaml
-
-# 4. 启动微服务（各开一个终端）
-export JAVA_HOME="/path/to/jdk-21"
-mvn spring-boot:run -pl community-gateway -Dspring-boot.run.profiles=local &
-mvn spring-boot:run -pl community-user-service -Dspring-boot.run.profiles=local &
-mvn spring-boot:run -pl community-server-service -Dspring-boot.run.profiles=local &
-mvn spring-boot:run -pl community-message-service -Dspring-boot.run.profiles=local &
-mvn spring-boot:run -pl community-file-service -Dspring-boot.run.profiles=local &
-mvn spring-boot:run -pl community-websocket -Dspring-boot.run.profiles=local &
-```
+**启动顺序**：MySQL → Redis → Nacos → **nacos-init 发布共享配置** → 6 个微服务 + MinIO + RocketMQ。
 
 启动后访问：
 
@@ -100,6 +50,18 @@ mvn spring-boot:run -pl community-websocket -Dspring-boot.run.profiles=local &
 | **Gateway 统一入口** | http://localhost:8080 | 8080 |
 | **Nacos 控制台** | http://localhost:8848/nacos | 8848 |
 | **WebSocket** | ws://localhost:8091 | 8091 |
+| **MinIO Console** | http://localhost:9005 | minioadmin / minioadmin |
+
+### 方式 2: 本地开发（IDE 启动）
+
+```bash
+# 1. 仅启动基础设施
+docker compose up -d mysql redis nacos minio rocketmq-namesrv rocketmq-broker
+
+# 2. Nacos 共享配置由 nacos-init 自动发布（已完成），无需手动操作
+
+# 3. IDE 中按序启动微服务（profile=local）
+```
 
 ### 测试账号
 
@@ -188,9 +150,9 @@ curl -X POST http://localhost:8080/api/v1/channels/1/messages \
 
 ```
 community-platform/
-├── pom.xml                              # 根 POM，依赖管理 (Spring Cloud BOM)
 ├── Dockerfile                           # Docker 镜像（单体兼容）
 ├── docker-compose.yml                   # 全栈编排 (MySQL+Redis+RocketMQ+MinIO+Nacos)
+├── pom.xml                              # 根 POM，依赖管理 (Spring Cloud BOM)
 ├── broker.conf                          # RocketMQ Broker 配置
 ├── community-gateway/                   # 🆕 API 网关 (8080)
 │   └── filter/AuthGlobalFilter.java     # JWT 全局鉴权 + Nacos 路由
@@ -220,7 +182,6 @@ community-platform/
 │   ├── aspect/ (FrequencyControlAspect/SecureInvokeAspect)
 │   ├── exception/ (GlobalExceptionHandler + 全局错误码)
 │   └── domain/ (统一响应体 + 游标分页 + PushMessageDTO)
-├── community-server/                    # 旧单体（已弃用，保留参考）
 └── docs/
     ├── ddl.sql                          # 16 张表 DDL + 种子数据
     ├── nacos-shared-config.yaml         # Nacos 共享配置模板

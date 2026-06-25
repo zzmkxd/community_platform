@@ -40,7 +40,7 @@ services:
     networks:
       - community-net
 
-  # ==================== Nacos 服务注册 & 配置中心 ====================
+  # ==================== Nacos ====================
   nacos:
     image: nacos/nacos-server:v2.3.2
     container_name: community-nacos
@@ -48,8 +48,47 @@ services:
       MODE: standalone
       NACOS_AUTH_ENABLE: "false"
     ports:
-      - "8848:8848"   # HTTP management
-      - "9848:9848"   # gRPC client
+      - "8848:8848"
+      - "9848:9848"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:8848/nacos/v1/console/health/readiness | grep -q ok || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - community-net
+
+  # ==================== Nacos 初始化 ====================
+  nacos-init:
+    image: curlimages/curl:latest
+    container_name: community-nacos-init
+    depends_on:
+      nacos:
+        condition: service_healthy
+    volumes:
+      - ./docs/nacos-shared-config.yaml:/config.yaml:ro
+    command:
+      - sh
+      - -c
+      - |
+        echo "=== Nacos Init: Publishing shared config ==="
+        sleep 5
+        for i in 1 2 3 4 5; do
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "http://nacos:8848/nacos/v1/cs/configs" \
+            -d "dataId=community-platform-common.yaml" \
+            -d "group=DEFAULT_GROUP" \
+            -d "type=yaml" \
+            --data-urlencode "content@/config.yaml")
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "=== Shared config published successfully ==="
+            exit 0
+          fi
+          echo "Retry $i/5 (HTTP $HTTP_CODE)..."
+          sleep 3
+        done
+        echo "ERROR: Failed to publish config after 5 retries"
+        exit 1
     networks:
       - community-net
 
@@ -61,8 +100,8 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - "9004:9000"   # API
-      - "9005:9001"   # Console
+      - "9004:9000"
+      - "9005:9001"
     volumes:
       - community-minio-data:/data
     command: server /data --console-address ":9001"
@@ -99,26 +138,129 @@ services:
     networks:
       - community-net
 
-  # ==================== Community Platform App ====================
-  app:
-    image: ghcr.io/zzmkxd/community-platform:latest
-    container_name: community-app
+  # ==================== Gateway :8080 ====================
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        MODULE: community-gateway
+    container_name: community-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
     depends_on:
+      nacos-init:
+        condition: service_completed_successfully
+    networks:
+      - community-net
+
+  # ==================== User Service :8081 ====================
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        MODULE: community-user-service
+    container_name: community-user-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      nacos-init:
+        condition: service_completed_successfully
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - community-net
+
+  # ==================== Server Service :8082 ====================
+  server-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        MODULE: community-server-service
+    container_name: community-server-service
     ports:
-      - "8081:8080"   # HTTP API
-      - "8092:8091"   # WebSocket
+      - "8082:8082"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_REDIS_HOST: redis
-      SPRING_REDIS_PORT: "6379"
-      SPRING_REDIS_PASSWORD: "123456"
-      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/community_platform?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&connectionCollation=utf8mb4_unicode_ci"
-    volumes:
-      - community-app-logs:/app/logs
+    depends_on:
+      nacos-init:
+        condition: service_completed_successfully
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - community-net
+
+  # ==================== Message Service :8083 ====================
+  message-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        MODULE: community-message-service
+    container_name: community-message-service
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      nacos-init:
+        condition: service_completed_successfully
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - community-net
+
+  # ==================== File Service :8084 ====================
+  file-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        MODULE: community-file-service
+    container_name: community-file-service
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      nacos-init:
+        condition: service_completed_successfully
+      mysql:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - community-net
+
+  # ==================== WebSocket :8091 ====================
+  websocket:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        MODULE: community-websocket
+    container_name: community-websocket
+    ports:
+      - "8091:8091"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      nacos-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     networks:
       - community-net
 
@@ -126,7 +268,6 @@ volumes:
   community-mysql-data:
   community-redis-data:
   community-minio-data:
-  community-app-logs:
 
 networks:
   community-net:
