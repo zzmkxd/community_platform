@@ -5,13 +5,13 @@ community:
     port: 3306
     db: community_platform
     username: root
-    password: 123456
+    password: ${COMMUNITY_DB_PASSWORD}
   redis:
     host: redis
     port: 6379
-    password: 123456
+    password: ${COMMUNITY_REDIS_PASSWORD}
   jwt:
-    secret: docker-dev-secret-not-for-production
+    secret: ${COMMUNITY_JWT_SECRET}
   wx:
     callback: http://localhost:8081
     appId: placeholder
@@ -20,8 +20,8 @@ community:
     aesKey: placeholder
   minio:
     endpoint: http://minio:9000
-    access-key: minioadmin
-    secret-key: minioadmin
+    access-key: ${COMMUNITY_MINIO_ACCESS_KEY}
+    secret-key: ${COMMUNITY_MINIO_SECRET_KEY}
     bucket: community
   es:
     uris: http://elasticsearch:9200
@@ -37,7 +37,7 @@ spring:
     redis:
       host: redis
       port: 6379
-      password: 123456
+      password: ${COMMUNITY_REDIS_PASSWORD}
   elasticsearch:
     uris: http://elasticsearch:9200
 
@@ -48,8 +48,8 @@ oss:
   enabled: true
   type: minio
   endpoint: http://minio:9000
-  access-key: minioadmin
-  secret-key: minioadmin
+  access-key: ${COMMUNITY_MINIO_ACCESS_KEY}
+  secret-key: ${COMMUNITY_MINIO_SECRET_KEY}
   bucket-name: community
 
 logging:

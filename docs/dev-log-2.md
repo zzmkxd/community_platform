@@ -127,7 +127,7 @@ WebSocket: websocket (Netty :8091)，独立部署，不经过 Gateway
 | — | 加入审批流 (ServerMemberApply) | Phase 7 |
 | — | 零测试覆盖 | Phase 7.1 规划中 |
 | — | WxMsg 持久化表 | 后续按需 |
-| — | mallchat-flows-visual.html | 文档项，未移植 |
+| — | 微信 Secret 明文** | community-server `application-local.properties` — 真实 AppId/Secret/aesKey 明文，需迁移到环境变量或加密存储 |
 
 ---
 
@@ -154,6 +154,7 @@ WebSocket: websocket (Netty :8091)，独立部署，不经过 Gateway
 | 2026-06-25 | **全量代码审计**: 29 项问题 (P0×4 / P1×4 / P2×2) + 10 项待办录入 | 本文档 |
 | 2026-06-26 | DDL JSON→TEXT: MySQL 5.6 兼容，保留 5.7+ 升级路径 | `111fca7` |
 | 2026-06-26 | **全栈跑通**: POM skip 修复 + Nacos 本地配置 + 冒烟脚本 17/17 通过 | `dcbbf30` |
+| 2026-06-26 | **文档修正**: flows-visual 17 表 + README Phase 5-6 已实现同步 | 本文档 |
 
 ---
 

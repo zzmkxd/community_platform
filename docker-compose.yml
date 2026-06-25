@@ -1,3 +1,10 @@
+x-common-env: &common-env
+  COMMUNITY_DB_PASSWORD: 123456
+  COMMUNITY_REDIS_PASSWORD: 123456
+  COMMUNITY_JWT_SECRET: docker-dev-secret-not-for-production
+  COMMUNITY_MINIO_ACCESS_KEY: minioadmin
+  COMMUNITY_MINIO_SECRET_KEY: minioadmin
+
 services:
   # ==================== MySQL 8.0 ====================
   mysql:
@@ -172,6 +179,7 @@ services:
     ports:
       - "8080:8080"
     environment:
+      <<: *common-env
       SPRING_PROFILES_ACTIVE: docker
     depends_on:
       nacos-init:
@@ -190,6 +198,7 @@ services:
     ports:
       - "8081:8081"
     environment:
+      <<: *common-env
       SPRING_PROFILES_ACTIVE: docker
     depends_on:
       nacos-init:
@@ -212,6 +221,7 @@ services:
     ports:
       - "8082:8082"
     environment:
+      <<: *common-env
       SPRING_PROFILES_ACTIVE: docker
     depends_on:
       nacos-init:
@@ -234,6 +244,7 @@ services:
     ports:
       - "8083:8083"
     environment:
+      <<: *common-env
       SPRING_PROFILES_ACTIVE: docker
     depends_on:
       nacos-init:
@@ -258,6 +269,7 @@ services:
     ports:
       - "8084:8084"
     environment:
+      <<: *common-env
       SPRING_PROFILES_ACTIVE: docker
     depends_on:
       nacos-init:
@@ -280,6 +292,7 @@ services:
     ports:
       - "8091:8091"
     environment:
+      <<: *common-env
       SPRING_PROFILES_ACTIVE: docker
     depends_on:
       nacos-init:
