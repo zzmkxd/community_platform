@@ -17,7 +17,7 @@ docker compose up -d                          # 启动基础设施
 Filter(TraceId) → TokenInterceptor → Controller → Service → Dao(MyBatis-Plus)
 
 WebSocket:
-NettyWebSocketServer(:8090) → HttpHeadersHandler(Token提取)
+NettyWebSocketServer(:8091) → HttpHeadersHandler(Token提取)
   → WebSocketServerProtocolHandler(握手升级)
   → NettyWebSocketServerHandler(业务分发)
 
@@ -26,13 +26,17 @@ POST /api/v1/channels/{id}/messages → MessageService.sendMsg()
   → 权限检查(PermissionService) → 持久化(MySQL)
   → MessageSendEvent → RocketMQ MsgSendConsumer
   → PushService → pushToChannel/Thread → WebSocket推送
+  → @SecureInvoke 保障 MQ 发送 at-least-once (transaction/ service 包)
 ```
+
+基础设施 (Docker Compose 独立端口):
+MySQL:3308 · Redis:6381 · RocketMQ:9878/10911 · MinIO:9004 · Nacos:8848
 
 ## 模块导航
 
 | 包 `com.community.` | 职责 |
 |---------------------|------|
-| `common/` | 基础设施：配置、拦截器、异常、JWT、缓存、频控注解、WS协议类型 |
+| `common/` | 基础设施：配置、拦截器、异常、JWT、缓存、频控注解、WS协议类型、事务 (@SecureInvoke 本地消息表) |
 | `user/` | 用户模块：注册、登录、JWT、个人资料 |
 | `server/` | 社群模块：Server/Category/Channel CRUD、成员、角色、权限、表情 |
 | `message/` | 消息模块：消息CRUD、Thread、Reaction、搜索 |
@@ -60,8 +64,8 @@ POST /api/v1/channels/{id}/messages → MessageService.sendMsg()
 ## 文档
 
 - 项目计划: `docs/plan.md`
-- 开发日志: `docs/dev-log.md`
-- 数据库设计: `docs/ddl.md`
+- 开发日志: `docs/dev-log.md` / `docs/dev-log-2.md`
+- 数据库设计: `docs/ddl.sql`
 
 ## 参考仓库
 

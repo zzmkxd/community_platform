@@ -40,6 +40,19 @@ services:
     networks:
       - community-net
 
+  # ==================== Nacos 服务注册 & 配置中心 ====================
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    container_name: community-nacos
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "false"
+    ports:
+      - "8848:8848"   # HTTP management
+      - "9848:9848"   # gRPC client
+    networks:
+      - community-net
+
   # ==================== MinIO ====================
   minio:
     image: minio/minio:latest

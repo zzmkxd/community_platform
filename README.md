@@ -17,6 +17,7 @@
 | 数据库 | MySQL + MyBatis-Plus | 8.0 / 3.5.10.1 |
 | 缓存 | Redis + Redisson | 7.x / 3.36.0 |
 | 消息队列 | RocketMQ | 5.1.4 |
+| 服务发现 | Nacos | 2.3.2 |
 | 对象存储 | MinIO | latest |
 | 实时通信 | Netty WebSocket | 4.1.114.Final |
 | API 文档 | Springdoc OpenAPI (Swagger UI) | 2.6.0 |
@@ -152,23 +153,22 @@ curl -X POST http://localhost:8080/api/v1/channels/1/messages \
 | **已读追踪** | 更新已读/未读计数 | ChannelReadState upsert，按 Server 聚合各频道未读数 |
 | **文件上传** | MinIO 预签名 URL | PENDING → UPLOADED 状态流转 |
 | **搜索** | 消息全文搜索 | MySQL LIKE + LIMIT 50 |
-| **WebSocket** | Netty 8091 端口 | JWT 认证 + 基础 WS 握手 |
-| **Docker** | Dockerfile + docker-compose | 一键启动全栈，独立端口不冲突 |
-| **CI/CD** | GitHub Actions | push/PR 自动编译，push main 自动打包推送 GHCR |
+| **WebSocket** | Netty 8091 端口 | JWT 认证 + 持续连接 |
+| **事件推送管道** | @SecureInvoke → RocketMQ → WebSocket | MQ 故障自动重试，at-least-once 保证 |
+| **Docker** | Dockerfile + docker-compose | 独立端口，含 MySQL+Redis+RocketMQ+MinIO+Nacos |
+| **CI/CD** | GitHub Actions | push main/zjwSpringCloud/feature/fix 自动编译，push 自动打包推送 GHCR |
 | **API 文档** | Swagger UI | 所有端点可在线调试 |
-### 尚未实现 (Phase 4.x+)
+### 尚未实现 (Phase 5+)
 
 | 项目 | 说明 | 计划 |
 |------|------|------|
-| **事件推送管道** | MsgSendConsumer → PushService → RocketMQ → WebSocket 实时推送 | Phase 4.x |
-| **消息实时推送** | 发送消息后通过 WebSocket 推送给频道内在线用户 | Phase 4.x |
-| **Thread 自动归档** | @Scheduled 每小时归档 24h 无活动 Thread | Phase 4.x |
+| **Thread 自动归档** | @Scheduled 每小时归档 24h 无活动 Thread | Phase 5 |
 | **频控** | @FrequencyControl 注解 + AOP | Phase 5 |
 | **敏感词过滤** | AC 自动机算法（移植 MallChat common/sensitive） | Phase 5 |
 | **Mention 解析** | @用户解析 + 通知 | Phase 5 |
 | **WebSocket 完整协议** | 订阅/取消订阅频道/Thread、Typing 状态、系统通知 | Phase 5 |
 | **ES 全文搜索** | Elasticsearch 替代 MySQL LIKE | Phase 6 |
-| **微服务拆分** | Nacos + Gateway + Feign 拆为 5 个微服务 | Phase 6 |
+| **微服务拆分** | Nacos + Gateway + Feign 拆为 5 个微服务（Nacos 已部署，DAO 泄漏已消除） | Phase 6 |
 | **在线状态** | 用户在线/离线 + 状态广播 | Phase 6 |
 | **语音频道** | WebRTC 信令服务 | Phase 7 |
 | **加入审批** | Server 加入申请 + 审批流程 | Phase 7 |
@@ -276,7 +276,7 @@ Server (服务器)
 | @everyone | CREATE_INVITE + SEND_MESSAGES + ADD_REACTIONS + USE_THREADS + EMBED_LINKS + ATTACH_FILES | 所有成员自动获得 |
 | Owner | ADMINISTRATOR | 仅创建者，position=999，金色 #FFD700 |
 
-### 消息发送链路（当前 v1）
+### 消息发送链路（当前）
 
 ```
 POST /api/v1/channels/{id}/messages
@@ -284,11 +284,9 @@ POST /api/v1/channels/{id}/messages
   → 权限检查 (SEND_MESSAGES)
   → 消息策略链 (MsgHandlerFactory → AbstractMsgHandler.checkAndSaveMsg)
   → MySQL 持久化
-  → ChannelMessageSendEvent → MessageSendListener (@Async log)
-  → (Phase 4.x: RocketMQ → MsgSendConsumer → PushService → WebSocket push)
+  → ChannelMessageSendEvent → MQProducer.sendSecureMsg (@SecureInvoke at-least-once)
+  → RocketMQ → MsgSendConsumer → PushService → WebSocket 频道广播
 ```
-
-> 留待：频控、敏感词过滤、实时 WS 推送
 
 ### 游标分页
 
