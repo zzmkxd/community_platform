@@ -13,14 +13,16 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.Optional;
 
-// ponytail: JWT-only token extraction, no Redis check (Gateway will do full validation).
-// 所有微服务扫到 com.community.common 即自动启用，无需每个服务各自配置。
+// ponytail: 双重提取策略：
+//   1. Gateway 已鉴权 → X-Uid header 直接信任，零开销
+//   2. 直连服务（调试）→ Authorization Bearer token JWT 解析
 @Slf4j
 @Component
 @Order(-1)
 @RequiredArgsConstructor
 public class TokenFilter implements Filter {
 
+    private static final String HEADER_X_UID = "X-Uid";
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String AUTHORIZATION_SCHEMA = "Bearer ";
 
@@ -30,15 +32,12 @@ public class TokenFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
-        String token = extractToken(httpRequest);
-        if (token != null) {
-            Long uid = jwtUtils.getUidOrNull(token);
-            if (uid != null) {
-                RequestInfo info = new RequestInfo();
-                info.setUid(uid);
-                info.setIp(httpRequest.getRemoteAddr());
-                RequestHolder.set(info);
-            }
+        Long uid = extractUid(httpRequest);
+        if (uid != null) {
+            RequestInfo info = new RequestInfo();
+            info.setUid(uid);
+            info.setIp(httpRequest.getRemoteAddr());
+            RequestHolder.set(info);
         }
         try {
             chain.doFilter(request, response);
@@ -47,10 +46,16 @@ public class TokenFilter implements Filter {
         }
     }
 
-    private String extractToken(HttpServletRequest request) {
+    private Long extractUid(HttpServletRequest request) {
+        // ponytail: Gateway 已鉴权 → 直接用 X-Uid
+        String xUid = request.getHeader(HEADER_X_UID);
+        if (xUid != null) {
+            try { return Long.parseLong(xUid); } catch (NumberFormatException e) { /* fall through */ }
+        }
+        // ponytail: 直连模式 → JWT 解析
         return Optional.ofNullable(request.getHeader(AUTHORIZATION_HEADER))
                 .filter(h -> h.startsWith(AUTHORIZATION_SCHEMA))
-                .map(h -> h.substring(AUTHORIZATION_SCHEMA.length()))
+                .map(h -> jwtUtils.getUidOrNull(h.substring(AUTHORIZATION_SCHEMA.length())))
                 .orElse(null);
     }
 }

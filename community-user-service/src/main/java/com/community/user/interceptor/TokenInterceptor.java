@@ -25,6 +25,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class TokenInterceptor implements HandlerInterceptor {
 
+    private static final String HEADER_X_UID = "X-Uid";
     public static final String AUTHORIZATION_HEADER = "Authorization";
     public static final String AUTHORIZATION_SCHEMA = "Bearer ";
     public static final String ATTRIBUTE_UID = "uid";
@@ -33,8 +34,15 @@ public class TokenInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        // ponytail: Gateway 已鉴权 → X-Uid 直接信任，跳过 Redis 校验
+        Long uid = getUidFromGateway(request);
+        if (uid != null) {
+            RequestHolder.set(buildRequestInfo(request, uid));
+            return true;
+        }
+        // ponytail: 直连模式 → 完整 JWT + Redis 校验
         String token = getToken(request);
-        Long uid = authService.getValidUid(token);
+        uid = authService.getValidUid(token);
         if (uid != null) {
             RequestHolder.set(buildRequestInfo(request, uid));
             authService.renewalTokenIfNecessary(token);
@@ -59,6 +67,15 @@ public class TokenInterceptor implements HandlerInterceptor {
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
                                 Object handler, Exception ex) {
         RequestHolder.remove();
+    }
+
+    // ponytail: Gateway 已鉴权 → 信任 X-Uid
+    private Long getUidFromGateway(HttpServletRequest request) {
+        String xUid = request.getHeader(HEADER_X_UID);
+        if (xUid != null) {
+            try { return Long.parseLong(xUid); } catch (NumberFormatException e) { /* fall through */ }
+        }
+        return null;
     }
 
     private boolean isPublicURI(String requestURI) {

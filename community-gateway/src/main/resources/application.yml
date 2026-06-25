@@ -1,0 +1,68 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: community-gateway
+  profiles:
+    active: local
+  config:
+    import: optional:nacos:community-platform-common.yaml
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+      config:
+        server-addr: localhost:8848
+        file-extension: yaml
+        shared-configs:
+          - data-id: community-platform-common.yaml
+            group: DEFAULT_GROUP
+            refresh: true
+    gateway:
+      routes:
+        # ---- user-service (8081) ----
+        - id: user-auth
+          uri: lb://community-user-service
+          predicates:
+            - Path=/api/v1/auth/**
+        - id: user-users
+          uri: lb://community-user-service
+          predicates:
+            - Path=/api/v1/users/**
+
+        # ---- message-service (8083) ----
+        # ponytail: /servers/*/search 必须排在 /servers/** 之前，否则被 server-service 吞掉
+        - id: message-search
+          uri: lb://community-message-service
+          predicates:
+            - Path=/api/v1/servers/*/search/**
+        - id: message-channels
+          uri: lb://community-message-service
+          predicates:
+            - Path=/api/v1/channels/*/messages/**
+        - id: message-threads
+          uri: lb://community-message-service
+          predicates:
+            - Path=/api/v1/channels/*/threads/**
+        - id: message-reactions
+          uri: lb://community-message-service
+          predicates:
+            - Path=/api/v1/messages/*/reactions/**
+
+        # ---- file-service (8084) ----
+        - id: file-upload
+          uri: lb://community-file-service
+          predicates:
+            - Path=/api/v1/upload/**
+
+        # ---- server-service (8082) ----
+        # ponytail: /servers/** 在最下面，作为兜底匹配
+        - id: server-api
+          uri: lb://community-server-service
+          predicates:
+            - Path=/api/v1/servers/**
+        - id: server-channel-permissions
+          uri: lb://community-server-service
+          predicates:
+            - Path=/api/v1/channels/*/permissions/**
