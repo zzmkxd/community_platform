@@ -29,7 +29,7 @@ public class MinIOConfiguration {
                         io.minio.MakeBucketArgs.builder().bucket(props.getBucketName()).build());
             }
         } catch (Exception e) {
-            // bucket may already exist, ignore
+            throw new RuntimeException("Failed to initialize MinIO bucket: " + props.getBucketName(), e);
         }
         return "OK";
     }
