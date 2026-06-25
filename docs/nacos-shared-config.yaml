@@ -4,6 +4,16 @@
 #   Data ID: community-platform-common.yaml
 #   Group:   DEFAULT_GROUP
 #   配置格式: YAML
+#
+# ===== 本地开发注意 =====
+# 本模板使用 ${community.xxx} 占位符，仅 Docker 模式自动解析（env vars）。
+# 本地 IDE 启动时需在 Nacos 中替换为硬编码值:
+#   community.mysql.ip=localhost       community.mysql.port=3308
+#   community.redis.host=localhost     community.redis.port=6381
+#   community.redis.password=123456    community.jwt.secret=<any-key>
+#   rocketmq.name-server=localhost:9878
+#   community.minio.endpoint=http://localhost:9004
+# 同时需在末尾追加自定义属性块 (community.redis/jwt)，供 @Value 注入。
 # ============================================================
 
 logging:
