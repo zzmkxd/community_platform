@@ -3,6 +3,8 @@ package com.community.user.controller;
 import com.community.common.domain.vo.UserVO;
 import com.community.user.domain.dto.LoginReq;
 import com.community.user.service.AuthService;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,6 +12,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/internal/auth")
 @RequiredArgsConstructor
+@Hidden
+@Tag(name = "内部鉴权（Feign）")
 public class InternalAuthController {
 
     private final AuthService authService;

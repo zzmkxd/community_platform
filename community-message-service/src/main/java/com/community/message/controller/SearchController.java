@@ -4,6 +4,7 @@ import com.community.common.domain.vo.response.ApiResult;
 import com.community.common.domain.vo.response.CursorPageBaseResp;
 import com.community.message.domain.vo.MessageVO;
 import com.community.message.service.SearchService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +17,7 @@ public class SearchController {
 
     private final SearchService searchService;
 
+    @Operation(summary = "搜索服务器内消息（支持按频道、时间范围、分页过滤）")
     @GetMapping
     public ApiResult<CursorPageBaseResp<MessageVO>> search(
             @PathVariable Long serverId,

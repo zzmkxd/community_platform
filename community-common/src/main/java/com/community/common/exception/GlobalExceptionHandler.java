@@ -1,6 +1,9 @@
 package com.community.common.exception;
 
 import com.community.common.domain.vo.response.ApiResult;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.BindException;
@@ -14,6 +17,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Slf4j
 public class GlobalExceptionHandler {
 
+    @ApiResponse(responseCode = "400", description = "请求参数校验失败",
+            content = @Content(schema = @Schema(implementation = ApiResult.class)))
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(value = MethodArgumentNotValidException.class)
     public ApiResult methodArgumentNotValidExceptionHandler(MethodArgumentNotValidException e) {
@@ -45,6 +50,8 @@ public class GlobalExceptionHandler {
         return ApiResult.fail(CommonErrorEnum.SYSTEM_ERROR);
     }
 
+    @ApiResponse(responseCode = "500", description = "服务器内部错误",
+            content = @Content(schema = @Schema(implementation = ApiResult.class)))
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     @ExceptionHandler(value = Exception.class)
     public ApiResult systemExceptionHandler(Exception e) {
@@ -52,6 +59,8 @@ public class GlobalExceptionHandler {
         return ApiResult.fail(CommonErrorEnum.SYSTEM_ERROR);
     }
 
+    @ApiResponse(responseCode = "400", description = "业务逻辑错误（如权限不足、数据不存在）",
+            content = @Content(schema = @Schema(implementation = ApiResult.class)))
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(value = BusinessException.class)
     public ApiResult businessExceptionHandler(BusinessException e) {
@@ -59,6 +68,7 @@ public class GlobalExceptionHandler {
         return ApiResult.fail(e.getErrorCode(), e.getMessage());
     }
 
+    @ApiResponse(responseCode = "405", description = "不支持的 HTTP 方法")
     @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ApiResult<Void> handleHttpMethodNotSupported(HttpRequestMethodNotSupportedException e) {

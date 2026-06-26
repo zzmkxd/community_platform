@@ -6,6 +6,7 @@ import com.community.message.service.ChannelReadStateService;
 import com.community.server.domain.vo.ServerDetailVO;
 import com.community.server.domain.vo.ServerVO;
 import com.community.server.service.ServerService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,17 +24,20 @@ public class ServerController {
     private final ServerService serverService;
     private final ChannelReadStateService channelReadStateService;
 
+    @Operation(summary = "创建服务器")
     @PostMapping
     public ApiResult<ServerVO> create(@RequestBody Map<String, String> body) {
         return ApiResult.success(serverService.createServer(
                 body.get("name"), body.get("description"), body.get("icon")));
     }
 
+    @Operation(summary = "获取当前用户加入的所有服务器列表")
     @GetMapping
     public ApiResult<List<ServerVO>> getMyServers() {
         return ApiResult.success(serverService.getMyServers());
     }
 
+    @Operation(summary = "发现可加入的公开服务器列表（游标分页）")
     @GetMapping("/discover")
     public ApiResult<CursorPageBaseResp<ServerVO>> getDiscoverableServers(
             @RequestParam(defaultValue = "") String cursor,
@@ -41,22 +45,26 @@ public class ServerController {
         return ApiResult.success(serverService.getDiscoverableServers(cursor, pageSize));
     }
 
+    @Operation(summary = "获取服务器详细信息（含分类、频道、角色）")
     @GetMapping("/{serverId}")
     public ApiResult<ServerDetailVO> getDetail(@PathVariable Long serverId) {
         return ApiResult.success(serverService.getServerDetail(serverId));
     }
 
+    @Operation(summary = "获取服务器各频道未读消息数")
     @GetMapping("/{serverId}/unread")
     public ApiResult<Map<Long, Long>> getUnread(@PathVariable Long serverId) {
         return ApiResult.success(channelReadStateService.getUnreadCounts(serverId));
     }
 
+    @Operation(summary = "修改服务器信息（名称、简介、图标）")
     @PutMapping("/{serverId}")
     public ApiResult<ServerVO> update(@PathVariable Long serverId, @RequestBody Map<String, String> body) {
         return ApiResult.success(serverService.updateServer(serverId,
                 body.get("name"), body.get("description"), body.get("icon")));
     }
 
+    @Operation(summary = "删除服务器（仅创建者可操作）")
     @DeleteMapping("/{serverId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long serverId) {
