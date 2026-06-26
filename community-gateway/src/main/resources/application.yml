@@ -21,6 +21,32 @@ spring:
             refresh: true
     gateway:
       routes:
+        # ---- OpenAPI 文档聚合（代理到各服务 /v3/api-docs） ----
+        - id: user-api-docs
+          uri: lb://community-user-service
+          predicates:
+            - Path=/v3/api-docs/user-service
+          filters:
+            - RewritePath=/v3/api-docs/user-service, /v3/api-docs
+        - id: server-api-docs
+          uri: lb://community-server-service
+          predicates:
+            - Path=/v3/api-docs/server-service
+          filters:
+            - RewritePath=/v3/api-docs/server-service, /v3/api-docs
+        - id: message-api-docs
+          uri: lb://community-message-service
+          predicates:
+            - Path=/v3/api-docs/message-service
+          filters:
+            - RewritePath=/v3/api-docs/message-service, /v3/api-docs
+        - id: file-api-docs
+          uri: lb://community-file-service
+          predicates:
+            - Path=/v3/api-docs/file-service
+          filters:
+            - RewritePath=/v3/api-docs/file-service, /v3/api-docs
+
         # ---- user-service (8081) ----
         - id: user-auth
           uri: lb://community-user-service
@@ -66,3 +92,19 @@ spring:
           uri: lb://community-server-service
           predicates:
             - Path=/api/v1/channels/*/permissions/**
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    use-root-path: true
+    urls:
+      - name: User Service (鉴权 + 用户)
+        url: /v3/api-docs/user-service
+      - name: Server Service (服务器/频道/角色/成员/表情/邀请/权限)
+        url: /v3/api-docs/server-service
+      - name: Message Service (消息/Reaction/搜索/话题)
+        url: /v3/api-docs/message-service
+      - name: File Service (文件上传/下载)
+        url: /v3/api-docs/file-service

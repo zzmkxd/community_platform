@@ -44,6 +44,13 @@
             <artifactId>java-jwt</artifactId>
         </dependency>
 
+        <!-- Springdoc OpenAPI Gateway 聚合（WebFlux 版本，不与 webmvc 冲突） -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+            <version>${springdoc.version}</version>
+        </dependency>
+
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>

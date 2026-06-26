@@ -40,6 +40,12 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
+        if (normalized.startsWith("/v3/api-docs")
+                || normalized.startsWith("/swagger-ui")
+                || normalized.startsWith("/webjars")) {
+            return chain.filter(exchange);
+        }
+
         if (normalized.startsWith("/internal/")) {
             if (!isInternalRequest(exchange)) {
                 return forbidden(exchange, "Internal endpoints not accessible externally");
