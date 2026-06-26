@@ -26,7 +26,26 @@
 
 ---
 
+## 前置条件
+
+| 工具 | 最低版本 | 说明 |
+|------|----------|------|
+| **Docker Desktop** | 4.x | Docker Compose 一键启动（推荐），需约 4GB 内存 |
+| **Git** | 2.x | 克隆仓库 |
+| **Java JDK** | 21 | 仅本地 IDE 开发需要 |
+| **Maven** | 3.9+ | 仅本地 IDE 开发需要（或使用 `./mvnw` wrapper） |
+
+> Docker Compose 启动 8 个容器（MySQL + Redis + Nacos + MinIO + RocketMQ ×2 + Elasticsearch），建议分配 **6GB+ RAM** 给 Docker。
+
+---
+
 ## 快速开始
+
+```bash
+# 1. 克隆仓库
+git clone https://github.com/zzmkxd/community_platform.git
+cd community_platform
+```
 
 ### 方式 1: Docker Compose 一键启动（推荐）
 
@@ -54,14 +73,47 @@ bash scripts/start-all.sh
 
 ### 方式 2: 本地开发（IDE 启动）
 
+适合修改代码 + 断点调试。基础设施用 Docker，微服务在 IDE 中启动。
+
 ```bash
-# 1. 仅启动基础设施
+# Step 1: 安装父 POM 和共享库
+mvn install -N -q                              # 父 POM
+mvn install -pl community-common -q            # 共享库
+
+# Step 2: 启动基础设施（不含微服务）
 docker compose up -d mysql redis nacos minio rocketmq-namesrv rocketmq-broker
 
-# 2. Nacos 共享配置由 nacos-init 自动发布（已完成），无需手动操作
-
-# 3. IDE 中按序启动微服务（profile=local）
+# Step 3: 等待 Nacos 共享配置发布完成
+docker compose logs nacos-init | grep "successfully"
 ```
+
+**Docker → Host 端口映射**（本地 `application-local.properties` 需用 host 地址）：
+
+| 服务 | Docker 内部 | Host 端口 | 本地配置示例 |
+|------|------------|-----------|-------------|
+| MySQL | mysql:3306 | 127.0.0.1:**3308** | `community.mysql.port=3308` |
+| Redis | redis:6379 | 127.0.0.1:**6381** | `community.redis.port=6381` |
+| Nacos | nacos:8848 | 127.0.0.1:**8848** | `spring.cloud.nacos.server-addr=127.0.0.1:8848` |
+| RocketMQ | namesrv:9876 | 127.0.0.1:**9878** | `rocketmq.name-server=127.0.0.1:9878` |
+| MinIO | minio:9000 | 127.0.0.1:**9004** | `community.minio.endpoint=http://127.0.0.1:9004` |
+| Elasticsearch | es:9200 | 127.0.0.1:**9200** | `community.es.uris=http://127.0.0.1:9200` |
+
+> **配置方式二选一**：
+> - **A. Nacos 集中配置**：在 [Nacos 控制台](http://localhost:8848/nacos) 将 `community-platform-common.yaml` 中 `${community.xxx}` 占位符替换为上表 host 地址（参考 `docs/nacos-shared-config.yaml` 顶部注释）
+> - **B. 各服务独立配置**：为每个模块创建 `src/main/resources/application-local.yml`，覆盖 host 地址。Gateway 仅需 JWT secret + Nacos 地址，无需数据库配置
+
+**Step 4: IDE 中按序启动**（右键 `main()` 或 Spring Boot Dashboard，Profile 选 `local`）：
+
+| 顺序 | 模块 | 主类 | 端口 |
+|------|------|------|------|
+| 1 | `community-user-service` | `CommunityUserApplication` | 8081 |
+| 2 | `community-server-service` | `CommunityServerApplication` | 8082 |
+| 3 | `community-message-service` | `CommunityMessageApplication` | 8083 |
+| 4 | `community-file-service` | `CommunityFileApplication` | 8084 |
+| 5 | `community-websocket` | `CommunityWebSocketApplication` | 8091 |
+| 6 | `community-gateway` | `CommunityGatewayApplication` | 8080 |
+
+> Gateway 最后启动——它需要下游服务已注册到 Nacos 才能正确路由。
 
 ### 测试账号
 
@@ -329,6 +381,43 @@ GET /api/v1/channels/1/messages?cursor=&pageSize=50
 | WxPortal | `GET /wx/portal/public` | 微信服务器验证 |
 | WxPortal | `GET /wx/portal/public/callBack` | 微信 OAuth 回调 |
 | WxPortal | `POST /wx/portal/public` | 微信事件推送 |
+
+---
+
+## 常见问题
+
+### Docker 相关
+
+| 问题 | 解决 |
+|------|------|
+| **Docker daemon not running** | 启动 Docker Desktop，等待鲸鱼图标变绿 |
+| **端口冲突** (3308/6381/8848/9004/9200) | 修改 `docker-compose.yml` 中的 host 端口映射（冒号左边） |
+| **`nacos-init` 容器退出 FAILED** | Nacos 启动慢，docker compose 重试即可：`docker compose up -d nacos-init` |
+| **Windows 端口不可用** | Win11 Hyper-V 会占用 9090/9876 等随机高端口 → 修改 docker-compose 或停用 Hyper-V |
+| **ES 启动失败 `max virtual memory`** | `wsl -d docker-desktop sysctl -w vm.max_map_count=262144` |
+| **MinIO "Share it" 弹窗** | 首次启动 Docker 会弹出文件共享确认，点击 **Share it**（允许挂载 `docs/ddl.sql`） |
+
+### 本地开发
+
+| 问题 | 解决 |
+|------|------|
+| **`mvn: command not found`** | 使用项目自带的 Maven Wrapper：`./mvnw install -N` |
+| **`cannot find symbol` 或依赖解析失败** | 先 `mvn install -N && mvn install -pl community-common` 再编译目标模块 |
+| **启动报 `dataId not found`** | Nacos 共享配置未发布 → 检查 `docker compose logs nacos-init` |
+| **Gateway 路由 503** | 下游服务未启动或未注册到 Nacos → 检查 Nacos 控制台「服务管理」 |
+| **Feign 调用失败** | 确认目标服务在 Nacos 中已注册，服务名与 `@FeignClient(name=...)` 一致 |
+
+### 如何切换 Java 版本
+
+项目使用 Java 21。如果系统有多个 Java 版本：
+
+```bash
+# Windows (Git Bash / MSYS2)
+source ~/.bashrc && switch-java 21
+
+# macOS / Linux
+export JAVA_HOME=$(/usr/libexec/java_home -v 21 2>/dev/null || echo /path/to/jdk-21)
+```
 
 ---
 
