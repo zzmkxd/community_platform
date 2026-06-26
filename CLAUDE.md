@@ -5,10 +5,11 @@ Discord-like 社群平台后端。Spring Boot 3.3.5 + Spring Cloud 2023.0.3 + Na
 ## 常用命令
 
 ```bash
-# 编译全量模块
-mvn clean compile -B
+# 一键启动（Windows / Linux）
+scripts\start-all.bat          # Windows: Maven 打包 → Docker 构建 → 3 波分段启动
+bash scripts/start-all.sh      # macOS / Linux 同上
 
-# 启动基础设施（独立端口，与 MallChat 不冲突）
+# 手动启动基础设施（独立端口，与 MallChat 不冲突）
 docker compose up -d
 
 # 首次启动需发布 Nacos 共享配置（有 2 种方式）
@@ -53,7 +54,9 @@ GatewayFilter: TokenFilter（JWT 校验）→ Gateway Route → Feign → 微服
 ```
 
 基础设施 (Docker Compose):
-MySQL:3308 · Redis:6381 · RocketMQ:9878/10911 · MinIO:9004 · Nacos:8848
+MySQL:3308 · Redis:6381 · RocketMQ:9878/10911 · MinIO:9004 · Nacos:8848 · ES:9200 · WebSocket:8091
+13 个容器总内存上限 6.5 GB → Docker Desktop 需 **8 GB+**（Settings → Resources → Memory）
+各容器 mem_limit + JVM 参数详见 `README.md` → "容器内存配置一览"
 
 ## 模块导航
 
@@ -88,6 +91,17 @@ MySQL:3308 · Redis:6381 · RocketMQ:9878/10911 · MinIO:9004 · Nacos:8848
 | 消息类型 | 8 种 | 6 种 (Text/Image/File/Sound/System/Emoji) |
 | WS 推送 | 房间全推 | 频道订阅制 (Redis Set) |
 | 好友系统 | 有 | 无 |
+
+## Nacos 踩坑记录
+
+以下问题已在 docker-compose.yml 中修复，迁移或重构时注意这些点：
+
+| 坑 | 症状 | 修复 |
+|----|------|------|
+| **健康检查大小写** | Nacos healthcheck 一直 unhealthy | `grep -q ok` → `grep -qi ok`（Nacos v2.3.2 返回 `OK` 大写） |
+| **Compose 变量插值吃掉 `$`** | nacos-init 中 `$i`/`$HTTP_CODE`/`$(curl)` 全变空字符串 | 用 `$$` 转义：`$$i`、`$$HTTP_CODE`、`$$(curl)` |
+| **应用连 Nacos 用 `localhost`** | 容器内 `localhost:8848` 不可达 → DataSource URL 解析失败 | 在 `x-common-env` 设置 `SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR=nacos:8848`（env var 优先级 > application.yml 的 `localhost` 默认值） |
+| **NACOS_SERVER_IP 必须 IP** | 设为 `nacos` 导致 Nacos 启动崩溃 | `NACOS_SERVER_IP` 校验必须是 IP 格式，不能用 hostname。Docker 环境不设此变量，客户端用 env var 覆盖 server-addr |
 
 ## Swagger UI
 
