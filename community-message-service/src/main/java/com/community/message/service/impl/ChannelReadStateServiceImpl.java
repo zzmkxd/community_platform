@@ -58,23 +58,18 @@ public class ChannelReadStateServiceImpl implements ChannelReadStateService {
         Long uid = RequestHolder.get().getUid();
 
         List<ChannelVO> channels = channelService.listByServerId(serverId);
+        List<Long> channelIds = channels.stream().map(ChannelVO::getId).toList();
+        if (channelIds.isEmpty()) {
+            return Map.of();
+        }
 
+        // Batch unread counts: single LEFT JOIN query replaces 2N per-channel queries
         Map<Long, Long> unreadCounts = new HashMap<>();
-        for (ChannelVO channel : channels) {
-            ChannelReadState state = channelReadStateDao.lambdaQuery()
-                    .eq(ChannelReadState::getUserId, uid)
-                    .eq(ChannelReadState::getChannelId, channel.getId())
-                    .one();
-
-            long lastReadId = state != null ? state.getLastReadMsgId() : 0L;
-            long unread = messageDao.lambdaQuery()
-                    .eq(com.community.message.domain.entity.Message::getChannelId, channel.getId())
-                    .gt(com.community.message.domain.entity.Message::getId, lastReadId)
-                    .ne(com.community.message.domain.entity.Message::getStatus, 1)
-                    .count();
-
-            if (unread > 0) {
-                unreadCounts.put(channel.getId(), unread);
+        for (Map<String, Object> row : messageDao.countUnreadByChannels(channelIds, uid)) {
+            Long channelId = ((Number) row.get("channel_id")).longValue();
+            Long cnt = ((Number) row.get("cnt")).longValue();
+            if (cnt > 0) {
+                unreadCounts.put(channelId, cnt);
             }
         }
         return unreadCounts;

@@ -115,17 +115,20 @@ public class RoleServiceImpl implements RoleService {
                 .eq(MemberRole::getMemberId, member.getId())
                 .remove();
 
-        // Assign new roles
-        for (Long roleId : roleIds) {
-            Role role = roleDao.lambdaQuery()
-                    .eq(Role::getId, roleId)
-                    .eq(Role::getServerId, serverId)
-                    .oneOpt()
-                    .orElseThrow(() -> new BusinessException(BusinessErrorEnum.ROLE_NOT_FOUND));
+        // Batch validate all roles belong to the server
+        List<Role> roles = roleDao.lambdaQuery()
+                .in(Role::getId, roleIds)
+                .eq(Role::getServerId, serverId)
+                .list();
+        if (roles.size() != (int) roleIds.stream().distinct().count()) {
+            throw new BusinessException(BusinessErrorEnum.ROLE_NOT_FOUND);
+        }
 
+        // Assign new roles
+        for (Role role : roles) {
             MemberRole mr = new MemberRole();
             mr.setMemberId(member.getId());
-            mr.setRoleId(roleId);
+            mr.setRoleId(role.getId());
             memberRoleDao.save(mr);
         }
 

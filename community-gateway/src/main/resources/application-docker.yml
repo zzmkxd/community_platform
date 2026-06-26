@@ -1,7 +1,7 @@
 # ponytail: Gateway 只需要 JWT secret + Nacos 地址，无 DB/Redis
 community:
   jwt:
-    secret: docker-dev-secret-not-for-production
+    secret: ${COMMUNITY_JWT_SECRET}
 
 spring:
   cloud:

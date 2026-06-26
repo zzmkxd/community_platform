@@ -169,11 +169,12 @@ public class ThreadServiceImpl implements ThreadService {
                 .eq(Thread::getStatus, "ACTIVE")
                 .lt(Thread::getLastActive, cutoff)
                 .list();
-        for (Thread t : inactive) {
-            t.setStatus("ARCHIVED");
-            threadDao.updateById(t);
-        }
         if (!inactive.isEmpty()) {
+            List<Long> threadIds = inactive.stream().map(Thread::getId).toList();
+            threadDao.lambdaUpdate()
+                    .in(Thread::getId, threadIds)
+                    .set(Thread::getStatus, "ARCHIVED")
+                    .update();
             log.info("Auto-archived {} inactive threads", inactive.size());
         }
     }

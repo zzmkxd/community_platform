@@ -104,7 +104,7 @@ curl -X POST http://localhost:8080/api/v1/channels/1/messages \
 
 ## 功能清单
 
-### 已实现 (Phase 1-4)
+### 已实现 (Phase 1-6)
 
 | 模块 | 功能 | 说明 |
 |------|------|------|
@@ -123,26 +123,26 @@ curl -X POST http://localhost:8080/api/v1/channels/1/messages \
 | **Reaction** | 添加/移除/列表 | 同 emoji 切换（再点移除），按 emoji 聚合 + reacted 标记 |
 | **已读追踪** | 更新已读/未读计数 | ChannelReadState upsert，按 Server 聚合各频道未读数 |
 | **文件上传** | MinIO 预签名 URL | PENDING → UPLOADED 状态流转 |
-| **搜索** | 消息全文搜索 | MySQL LIKE + LIMIT 50 |
+| **搜索** | 消息全文搜索 | Elasticsearch 替代 MySQL LIKE |
 | **WebSocket** | Netty 8091 端口 | JWT 认证 + 持续连接 |
 | **事件推送管道** | @SecureInvoke → RocketMQ → WebSocket | MQ 故障自动重试，at-least-once 保证 |
+| **频控** | @FrequencyControl 注解 + AOP | 固定窗口 / 滑动窗口 / 令牌桶 |
+| **敏感词过滤** | AC 自动机 + DFAFilter 双模式 | 移植自 MallChat |
+| **Mention 解析** | @username / @all / @everyone | 文本解析 + 通知推送 |
+| **微服务拆分** | Nacos + Gateway + Feign | 6 服务 + 1 共享库 (community-common) |
+| **在线状态** | 在线/离线广播 | Redis Set 订阅制 |
 | **Docker** | Dockerfile + docker-compose | 独立端口，含 MySQL+Redis+RocketMQ+MinIO+Nacos |
 | **CI/CD** | GitHub Actions | push main/zjwSpringCloud/feature/fix 自动编译，push 自动打包推送 GHCR |
 | **API 文档** | Swagger UI | 所有端点可在线调试 |
-### 尚未实现 (Phase 5+)
+
+### 尚未实现 (Phase 7+)
 
 | 项目 | 说明 | 计划 |
 |------|------|------|
-| **Thread 自动归档** | @Scheduled 每小时归档 24h 无活动 Thread | Phase 5 |
-| **频控** | @FrequencyControl 注解 + AOP（已在 common 模块） | Phase 5 |
-| **敏感词过滤** | AC 自动机算法（已在 common 模块移植） | Phase 5 |
-| **Mention 解析** | @用户解析 + 通知 | Phase 5 |
-| **WebSocket 完整协议** | 订阅/取消订阅频道/Thread、Typing 状态、系统通知 | Phase 5 |
-| **ES 全文搜索** | Elasticsearch 替代 MySQL LIKE | Phase 6 |
-| **微服务拆分** | ✅ Nacos + Gateway + Feign，6 服务 + 1 共享库（已在 zjwSpringCloud 分支完成） | Phase 6 |
-| **在线状态** | 用户在线/离线 + 状态广播 | Phase 6 |
+| **Thread 自动归档** | @Scheduled 每小时归档 24h 无活动 Thread | Phase 7 |
 | **语音频道** | WebRTC 信令服务 | Phase 7 |
 | **加入审批** | Server 加入申请 + 审批流程 | Phase 7 |
+| **测试覆盖** | 单元测试 + 集成测试 | Phase 7.1 |
 
 ---
 
