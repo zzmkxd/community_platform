@@ -237,7 +237,7 @@ community-platform/
 └── docs/
     ├── ddl.sql                          # 17 张表 DDL + 种子数据
     ├── nacos-shared-config.yaml         # Nacos 共享配置模板
-    ├── dev-log.md / dev-log-2.md        # 开发日志
+    ├── dev-log.md / dev-log-2.md / dev-log-3.md   # 开发日志
     └── plan/                            # 开发方案文档
 ```
 

@@ -120,7 +120,7 @@ Gateway 是 WebFlux/Netty 无 springdoc，需直接访问各微服务端口：
 
 - 前端接入指南: `docs/integration-guide.md`（鉴权/错误码/文件上传/WebSocket 协议）
 - 项目计划: `docs/plan.md`
-- 开发日志: `docs/dev-log.md` / `docs/dev-log-2.md`
+- 开发日志: `docs/dev-log.md` / `docs/dev-log-2.md` / `docs/dev-log-3.md`
 - 数据库设计: `docs/ddl.sql`
 - Nacos 共享配置: `docs/nacos-shared-config.yaml`
 
