@@ -30,12 +30,12 @@
 
 | 工具 | 最低版本 | 说明 |
 |------|----------|------|
-| **Docker Desktop** | 4.x | Docker Compose 一键启动（推荐），需约 4GB 内存 |
+| **Docker Desktop** | 4.x | Docker Compose 一键启动（推荐），需 **8GB+ 内存** |
 | **Git** | 2.x | 克隆仓库 |
 | **Java JDK** | 21 | 仅本地 IDE 开发需要 |
 | **Maven** | 3.9+ | 仅本地 IDE 开发需要（或使用 `./mvnw` wrapper） |
 
-> Docker Compose 启动 8 个容器（MySQL + Redis + Nacos + MinIO + RocketMQ ×2 + Elasticsearch），建议分配 **6GB+ RAM** 给 Docker。
+> Docker Compose 启动 13 个容器（MySQL + Redis + Nacos + MinIO + RocketMQ ×2 + Elasticsearch + Gateway + 5 微服务 + WebSocket），总内存上限 6.5 GB。Docker Desktop 需分配 **8 GB+**。
 
 ---
 
@@ -390,7 +390,29 @@ GET /api/v1/channels/1/messages?cursor=&pageSize=50
 
 | 问题 | 解决 |
 |------|------|
+| **Docker 内存不足导致崩溃** | Docker Desktop → Settings → Resources → Memory → **8 GB+**。13 个容器总上限 6.5 GB，详见下方内存配置表 |
 | **Docker daemon not running** | 启动 Docker Desktop，等待鲸鱼图标变绿 |
+
+**容器内存配置一览**（`docker-compose.yml` 中 `mem_limit`）：
+
+| 容器 | mem_limit | JVM 堆 | 说明 |
+|------|-----------|--------|------|
+| RocketMQ Broker | 1 GB | `-Xms256m -Xmx512m` | 默认 8 GB，dev 环境降至 512 MB |
+| Elasticsearch | 1 GB | `-Xms512m -Xmx512m` | ES 官方最低推荐值，不变 |
+| MySQL | 512 MB | `--innodb-buffer-pool-size=128M` | dev 数据量极小，128 MB 为 MySQL 8.0 默认 |
+| Nacos | 512 MB | `JVM_XMS=256m JVM_XMX=256m` | 独立模式，几个服务注册 |
+| WebSocket | 512 MB | `-Xms128m -Xmx384m` | 热点服务，Netty 连接 + 全局 Map |
+| Message | 512 MB | `-Xms128m -Xmx384m` | 热点服务，ES 索引 + MQ 消费 |
+| RocketMQ NameServer | 384 MB | `-Xms128m -Xmx256m` | 路由表很小 |
+| Gateway | 384 MB | `-Xms128m -Xmx256m` | 纯路由转发，无 DB/Redis |
+| User / Server / File | 384 MB | `-Xms128m -Xmx256m` | 轻量 CRUD |
+| Redis | 256 MB | — | Alpine 原生，极省内存 |
+| MinIO | 256 MB | — | Go 原生，轻量 |
+| nacos-init | 128 MB | — | 仅 curl 发布配置，用完即退 |
+| **合计上限** | **≈ 6.5 GB** | | 实际用量 ≈ 4–5 GB |
+
+| 问题 | 解决 |
+|------|------|
 | **端口冲突** (3308/6381/8848/9004/9200) | 修改 `docker-compose.yml` 中的 host 端口映射（冒号左边） |
 | **`nacos-init` 容器退出 FAILED** | Nacos 启动慢，docker compose 重试即可：`docker compose up -d nacos-init` |
 | **Windows 端口不可用** | Win11 Hyper-V 会占用 9090/9876 等随机高端口 → 修改 docker-compose 或停用 Hyper-V |
