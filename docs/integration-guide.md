@@ -81,7 +81,6 @@ Content-Type: application/json
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | POST | `/api/v1/auth/login` | 用户登录 |
-| POST | `/api/v1/auth/register` | 用户注册 |
 
 ### 2.5 401/403 响应格式
 

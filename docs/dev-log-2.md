@@ -7,7 +7,7 @@
 
 - **项目名称**: community-platform (社群平台)
 - **当前 Phase**: Phase 6 完成（ES 搜索已集成），微服务拆分完成（zjwSpringCloud 分支）
-- **最新提交**: `a165955` — Part B: 前端接入指南 + Part A: Swagger 增强
+- **最新提交**: `0a8460b` — P2-2 代码习惯优化 (枚举/常量/null安全)
 - **日期**: 2026-06-26
 
 ---
@@ -99,12 +99,12 @@ WebSocket: websocket (Netty :8091)，独立部署，不经过 Gateway
 | P1-3 | **缺索引** | `message(channel_id, id)` + `thread(status, last_active)` | 游标分页 + 归档扫描无复合索引 |
 | P1-4 | **异常处理缺陷** | `ChannelServiceImpl` 返回 null + `SecureInvokeService.java:112` catch Throwable + `@Async` 吞异常 | NPE 风险 + Error 类型不应重试 |
 
-### P2 — 安全加固 / 代码习惯 (2 项)
+### P2 — 安全加固 / 代码习惯 (2 项, 全部完成 ✅)
 
 | # | 问题 | 位置 | 说明 |
 |---|------|------|------|
-| P2-1 | **输入校验缺失** | 14 个 Controller 无 `@Valid` + Nacos 未认证 + WS Token URL 传递 | 参数校验、服务发现、WS 认证三面 |
-| P2-2 | **代码习惯** | 多处 | `getById` 替代 `lambdaQuery` + 魔法数字 + catch 块写业务逻辑 |
+| P2-1 | **安全加固** | Nacos + WebSocket + Controllers | Nacos 认证启用 + WS Origin 校验 + 输入校验 @Valid（提交 `3b992c2` `b74373e`） |
+| P2-2 | **代码习惯** | 多处 | 4 枚举消除 20 处魔法数字 + Push 目标类型常量 + getById 判空（提交 `0a8460b`） |
 
 ### 已确认无需修复
 
@@ -156,6 +156,10 @@ WebSocket: websocket (Netty :8091)，独立部署，不经过 Gateway
 | 2026-06-26 | **全栈跑通**: POM skip 修复 + Nacos 本地配置 + 冒烟脚本 17/17 通过 | `dcbbf30` |
 | 2026-06-26 | **Swagger 增强**: 15 Controller @Operation + OpenApiConfig @SecurityScheme BearerJWT + @ApiResponse + @Hidden | `ac7c829` |
 | 2026-06-26 | **前端接入指南**: docs/integration-guide.md (鉴权/响应格式/错误码/文件上传/WebSocket 协议) | `a165955` |
+| 2026-06-26 | **P0 修复**: MQ Consumer 吞异常 + MinIO 空 catch + 敏感配置泄露 + Gateway 鉴权绕过 | `2903b82` |
+| 2026-06-26 | **P1 修复**: N+1 查询 + 冗余 DB 查询 + 缺索引 + 异常处理缺陷 | `372380a` |
+| 2026-06-26 | **P2-1 安全加固**: Nacos 认证 + WebSocket Origin 校验 + 输入校验 | `3b992c2` `b74373e` |
+| 2026-06-26 | **P2-2 代码习惯**: 4 枚举 + 常量 + getById 判空 | `0a8460b` |
 
 ---
 
