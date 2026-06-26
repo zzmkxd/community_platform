@@ -5,8 +5,10 @@ import com.community.server.domain.vo.EmojiVO;
 import com.community.server.service.EmojiService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -17,6 +19,7 @@ import java.util.List;
 @RequestMapping("/api/v1/servers/{serverId}/emojis")
 @RequiredArgsConstructor
 @Tag(name = "表情")
+@Validated
 public class EmojiController {
 
     private final EmojiService emojiService;
@@ -24,7 +27,7 @@ public class EmojiController {
     @Operation(summary = "上传自定义表情（multipart/form-data）")
     @PostMapping
     public ApiResult<EmojiVO> upload(@PathVariable Long serverId,
-                                      @RequestParam String name,
+                                      @NotBlank @RequestParam String name,
                                       @RequestParam MultipartFile imageFile) throws IOException {
         return ApiResult.success(emojiService.uploadEmoji(serverId, name, imageFile.getBytes()));
     }

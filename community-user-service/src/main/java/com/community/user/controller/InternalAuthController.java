@@ -5,41 +5,44 @@ import com.community.user.domain.dto.LoginReq;
 import com.community.user.service.AuthService;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-// ponytail: 独立 @RestController，不实现 @FeignClient 接口，避免 Spring Cloud 误判为 Feign fallback 导致端点不注册
 @RestController
 @RequestMapping("/internal/auth")
 @RequiredArgsConstructor
 @Hidden
 @Tag(name = "内部鉴权（Feign）")
+@Validated
 public class InternalAuthController {
 
     private final AuthService authService;
 
     @PostMapping("/login")
-    public UserVO login(@RequestBody LoginReq req) {
+    public UserVO login(@Valid @RequestBody LoginReq req) {
         return authService.login(req);
     }
 
     @PostMapping("/refresh")
-    public String refreshToken(@RequestParam("token") String token) {
+    public String refreshToken(@NotBlank @RequestParam("token") String token) {
         return authService.refreshToken(token);
     }
 
     @GetMapping("/valid-uid")
-    public Long getValidUid(@RequestParam("token") String token) {
+    public Long getValidUid(@NotBlank @RequestParam("token") String token) {
         return authService.getValidUid(token);
     }
 
     @GetMapping("/verify")
-    public boolean verify(@RequestParam("token") String token) {
+    public boolean verify(@NotBlank @RequestParam("token") String token) {
         return authService.verify(token);
     }
 
     @PostMapping("/renewal")
-    public void renewalTokenIfNecessary(@RequestParam("token") String token) {
+    public void renewalTokenIfNecessary(@NotBlank @RequestParam("token") String token) {
         authService.renewalTokenIfNecessary(token);
     }
 }

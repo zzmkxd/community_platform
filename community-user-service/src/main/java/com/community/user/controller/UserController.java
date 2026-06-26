@@ -6,6 +6,7 @@ import com.community.common.domain.vo.UserVO;
 import com.community.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,7 +33,7 @@ public class UserController {
 
     @Operation(summary = "绑定微信账号")
     @PostMapping("/me/bind-wx")
-    public ApiResult<UserVO> bindWeChat(@RequestBody AccountBindReq req) {
+    public ApiResult<UserVO> bindWeChat(@Valid @RequestBody AccountBindReq req) {
         return ApiResult.success(userService.bindWeChat(req));
     }
 

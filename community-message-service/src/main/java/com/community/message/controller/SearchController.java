@@ -6,13 +6,16 @@ import com.community.message.domain.vo.MessageVO;
 import com.community.message.service.SearchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/servers/{serverId}/search")
 @RequiredArgsConstructor
 @Tag(name = "搜索")
+@Validated
 public class SearchController {
 
     private final SearchService searchService;
@@ -21,7 +24,7 @@ public class SearchController {
     @GetMapping
     public ApiResult<CursorPageBaseResp<MessageVO>> search(
             @PathVariable Long serverId,
-            @RequestParam String q,
+            @NotBlank @RequestParam String q,
             @RequestParam(required = false) Long channelId,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to,
