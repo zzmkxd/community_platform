@@ -7,6 +7,7 @@ import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @Data
 @Document(indexName = "messages")
@@ -37,8 +38,12 @@ public class MessageDocument {
     @Field(type = FieldType.Integer)
     private Integer status;
 
-    @Field(type = FieldType.Date)
-    private LocalDateTime createTime;
+    // ponytail: String over LocalDateTime — ElasticsearchDateConverter writes date-only when
+    // Jackson lacks JavaTimeModule; manual format bypasses the converter chain entirely
+    @Field(type = FieldType.Date, pattern = "uuuu-MM-dd HH:mm:ss")
+    private String createTime;
+
+    private static final DateTimeFormatter ES_DTF = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss");
 
     public static MessageDocument from(com.community.message.domain.entity.Message msg, Long serverId) {
         MessageDocument doc = new MessageDocument();
@@ -50,7 +55,9 @@ public class MessageDocument {
         doc.setContent(msg.getContent());
         doc.setMsgType(msg.getMsgType());
         doc.setStatus(msg.getStatus());
-        doc.setCreateTime(msg.getCreateTime());
+        if (msg.getCreateTime() != null) {
+            doc.setCreateTime(msg.getCreateTime().format(ES_DTF));
+        }
         return doc;
     }
 }
