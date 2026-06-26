@@ -174,6 +174,7 @@ public class MemberServiceImpl implements MemberService {
     public List<Long> getServerMemberUids(@PathVariable("serverId") Long serverId,
                                           @RequestParam(value = "excludeUid", required = false) Long excludeUid) {
         return memberDao.lambdaQuery()
+                .select(ServerMember::getUserId)
                 .eq(ServerMember::getServerId, serverId)
                 .eq(ServerMember::getStatus, 1)
                 .list()

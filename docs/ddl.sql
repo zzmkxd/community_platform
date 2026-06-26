@@ -203,6 +203,7 @@ CREATE TABLE IF NOT EXISTS `message` (
     `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `idx_channel_id` (`channel_id`),
+    KEY `idx_channel_id_id` (`channel_id`, `id`),
     KEY `idx_thread_id` (`thread_id`),
     KEY `idx_from_uid` (`from_uid`),
     KEY `idx_create_time` (`create_time`)
@@ -224,7 +225,8 @@ CREATE TABLE IF NOT EXISTS `thread` (
     `create_time`   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `update_time`   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    KEY `idx_channel_id` (`channel_id`)
+    KEY `idx_channel_id` (`channel_id`),
+    KEY `idx_status_last_active` (`status`, `last_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='话题表';
 
 -- =============================================

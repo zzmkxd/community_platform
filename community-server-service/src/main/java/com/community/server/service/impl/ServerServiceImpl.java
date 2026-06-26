@@ -204,18 +204,10 @@ public class ServerServiceImpl implements ServerService {
 
         List<RoleVO> myRoles = Collections.emptyList();
         if (myMember != null) {
-            List<MemberRole> memberRoles = memberRoleDao.lambdaQuery()
-                    .eq(MemberRole::getMemberId, myMember.getId())
-                    .list();
-            if (!memberRoles.isEmpty()) {
-                List<Long> roleIds = memberRoles.stream().map(MemberRole::getRoleId).toList();
-                myRoles = roleDao.lambdaQuery()
-                        .in(Role::getId, roleIds)
-                        .list()
-                        .stream()
-                        .map(this::toRoleVO)
-                        .toList();
-            }
+            myRoles = roleDao.findByMemberId(myMember.getId())
+                    .stream()
+                    .map(this::toRoleVO)
+                    .toList();
         }
 
         ServerDetailVO detail = new ServerDetailVO();

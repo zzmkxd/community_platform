@@ -101,10 +101,13 @@ public class MsgSendConsumer implements RocketMQListener<String> {
         return files.isEmpty() ? null : files;
     }
 
-    // ponytail: ES index failure logged, not re-thrown — push already succeeded
     private void indexMessage(Message message, Long channelId) {
         try {
             ChannelVO channel = channelService.getById(channelId);
+            if (channel == null) {
+                log.warn("ES index skipped: channel not found, channelId={}, msgId={}", channelId, message.getId());
+                return;
+            }
             MessageDocument doc = MessageDocument.from(message, channel.getServerId());
             esOps.save(doc);
             log.debug("ES indexed: msgId={}, serverId={}", message.getId(), channel.getServerId());

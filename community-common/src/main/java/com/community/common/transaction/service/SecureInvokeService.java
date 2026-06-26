@@ -109,7 +109,7 @@ public class SecureInvokeService {
             Object[] args = getArgs(dto, parameterClasses);
             method.invoke(bean, args);
             removeRecord(record.getId());
-        } catch (Throwable e) {
+        } catch (Exception e) {
             log.error("SecureInvokeService invoke fail", e);
             retryRecord(record, e.getMessage());
         } finally {
