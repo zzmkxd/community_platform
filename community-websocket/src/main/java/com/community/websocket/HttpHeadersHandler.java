@@ -16,7 +16,8 @@ public class HttpHeadersHandler extends ChannelInboundHandlerAdapter {
 
     private static final Set<String> ALLOWED_ORIGINS = Set.of(
             "http://localhost:8080", "http://127.0.0.1:8080",
-            "http://localhost:3000", "http://127.0.0.1:3000"
+            "http://localhost:3000", "http://127.0.0.1:3000",
+            "http://localhost:9988", "http://127.0.0.1:9988"
     );
 
     @Override
