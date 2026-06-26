@@ -89,8 +89,22 @@ MySQL:3308 · Redis:6381 · RocketMQ:9878/10911 · MinIO:9004 · Nacos:8848
 | WS 推送 | 房间全推 | 频道订阅制 (Redis Set) |
 | 好友系统 | 有 | 无 |
 
+## Swagger UI
+
+Gateway 是 WebFlux/Netty 无 springdoc，需直接访问各微服务端口：
+
+| 服务 | Swagger UI |
+|------|-----------|
+| User Service (8081) | http://localhost:8081/swagger-ui/index.html |
+| Server Service (8082) | http://localhost:8082/swagger-ui/index.html |
+| Message Service (8083) | http://localhost:8083/swagger-ui/index.html |
+| File Service (8084) | http://localhost:8084/swagger-ui/index.html |
+
+右上角 **Authorize** 填入 `Bearer <token>` 即可在线调试所有需要鉴权的端点。
+
 ## 文档
 
+- 前端接入指南: `docs/integration-guide.md`（鉴权/错误码/文件上传/WebSocket 协议）
 - 项目计划: `docs/plan.md`
 - 开发日志: `docs/dev-log.md` / `docs/dev-log-2.md`
 - 数据库设计: `docs/ddl.sql`

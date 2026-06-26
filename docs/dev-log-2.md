@@ -7,8 +7,8 @@
 
 - **项目名称**: community-platform (社群平台)
 - **当前 Phase**: Phase 6 完成（ES 搜索已集成），微服务拆分完成（zjwSpringCloud 分支）
-- **最新提交**: `1969b0c` — 集成 ES
-- **日期**: 2026-06-25
+- **最新提交**: `a165955` — Part B: 前端接入指南 + Part A: Swagger 增强
+- **日期**: 2026-06-26
 
 ---
 
@@ -154,7 +154,8 @@ WebSocket: websocket (Netty :8091)，独立部署，不经过 Gateway
 | 2026-06-25 | **全量代码审计**: 29 项问题 (P0×4 / P1×4 / P2×2) + 10 项待办录入 | 本文档 |
 | 2026-06-26 | DDL JSON→TEXT: MySQL 5.6 兼容，保留 5.7+ 升级路径 | `111fca7` |
 | 2026-06-26 | **全栈跑通**: POM skip 修复 + Nacos 本地配置 + 冒烟脚本 17/17 通过 | `dcbbf30` |
-| 2026-06-26 | **文档修正**: flows-visual 17 表 + README Phase 5-6 已实现同步 | 本文档 |
+| 2026-06-26 | **Swagger 增强**: 15 Controller @Operation + OpenApiConfig @SecurityScheme BearerJWT + @ApiResponse + @Hidden | `ac7c829` |
+| 2026-06-26 | **前端接入指南**: docs/integration-guide.md (鉴权/响应格式/错误码/文件上传/WebSocket 协议) | `a165955` |
 
 ---
 
