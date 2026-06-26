@@ -6,6 +6,10 @@ x-common-env: &common-env
   COMMUNITY_MINIO_SECRET_KEY: minioadmin
   SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
   SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+  SPRING_CLOUD_NACOS_DISCOVERY_USERNAME: nacos
+  SPRING_CLOUD_NACOS_DISCOVERY_PASSWORD: nacos
+  SPRING_CLOUD_NACOS_CONFIG_USERNAME: nacos
+  SPRING_CLOUD_NACOS_CONFIG_PASSWORD: nacos
 
 services:
   # ==================== MySQL 8.0 ====================
@@ -58,7 +62,10 @@ services:
     container_name: community-nacos
     environment:
       MODE: standalone
-      NACOS_AUTH_ENABLE: "false"
+      NACOS_AUTH_ENABLE: "true"
+      NACOS_AUTH_TOKEN: SecretKey012345678901234567890123456789012345678901234567890123456789
+      NACOS_AUTH_IDENTITY_KEY: community-platform
+      NACOS_AUTH_IDENTITY_VALUE: community-platform-docker
       JVM_XMS: 256m
       JVM_XMX: 256m
     mem_limit: 512m
@@ -87,11 +94,20 @@ services:
       - sh
       - -c
       - |
+        echo "=== Nacos Init: Authenticating ==="
+        AUTH_RESP=$$(curl -s -X POST "http://nacos:8848/nacos/v1/auth/login" \
+          -d "username=nacos" \
+          -d "password=nacos")
+        ACCESS_TOKEN=$$(echo "$$AUTH_RESP" | grep -o '"accessToken":"[^"]*"' | cut -d'"' -f4)
+        if [ -z "$$ACCESS_TOKEN" ]; then
+          echo "ERROR: Failed to get Nacos access token"
+          exit 1
+        fi
         echo "=== Nacos Init: Publishing shared config ==="
         sleep 5
         for i in 1 2 3 4 5; do
           HTTP_CODE=$$(curl -s -o /dev/null -w "%{http_code}" \
-            -X POST "http://nacos:8848/nacos/v1/cs/configs" \
+            -X POST "http://nacos:8848/nacos/v1/cs/configs?accessToken=$$ACCESS_TOKEN" \
             -d "dataId=community-platform-common.yaml" \
             -d "group=DEFAULT_GROUP" \
             -d "type=yaml" \
