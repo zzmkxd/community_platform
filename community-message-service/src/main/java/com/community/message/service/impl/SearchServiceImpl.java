@@ -20,7 +20,6 @@ import org.springframework.data.elasticsearch.core.query.Criteria;
 import org.springframework.data.elasticsearch.core.query.CriteriaQuery;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -47,11 +46,11 @@ public class SearchServiceImpl implements SearchService {
         criteria = criteria.and(new Criteria("status").not().is(1));
         if (from != null) {
             criteria = criteria.and(new Criteria("createTime")
-                    .greaterThanEqual(parseDateTime(from)));
+                    .greaterThanEqual(from.replace(" ", "T")));
         }
         if (to != null) {
             criteria = criteria.and(new Criteria("createTime")
-                    .lessThanEqual(parseDateTime(to)));
+                    .lessThanEqual(to.replace(" ", "T")));
         }
 
         var query = new CriteriaQuery(criteria);
@@ -97,13 +96,5 @@ public class SearchServiceImpl implements SearchService {
         resp.setIsLast(true);
         resp.setList(vos);
         return resp;
-    }
-
-    private LocalDateTime parseDateTime(String s) {
-        try {
-            return LocalDateTime.parse(s.contains("T") ? s : s.replace(" ", "T"));
-        } catch (Exception e) {
-            return LocalDateTime.parse(s.replace(" ", "T") + ":00");
-        }
     }
 }

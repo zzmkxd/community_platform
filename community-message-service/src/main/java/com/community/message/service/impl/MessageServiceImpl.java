@@ -14,6 +14,7 @@ import com.community.file.service.FileService;
 import com.community.message.dao.MessageDao;
 import com.community.message.dao.ReactionDao;
 import com.community.message.dao.ThreadDao;
+import com.community.message.domain.document.MessageDocument;
 import com.community.message.domain.dto.SendMsgReq;
 import com.community.message.domain.entity.Message;
 import com.community.message.domain.entity.MessageExtra;
@@ -32,6 +33,7 @@ import com.community.common.domain.vo.UserVO;
 import com.community.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,11 +55,12 @@ public class MessageServiceImpl implements MessageService {
     private final PermissionService permissionService;
     private final MQProducer mqProducer;
     private final FileService fileService;
+    private final ElasticsearchOperations esOps;
 
     @Override
     @Transactional
     public MessageVO sendMessage(Long channelId, Long threadId, String content, Integer msgType,
-                                  Long replyMsgId, List<Long> fileIds) {
+            Long replyMsgId, List<Long> fileIds) {
         Long uid = RequestHolder.get().getUid();
 
         ChannelVO channel = channelService.getById(channelId);
@@ -116,8 +119,7 @@ public class MessageServiceImpl implements MessageService {
                     }
                     wrapper.ne(Message::getStatus, 1);
                 },
-                Message::getId
-        );
+                Message::getId);
 
         if (page.isEmpty()) {
             return CursorPageBaseResp.empty();
@@ -162,6 +164,8 @@ public class MessageServiceImpl implements MessageService {
         message.setStatus(2);
         messageDao.updateById(message);
 
+        syncEsUpdate(message);
+
         log.info("Message edited: msgId={}, channelId={}, uid={}", msgId, channelId, uid);
         UserVO user = userService.getUserById(uid);
         MessageVO vo = MessageAdapter.buildMessageVO(message, user, Collections.emptyList(), null);
@@ -192,6 +196,9 @@ public class MessageServiceImpl implements MessageService {
 
         message.setStatus(1);
         messageDao.updateById(message);
+
+        syncEsDelete(msgId);
+
         log.info("Message deleted: msgId={}, channelId={}, uid={}", msgId, channelId, uid);
     }
 
@@ -234,7 +241,8 @@ public class MessageServiceImpl implements MessageService {
         List<Long> allFileIds = new java.util.ArrayList<>();
         for (Message msg : messages) {
             MessageExtra extra = msg.getExtra();
-            if (extra == null || extra.getFileIds() == null || extra.getFileIds().isEmpty()) continue;
+            if (extra == null || extra.getFileIds() == null || extra.getFileIds().isEmpty())
+                continue;
             allFileIds.addAll(extra.getFileIds());
         }
         if (allFileIds.isEmpty()) {
@@ -243,5 +251,27 @@ public class MessageServiceImpl implements MessageService {
         Map<Long, FileVO> fileMap = fileService.getFiles(allFileIds).stream()
                 .collect(Collectors.toMap(FileVO::getId, f -> f));
         return MessageAdapter.buildAttachmentMap(messages, fileMap);
+    }
+
+    // ponytail: ES sync wrapped in try-catch — search correctness is secondary to message persistence
+    private void syncEsUpdate(Message message) {
+        try {
+            ChannelVO channel = channelService.getById(message.getChannelId());
+            if (channel != null) {
+                esOps.save(MessageDocument.from(message, channel.getServerId()));
+            }
+        } catch (Exception e) {
+            log.warn("ES sync update failed for msgId={}: {}", message.getId(), e.getMessage());
+        }
+    }
+
+    private void syncEsDelete(Long msgId) {
+        try {
+            MessageDocument doc = new MessageDocument();
+            doc.setId(msgId);
+            esOps.delete(doc);
+        } catch (Exception e) {
+            log.warn("ES sync delete failed for msgId={}: {}", msgId, e.getMessage());
+        }
     }
 }
