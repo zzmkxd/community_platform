@@ -19,6 +19,7 @@ import com.community.message.domain.dto.SendMsgReq;
 import com.community.message.domain.entity.Message;
 import com.community.message.domain.entity.MessageExtra;
 import com.community.message.domain.entity.Thread;
+import com.community.message.domain.enums.MessageStatusEnum;
 import com.community.message.domain.vo.MessageVO;
 import com.community.message.domain.vo.ReactionVO;
 import com.community.message.service.MessageService;
@@ -99,6 +100,10 @@ public class MessageServiceImpl implements MessageService {
         mqProducer.sendSecureMsg(MQConstant.SEND_MSG_TOPIC, body);
 
         Message saved = messageDao.getById(msgId);
+        if (saved == null) {
+            log.warn("Message not found after save: msgId={}", msgId);
+            return null;
+        }
         UserVO user = userService.getUserById(uid);
         MessageVO vo = MessageAdapter.buildMessageVO(saved, user, Collections.emptyList(), thread);
         vo.setAttachments(buildAttachments(saved));
@@ -117,7 +122,7 @@ public class MessageServiceImpl implements MessageService {
                     } else {
                         wrapper.isNull(Message::getThreadId);
                     }
-                    wrapper.ne(Message::getStatus, 1);
+                    wrapper.ne(Message::getStatus, MessageStatusEnum.DELETED.getStatus());
                 },
                 Message::getId);
 
@@ -161,7 +166,7 @@ public class MessageServiceImpl implements MessageService {
         }
 
         message.setContent(content);
-        message.setStatus(2);
+        message.setStatus(MessageStatusEnum.EDITED.getStatus());
         messageDao.updateById(message);
 
         syncEsUpdate(message);
@@ -194,7 +199,7 @@ public class MessageServiceImpl implements MessageService {
             throw new BusinessException(BusinessErrorEnum.NO_PERMISSION);
         }
 
-        message.setStatus(1);
+        message.setStatus(MessageStatusEnum.DELETED.getStatus());
         messageDao.updateById(message);
 
         syncEsDelete(msgId);

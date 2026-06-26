@@ -8,6 +8,7 @@ import com.community.server.dao.ServerDao;
 import com.community.server.domain.entity.Server;
 import com.community.server.domain.entity.ServerMember;
 import com.community.server.domain.enums.MemberStatusEnum;
+import com.community.server.domain.enums.ServerStatusEnum;
 
 /**
  * 成员身份校验工具类 — 统一的 requireMember / requireServerOwner 校验逻辑
@@ -31,7 +32,7 @@ public class MembershipValidator {
         Long uid = RequestHolder.get().getUid();
         Server server = serverDao.lambdaQuery()
                 .eq(Server::getId, serverId)
-                .eq(Server::getStatus, 1)
+                .eq(Server::getStatus, ServerStatusEnum.NORMAL.getStatus())
                 .oneOpt()
                 .orElseThrow(() -> new BusinessException(BusinessErrorEnum.SERVER_NOT_FOUND));
         if (!server.getOwnerId().equals(uid)) {

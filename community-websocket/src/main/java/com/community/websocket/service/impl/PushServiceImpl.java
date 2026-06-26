@@ -34,7 +34,7 @@ public class PushServiceImpl implements PushService {
                               @RequestParam(value = "excludeUid", required = false) Long excludeUid,
                               @RequestBody Object data) {
         PushMessageDTO dto = PushMessageDTO.builder()
-                .targetType("channel")
+                .targetType(PushMessageDTO.TARGET_CHANNEL)
                 .targetId(channelId)
                 .data(JSONUtil.toJsonStr(data))
                 .build();
@@ -45,7 +45,7 @@ public class PushServiceImpl implements PushService {
     @PostMapping("/thread/{threadId}")
     public void pushToThread(@PathVariable("threadId") Long threadId, @RequestBody Object data) {
         PushMessageDTO dto = PushMessageDTO.builder()
-                .targetType("thread")
+                .targetType(PushMessageDTO.TARGET_THREAD)
                 .targetId(threadId)
                 .data(JSONUtil.toJsonStr(data))
                 .build();
@@ -56,7 +56,7 @@ public class PushServiceImpl implements PushService {
     @PostMapping("/user/{userId}")
     public void pushToUser(@PathVariable("userId") Long userId, @RequestBody Object data) {
         PushMessageDTO dto = PushMessageDTO.builder()
-                .targetType("user")
+                .targetType(PushMessageDTO.TARGET_USER)
                 .targetId(userId)
                 .data(JSONUtil.toJsonStr(data))
                 .build();

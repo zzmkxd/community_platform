@@ -8,6 +8,8 @@ import com.community.common.utils.CursorUtils;
 import com.community.common.utils.RequestHolder;
 import com.community.server.dao.*;
 import com.community.server.domain.entity.*;
+import com.community.server.domain.enums.MemberStatusEnum;
+import com.community.server.domain.enums.ServerStatusEnum;
 import com.community.common.enums.PermissionBit;
 import com.community.server.domain.vo.*;
 import com.community.websocket.service.PushService;
@@ -26,6 +28,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ServerServiceImpl implements ServerService {
+
+    private static final String ROLE_EVERYONE = "@everyone";
+    private static final String ROLE_OWNER = "Owner";
 
     private final ServerDao serverDao;
     private final MemberDao memberDao;
@@ -46,13 +51,13 @@ public class ServerServiceImpl implements ServerService {
         server.setDescription(description);
         server.setIcon(icon);
         server.setOwnerId(uid);
-        server.setStatus(1);
+        server.setStatus(ServerStatusEnum.NORMAL.getStatus());
         server.setSortOrder(0);
         serverDao.save(server);
 
         Role everyoneRole = new Role();
         everyoneRole.setServerId(server.getId());
-        everyoneRole.setName("@everyone");
+        everyoneRole.setName(ROLE_EVERYONE);
         everyoneRole.setPermissions(0L
                 | PermissionBit.CREATE_INVITE.getBit()
                 | PermissionBit.SEND_MESSAGES.getBit()
@@ -65,7 +70,7 @@ public class ServerServiceImpl implements ServerService {
 
         Role ownerRole = new Role();
         ownerRole.setServerId(server.getId());
-        ownerRole.setName("Owner");
+        ownerRole.setName(ROLE_OWNER);
         ownerRole.setColor("#FFD700");
         ownerRole.setPermissions((long) PermissionBit.ADMINISTRATOR.getBit());
         ownerRole.setPosition(999);
@@ -74,7 +79,7 @@ public class ServerServiceImpl implements ServerService {
         ServerMember member = new ServerMember();
         member.setServerId(server.getId());
         member.setUserId(uid);
-        member.setStatus(1);
+        member.setStatus(MemberStatusEnum.ACTIVE.getStatus());
         memberDao.save(member);
 
         MemberRole mrEveryone = new MemberRole();
@@ -223,7 +228,7 @@ public class ServerServiceImpl implements ServerService {
         Long uid = RequestHolder.get().getUid();
 
         Server server = serverDao.getById(serverId);
-        if (server == null || server.getStatus() == 0) {
+        if (server == null || server.getStatus().equals(ServerStatusEnum.DELETED.getStatus())) {
             throw new BusinessException(BusinessErrorEnum.SERVER_NOT_FOUND);
         }
         if (!server.getOwnerId().equals(uid)
@@ -258,14 +263,14 @@ public class ServerServiceImpl implements ServerService {
         Long uid = RequestHolder.get().getUid();
 
         Server server = serverDao.getById(serverId);
-        if (server == null || server.getStatus() == 0) {
+        if (server == null || server.getStatus().equals(ServerStatusEnum.DELETED.getStatus())) {
             throw new BusinessException(BusinessErrorEnum.SERVER_NOT_FOUND);
         }
         if (!server.getOwnerId().equals(uid)) {
             throw new BusinessException(BusinessErrorEnum.NO_PERMISSION);
         }
 
-        server.setStatus(0);
+        server.setStatus(ServerStatusEnum.DELETED.getStatus());
         serverDao.updateById(server);
         log.info("Server soft-deleted: id={}, name={}", serverId, server.getName());
     }

@@ -5,6 +5,7 @@ import com.community.common.exception.BusinessException;
 import com.community.common.utils.RequestHolder;
 import com.community.message.dao.ReactionDao;
 import com.community.message.domain.entity.Reaction;
+import com.community.message.domain.enums.MessageStatusEnum;
 import com.community.message.domain.vo.ReactionVO;
 import com.community.message.service.ReactionService;
 import com.community.common.enums.PermissionBit;
@@ -37,7 +38,7 @@ public class ReactionServiceImpl implements ReactionService {
         Long uid = RequestHolder.get().getUid();
 
         com.community.message.domain.entity.Message message = messageDao.getById(msgId);
-        if (message == null || message.getStatus() == 1) {
+        if (message == null || message.getStatus().equals(MessageStatusEnum.DELETED.getStatus())) {
             throw new BusinessException(BusinessErrorEnum.MESSAGE_NOT_FOUND);
         }
 

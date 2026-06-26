@@ -5,6 +5,9 @@ import com.community.common.exception.BusinessException;
 import com.community.common.utils.RequestHolder;
 import com.community.server.dao.*;
 import com.community.server.domain.entity.*;
+import com.community.server.domain.enums.InviteStatusEnum;
+import com.community.server.domain.enums.MemberStatusEnum;
+import com.community.server.domain.enums.ServerStatusEnum;
 import com.community.server.domain.vo.InviteVO;
 import com.community.server.domain.vo.ServerVO;
 import com.community.websocket.service.PushService;
@@ -23,6 +26,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class InviteServiceImpl implements InviteService {
 
+    private static final String ROLE_EVERYONE = "@everyone";
+
     private final InviteDao inviteDao;
     private final ServerDao serverDao;
     private final MemberDao memberDao;
@@ -37,14 +42,14 @@ public class InviteServiceImpl implements InviteService {
 
         Server server = serverDao.lambdaQuery()
                 .eq(Server::getId, serverId)
-                .eq(Server::getStatus, 1)
+                .eq(Server::getStatus, ServerStatusEnum.NORMAL.getStatus())
                 .oneOpt()
                 .orElseThrow(() -> new BusinessException(BusinessErrorEnum.SERVER_NOT_FOUND));
 
         boolean isMember = memberDao.lambdaQuery()
                 .eq(ServerMember::getServerId, serverId)
                 .eq(ServerMember::getUserId, uid)
-                .eq(ServerMember::getStatus, 1)
+                .eq(ServerMember::getStatus, MemberStatusEnum.ACTIVE.getStatus())
                 .exists();
 
         if (!isMember) {
@@ -59,7 +64,7 @@ public class InviteServiceImpl implements InviteService {
         invite.setUsedCount(0);
         invite.setExpireTime(expireHours != null && expireHours > 0
                 ? LocalDateTime.now().plusHours(expireHours) : null);
-        invite.setStatus(1);
+        invite.setStatus(InviteStatusEnum.ACTIVE.getStatus());
         inviteDao.save(invite);
 
         log.info("Invite created: code={}, serverId={}, maxUses={}", invite.getCode(), serverId, maxUses);
@@ -76,7 +81,7 @@ public class InviteServiceImpl implements InviteService {
                 .oneOpt()
                 .orElseThrow(() -> new BusinessException(BusinessErrorEnum.NO_PERMISSION));
 
-        if (invite.getStatus() != 1) {
+        if (!invite.getStatus().equals(InviteStatusEnum.ACTIVE.getStatus())) {
             throw new BusinessException(BusinessErrorEnum.NO_PERMISSION);
         }
 
@@ -90,7 +95,7 @@ public class InviteServiceImpl implements InviteService {
 
         Server server = serverDao.lambdaQuery()
                 .eq(Server::getId, invite.getServerId())
-                .eq(Server::getStatus, 1)
+                .eq(Server::getStatus, ServerStatusEnum.NORMAL.getStatus())
                 .oneOpt()
                 .orElseThrow(() -> new BusinessException(BusinessErrorEnum.SERVER_NOT_FOUND));
 
@@ -104,12 +109,12 @@ public class InviteServiceImpl implements InviteService {
             ServerMember member = new ServerMember();
             member.setServerId(invite.getServerId());
             member.setUserId(uid);
-            member.setStatus(1);
+            member.setStatus(MemberStatusEnum.ACTIVE.getStatus());
             memberDao.save(member);
 
             Role everyoneRole = roleDao.lambdaQuery()
                     .eq(Role::getServerId, invite.getServerId())
-                    .eq(Role::getName, "@everyone")
+                    .eq(Role::getName, ROLE_EVERYONE)
                     .one();
 
             if (everyoneRole != null) {
@@ -118,15 +123,15 @@ public class InviteServiceImpl implements InviteService {
                 memberRole.setRoleId(everyoneRole.getId());
                 memberRoleDao.save(memberRole);
             }
-        } else if (existing.getStatus() != 1) {
-            existing.setStatus(1);
+        } else if (!existing.getStatus().equals(MemberStatusEnum.ACTIVE.getStatus())) {
+            existing.setStatus(MemberStatusEnum.ACTIVE.getStatus());
             memberDao.updateById(existing);
         }
 
         // Increment usage count
         invite.setUsedCount(invite.getUsedCount() + 1);
         if (invite.getMaxUses() > 0 && invite.getUsedCount() >= invite.getMaxUses()) {
-            invite.setStatus(0);
+            invite.setStatus(InviteStatusEnum.DISABLED.getStatus());
         }
         inviteDao.updateById(invite);
 
@@ -134,7 +139,7 @@ public class InviteServiceImpl implements InviteService {
 
         int memberCount = (int) (long) memberDao.lambdaQuery()
                 .eq(ServerMember::getServerId, invite.getServerId())
-                .eq(ServerMember::getStatus, 1)
+                .eq(ServerMember::getStatus, MemberStatusEnum.ACTIVE.getStatus())
                 .count();
 
         pushService.pushToServer(invite.getServerId(), uid,

@@ -10,6 +10,7 @@ import com.community.server.dao.MemberDao;
 import com.community.server.domain.entity.Category;
 import com.community.server.domain.entity.Channel;
 import com.community.server.domain.entity.ServerMember;
+import com.community.server.domain.enums.ChannelStatusEnum;
 import com.community.server.domain.vo.CategoryVO;
 import com.community.server.domain.vo.ChannelVO;
 import com.community.server.service.ChannelService;
@@ -93,7 +94,7 @@ public class ChannelServiceImpl implements ChannelService {
 
         long channelCount = channelDao.lambdaQuery()
                 .eq(Channel::getCategoryId, categoryId)
-                .eq(Channel::getStatus, 1)
+                .eq(Channel::getStatus, ChannelStatusEnum.ACTIVE.getStatus())
                 .count();
 
         if (channelCount > 0) {
@@ -126,7 +127,7 @@ public class ChannelServiceImpl implements ChannelService {
         channel.setType(type != null ? type : 0);
         channel.setTopic(topic);
         channel.setSortOrder(0);
-        channel.setStatus(1);
+        channel.setStatus(ChannelStatusEnum.ACTIVE.getStatus());
         channelDao.save(channel);
 
         log.info("Channel created: id={}, name={}, serverId={}", channel.getId(), name, serverId);
@@ -146,7 +147,7 @@ public class ChannelServiceImpl implements ChannelService {
 
         List<Channel> channels = channelDao.lambdaQuery()
                 .eq(Channel::getServerId, serverId)
-                .eq(Channel::getStatus, 1)
+                .eq(Channel::getStatus, ChannelStatusEnum.ACTIVE.getStatus())
                 .orderByAsc(Channel::getSortOrder)
                 .list();
 
@@ -184,7 +185,7 @@ public class ChannelServiceImpl implements ChannelService {
         Channel channel = channelDao.lambdaQuery()
                 .eq(Channel::getId, channelId)
                 .eq(Channel::getServerId, serverId)
-                .eq(Channel::getStatus, 1)
+                .eq(Channel::getStatus, ChannelStatusEnum.ACTIVE.getStatus())
                 .oneOpt()
                 .orElseThrow(() -> new BusinessException(BusinessErrorEnum.CHANNEL_NOT_FOUND));
 
@@ -195,7 +196,7 @@ public class ChannelServiceImpl implements ChannelService {
     @GetMapping("/{channelId}")
     public ChannelVO getById(@PathVariable("channelId") Long channelId) {
         Channel channel = channelDao.getById(channelId);
-        if (channel == null || channel.getStatus() != 1) {
+        if (channel == null || !channel.getStatus().equals(ChannelStatusEnum.ACTIVE.getStatus())) {
             return null;
         }
         return toChannelVO(channel);
@@ -206,7 +207,7 @@ public class ChannelServiceImpl implements ChannelService {
     public List<ChannelVO> listByServerId(@PathVariable("serverId") Long serverId) {
         return channelDao.lambdaQuery()
                 .eq(Channel::getServerId, serverId)
-                .eq(Channel::getStatus, 1)
+                .eq(Channel::getStatus, ChannelStatusEnum.ACTIVE.getStatus())
                 .orderByAsc(Channel::getSortOrder)
                 .list()
                 .stream()
@@ -226,7 +227,7 @@ public class ChannelServiceImpl implements ChannelService {
         Channel channel = channelDao.lambdaQuery()
                 .eq(Channel::getId, channelId)
                 .eq(Channel::getServerId, serverId)
-                .eq(Channel::getStatus, 1)
+                .eq(Channel::getStatus, ChannelStatusEnum.ACTIVE.getStatus())
                 .oneOpt()
                 .orElseThrow(() -> new BusinessException(BusinessErrorEnum.CHANNEL_NOT_FOUND));
 
@@ -252,11 +253,11 @@ public class ChannelServiceImpl implements ChannelService {
         Channel channel = channelDao.lambdaQuery()
                 .eq(Channel::getId, channelId)
                 .eq(Channel::getServerId, serverId)
-                .eq(Channel::getStatus, 1)
+                .eq(Channel::getStatus, ChannelStatusEnum.ACTIVE.getStatus())
                 .oneOpt()
                 .orElseThrow(() -> new BusinessException(BusinessErrorEnum.CHANNEL_NOT_FOUND));
 
-        channel.setStatus(0);
+        channel.setStatus(ChannelStatusEnum.DELETED.getStatus());
         channelDao.updateById(channel);
         log.info("Channel soft-deleted: id={}, name={}, serverId={}", channelId, channel.getName(), serverId);
         pushService.pushToServer(serverId, null, WSAdapter.buildChannelDelete(channelId));
@@ -267,7 +268,7 @@ public class ChannelServiceImpl implements ChannelService {
     private List<ChannelVO> getChannelsByCategory(Long categoryId) {
         return channelDao.lambdaQuery()
                 .eq(Channel::getCategoryId, categoryId)
-                .eq(Channel::getStatus, 1)
+                .eq(Channel::getStatus, ChannelStatusEnum.ACTIVE.getStatus())
                 .orderByAsc(Channel::getSortOrder)
                 .list()
                 .stream()

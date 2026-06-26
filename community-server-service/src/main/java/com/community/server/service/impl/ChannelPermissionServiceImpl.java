@@ -91,9 +91,10 @@ public class ChannelPermissionServiceImpl implements ChannelPermissionService {
                 .orElseThrow(() -> new BusinessException(BusinessErrorEnum.NO_PERMISSION));
 
         Channel channel = channelDao.getById(channelId);
-        if (channel != null) {
-            MembershipValidator.requireServerOwner(serverDao, channel.getServerId());
+        if (channel == null) {
+            throw new BusinessException(BusinessErrorEnum.CHANNEL_NOT_FOUND);
         }
+        MembershipValidator.requireServerOwner(serverDao, channel.getServerId());
 
         channelPermissionDao.removeById(permId);
         log.info("ChannelPermission deleted: id={}, channelId={}", permId, channelId);

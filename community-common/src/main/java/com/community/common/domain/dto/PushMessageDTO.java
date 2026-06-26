@@ -14,7 +14,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PushMessageDTO {
 
-    /** "channel" | "thread" | "user" */
+    public static final String TARGET_CHANNEL = "channel";
+    public static final String TARGET_THREAD = "thread";
+    public static final String TARGET_USER = "user";
+
+    /** TARGET_CHANNEL | TARGET_THREAD | TARGET_USER */
     private String targetType;
 
     /** channelId / threadId / userId */

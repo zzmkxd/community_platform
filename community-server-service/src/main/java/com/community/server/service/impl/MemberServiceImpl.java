@@ -8,6 +8,7 @@ import com.community.common.utils.CursorUtils;
 import com.community.common.utils.RequestHolder;
 import com.community.server.dao.*;
 import com.community.server.domain.entity.*;
+import com.community.server.domain.enums.MemberStatusEnum;
 import com.community.common.enums.PermissionBit;
 import com.community.server.domain.vo.MemberVO;
 import com.community.server.domain.vo.RoleVO;
@@ -34,6 +35,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MemberServiceImpl implements MemberService {
 
+    private static final String ROLE_EVERYONE = "@everyone";
+
     private final MemberDao memberDao;
     private final UserService userService;
     private final RoleDao roleDao;
@@ -51,7 +54,7 @@ public class MemberServiceImpl implements MemberService {
         CursorPageBaseResp<ServerMember> page = CursorUtils.getCursorPageByMysql(
                 memberDao, req,
                 wrapper -> wrapper.eq(ServerMember::getServerId, serverId)
-                        .eq(ServerMember::getStatus, 1),
+                        .eq(ServerMember::getStatus, MemberStatusEnum.ACTIVE.getStatus()),
                 ServerMember::getId
         );
 
@@ -81,10 +84,10 @@ public class MemberServiceImpl implements MemberService {
                 .one();
 
         if (existing != null) {
-            if (existing.getStatus() == 1) {
+            if (existing.getStatus().equals(MemberStatusEnum.ACTIVE.getStatus())) {
                 return buildSingleMemberVO(existing);
             }
-            existing.setStatus(1);
+            existing.setStatus(MemberStatusEnum.ACTIVE.getStatus());
             memberDao.updateById(existing);
             log.info("User {} rejoined server {}", uid, serverId);
             return buildSingleMemberVO(existing);
@@ -93,12 +96,12 @@ public class MemberServiceImpl implements MemberService {
         ServerMember member = new ServerMember();
         member.setServerId(serverId);
         member.setUserId(uid);
-        member.setStatus(1);
+        member.setStatus(MemberStatusEnum.ACTIVE.getStatus());
         memberDao.save(member);
 
         Role everyoneRole = roleDao.lambdaQuery()
                 .eq(Role::getServerId, serverId)
-                .eq(Role::getName, "@everyone")
+                .eq(Role::getName, ROLE_EVERYONE)
                 .one();
 
         if (everyoneRole != null) {
@@ -125,7 +128,7 @@ public class MemberServiceImpl implements MemberService {
         ServerMember target = memberDao.lambdaQuery()
                 .eq(ServerMember::getServerId, serverId)
                 .eq(ServerMember::getUserId, userId)
-                .eq(ServerMember::getStatus, 1)
+                .eq(ServerMember::getStatus, MemberStatusEnum.ACTIVE.getStatus())
                 .oneOpt()
                 .orElseThrow(() -> new BusinessException(BusinessErrorEnum.NOT_SERVER_MEMBER));
 
@@ -134,7 +137,7 @@ public class MemberServiceImpl implements MemberService {
             if (server != null && server.getOwnerId().equals(uid)) {
                 throw new BusinessException(BusinessErrorEnum.NO_PERMISSION);
             }
-            target.setStatus(3);
+            target.setStatus(MemberStatusEnum.LEFT.getStatus());
             memberDao.updateById(target);
             log.info("User {} left server {}", userId, serverId);
             pushService.pushToServer(serverId, userId, WSAdapter.buildMemberLeave(serverId, userId));
@@ -142,7 +145,7 @@ public class MemberServiceImpl implements MemberService {
             if (!permissionService.checkPermission(serverId, uid, null, PermissionBit.KICK_MEMBERS.getBit())) {
                 throw new BusinessException(BusinessErrorEnum.NO_PERMISSION);
             }
-            target.setStatus(2);
+            target.setStatus(MemberStatusEnum.KICKED.getStatus());
             memberDao.updateById(target);
             log.info("User {} was kicked from server {} by {}", userId, serverId, uid);
             pushService.pushToServer(serverId, userId, WSAdapter.buildMemberKick(serverId, userId));
@@ -159,7 +162,7 @@ public class MemberServiceImpl implements MemberService {
         ServerMember member = memberDao.lambdaQuery()
                 .eq(ServerMember::getServerId, serverId)
                 .eq(ServerMember::getUserId, uid)
-                .eq(ServerMember::getStatus, 1)
+                .eq(ServerMember::getStatus, MemberStatusEnum.ACTIVE.getStatus())
                 .oneOpt()
                 .orElseThrow(() -> new BusinessException(BusinessErrorEnum.NOT_SERVER_MEMBER));
 
@@ -176,7 +179,7 @@ public class MemberServiceImpl implements MemberService {
         return memberDao.lambdaQuery()
                 .select(ServerMember::getUserId)
                 .eq(ServerMember::getServerId, serverId)
-                .eq(ServerMember::getStatus, 1)
+                .eq(ServerMember::getStatus, MemberStatusEnum.ACTIVE.getStatus())
                 .list()
                 .stream()
                 .map(ServerMember::getUserId)
@@ -204,7 +207,7 @@ public class MemberServiceImpl implements MemberService {
         boolean isMember = memberDao.lambdaQuery()
                 .eq(ServerMember::getServerId, serverId)
                 .eq(ServerMember::getUserId, newOwnerId)
-                .eq(ServerMember::getStatus, 1)
+                .eq(ServerMember::getStatus, MemberStatusEnum.ACTIVE.getStatus())
                 .exists();
 
         if (!isMember) {
