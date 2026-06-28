@@ -39,3 +39,11 @@ docker-compose.override.yml
 
 # JVM crash logs
 hs_err_pid*
+
+.mybatis
+.claude
+
+handoff.md
+handoff-es.md
+migration-doc.md
+es-integration-doc.md

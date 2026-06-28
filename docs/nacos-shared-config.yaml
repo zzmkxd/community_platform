@@ -1,0 +1,77 @@
+# ============================================================
+# Nacos 共享配置 — community-platform-common.yaml
+# 在 Nacos 控制台粘贴: 配置管理 → 配置列表 → 新建配置
+#   Data ID: community-platform-common.yaml
+#   Group:   DEFAULT_GROUP
+#   配置格式: YAML
+#
+# ===== 本地开发注意 =====
+# 本模板使用 ${community.xxx} 占位符，仅 Docker 模式自动解析（env vars）。
+# 本地 IDE 启动时需在 Nacos 中替换为硬编码值:
+#   community.mysql.ip=localhost       community.mysql.port=3308
+#   community.redis.host=localhost     community.redis.port=6381
+#   community.redis.password=123456    community.jwt.secret=<any-key>
+#   rocketmq.name-server=localhost:9878
+#   community.minio.endpoint=http://localhost:9004
+# 同时需在末尾追加自定义属性块 (community.redis/jwt)，供 @Value 注入。
+# ============================================================
+
+logging:
+  level:
+    org.springframework.web: INFO
+    com.community: DEBUG
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/**/*.xml
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+    map-underscore-to-camel-case: true
+
+spring:
+  datasource:
+    url: jdbc:mysql://${community.mysql.ip}:${community.mysql.port}/${community.mysql.db}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&connectionCollation=utf8mb4_unicode_ci
+    username: ${community.mysql.username}
+    password: ${community.mysql.password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 3
+      maximum-pool-size: 10
+      max-lifetime: 30000
+      connection-test-query: SELECT 1
+  data:
+    redis:
+      host: ${community.redis.host}
+      port: ${community.redis.port}
+      database: 0
+      timeout: 1800000
+      password: ${community.redis.password}
+  jackson:
+    serialization:
+      write-dates-as-timestamps: true
+  elasticsearch:
+    uris: ${community.es.uris}
+
+rocketmq:
+  name-server: ${rocketmq.name-server}
+  producer:
+    group: community-producer
+    send-message-timeout: 3000
+    compress-message-body-threshold: 4096
+    max-message-size: 4194304
+    retry-times-when-send-failed: 2
+    retry-times-when-send-async-failed: 2
+    retry-next-server: false
+  consumer:
+    group: community-consumer
+
+oss:
+  enabled: true
+  type: minio
+  endpoint: ${community.minio.endpoint}
+  access-key: ${community.minio.access-key}
+  secret-key: ${community.minio.secret-key}
+  bucket-name: ${community.minio.bucket}
+
+community:
+  jwt:
+    secret: ${community.jwt.secret}
