@@ -51,7 +51,7 @@ docker compose down 2>nul
 echo   Docker containers cleaned.
 
 set "PORT_CONFLICT=0"
-for %%p in (8080 8081 8082 8083 8084 8091 3308 6381 8848 9200 9876) do (
+for %%p in (8080 8081 8082 8083 8084 8091 3308 6381 8848 9200 9878 10911) do (
     netstat -ano 2>nul | findstr ":%%p " | findstr "LISTENING" >nul
     if !ERRORLEVEL! EQU 0 (
         echo   WARNING: Port %%p occupied! Free it before starting.
@@ -72,7 +72,7 @@ REM ============================================================
 echo.
 echo [2/5] Building application JARs (mvn package -DskipTests)...
 
-call mvn package -DskipTests -B -q
+call mvn package -DskipTests -B
 if %ERRORLEVEL% NEQ 0 (
     echo   ERROR: Maven build failed! Run without -q to see details:
     echo          mvn package -DskipTests
@@ -82,10 +82,10 @@ if %ERRORLEVEL% NEQ 0 (
 echo   Build: SUCCESS
 
 REM ============================================================
-REM  Step 3: Build Docker images (all at once, only if needed)
+REM  Step 3: Build Docker images
 REM ============================================================
 echo.
-echo [3/5] Building Docker images (skipped if cached)...
+echo [3/5] Building Docker images...
 
 docker compose build 2>&1
 if %ERRORLEVEL% NEQ 0 (
@@ -110,9 +110,9 @@ REM ============================================================
 echo.
 echo [4/5] Starting services in waves (to avoid disk I/O spike)...
 
-REM --- Wave A: Infrastructure (6 containers) ---
+REM --- Wave A: Infrastructure (only start if not already running) ---
 echo   Wave A: Infrastructure (MySQL Redis Nacos MinIO ES RocketMQ)...
-docker compose up -d --no-build mysql redis nacos minio elasticsearch rocketmq-namesrv rocketmq-broker
+docker compose up -d --no-recreate mysql redis nacos minio elasticsearch rocketmq-namesrv rocketmq-broker
 if %ERRORLEVEL% NEQ 0 (
     echo   ERROR: Infrastructure startup failed!
     pause
@@ -128,9 +128,9 @@ echo   Wave B: Publishing Nacos shared config...
 docker compose up -d --no-build nacos-init
 REM nacos-init exits after publishing, that's normal
 
-REM --- Wave C: Application services (6 containers) ---
+REM --- Wave C: Application services — --build 强制重建，确保新 JAR 进容器 ---
 echo   Wave C: Application services (Gateway ^& 5 microservices ^& WebSocket)...
-docker compose up -d --no-build
+docker compose up -d --build gateway user-service server-service message-service file-service websocket
 if %ERRORLEVEL% NEQ 0 (
     echo   ERROR: Application startup failed!
     pause
@@ -144,13 +144,16 @@ echo.
 echo [5/5] Waiting for all services to be healthy (approx 60s)...
 timeout /t 15 /nobreak >nul
 
-echo   Checking Gateway health...
-curl -s -o nul -w "%%{http_code}" http://localhost:8080/actuator/health 2>nul | findstr "200" >nul
+echo   Checking Nacos reachability...
+curl -s -o nul -w "%%{http_code}" http://localhost:8848/nacos 2>nul | findstr "200 302" >nul
 if %ERRORLEVEL% EQU 0 (
-    echo   Gateway: HEALTHY
+    echo   Nacos: REACHABLE
 ) else (
-    echo   Gateway: NOT READY YET (run: docker compose logs gateway --tail 30)
+    echo   Nacos: NOT READY YET (run: docker compose logs nacos --tail 30)
 )
+echo   Gateway status:
+docker inspect -f "{{.State.Status}}" community-gateway 2>nul
+echo   查看各服务日志: docker compose logs [service] --tail 30
 
 echo.
 echo ========================================

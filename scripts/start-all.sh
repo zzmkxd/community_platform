@@ -30,7 +30,7 @@ echo "  Docker containers cleaned."
 
 # Check for port conflicts
 PORT_CONFLICT=0
-for port in 8080 8081 8082 8083 8084 8091 3308 6381 8848 9200 9876; do
+for port in 8080 8081 8082 8083 8084 8091 3308 6381 8848 9200 9878 10911; do
     if ss -tlnp 2>/dev/null | grep -q ":$port " || netstat -tlnp 2>/dev/null | grep -q ":$port "; then
         echo "  WARNING: Port $port occupied! Free it before starting."
         PORT_CONFLICT=1
@@ -44,12 +44,13 @@ fi
 # ---- Build ----
 echo ""
 echo "[2/5] Building application JARs..."
-mvn package -DskipTests -B -q
+mvn package -DskipTests -B
 echo "  Build: SUCCESS"
 
-# ---- Build Docker images ----
+# ---- Build Docker images (force rebuild JAR layer, no cache for COPY) ----
 echo ""
-echo "[3/5] Building Docker images (skipped if cached)..."
+echo "[3/5] Building Docker images..."
+# ponytail: --build 模式下启动时强制重建；这里先 build 一次，Wave C 再 --build 确保新 JAR 进镜像
 if ! docker compose build 2>&1; then
     echo ""
     echo "  ============================================================"
@@ -66,9 +67,9 @@ echo "  Images: READY"
 echo ""
 echo "[4/5] Starting services in waves (to avoid disk I/O spike)..."
 
-# Wave A: Infrastructure
+# Wave A: Infrastructure (only start if not already running, don't restart needlessly)
 echo "  Wave A: Infrastructure (MySQL Redis Nacos MinIO ES RocketMQ)..."
-docker compose up -d --no-build mysql redis nacos minio elasticsearch rocketmq-namesrv rocketmq-broker
+docker compose up -d --no-recreate mysql redis nacos minio elasticsearch rocketmq-namesrv rocketmq-broker
 echo "  Waiting 30s for infrastructure to stabilize..."
 sleep 30
 
@@ -76,19 +77,22 @@ sleep 30
 echo "  Wave B: Publishing Nacos shared config..."
 docker compose up -d --no-build nacos-init
 
-# Wave C: Application services
+# Wave C: Application services — --build 强制重建镜像，确保新 JAR 进容器（修复缓存导致旧代码问题）
 echo "  Wave C: Application services (Gateway & 5 microservices & WebSocket)..."
-docker compose up -d --no-build
+docker compose up -d --build gateway user-service server-service message-service file-service websocket
 
 # ---- Health check ----
 echo ""
 echo "[5/5] Waiting for services to be healthy..."
 sleep 15
-if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health 2>/dev/null | grep -q "200"; then
-    echo "  Gateway: HEALTHY"
+# ponytail: gateway 无 actuator，用 Nacos 控制台可达性 + 容器状态代替健康检查
+if curl -s -o /dev/null -w "%{http_code}" http://localhost:8848/nacos 2>/dev/null | grep -q "200\|302"; then
+    echo "  Nacos: REACHABLE"
 else
-    echo "  Gateway: NOT READY YET (check: docker compose logs gateway --tail 30)"
+    echo "  Nacos: NOT READY YET (check: docker compose logs nacos --tail 30)"
 fi
+echo "  Gateway 状态: $(docker inspect -f '{{.State.Status}}' community-gateway 2>/dev/null || echo 'not found')"
+echo "  查看各服务日志: docker compose logs -f [service] --tail 30"
 
 echo ""
 echo "========================================"
