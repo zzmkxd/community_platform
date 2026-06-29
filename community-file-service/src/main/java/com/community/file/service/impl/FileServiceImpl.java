@@ -68,7 +68,7 @@ public class FileServiceImpl implements FileService {
             vo.setFileName(fileName);
             vo.setFileSize(fileSize);
             vo.setMimeType(mimeType);
-            vo.setDownloadUrl(uploadUrl);
+            vo.setDownloadUrl(toPublicUrl(uploadUrl));
             return vo;
         } catch (Exception e) {
             log.error("Failed to generate presigned upload URL for {}", objectKey, e);
@@ -148,7 +148,7 @@ public class FileServiceImpl implements FileService {
         }
         String preview = getContentTypePreview(file.getMimeType());
         try {
-            return minioClient.getPresignedObjectUrl(
+            String downloadUrl = minioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
                             .bucket(ossProperties.getBucketName())
@@ -159,6 +159,7 @@ public class FileServiceImpl implements FileService {
                                     preview + "; filename=\"" + file.getFileName() + "\""))
                             .build()
             );
+            return toPublicUrl(downloadUrl);
         } catch (Exception e) {
             log.error("Failed to generate download URL for {}", file.getObjectKey(), e);
             throw new BusinessException(BusinessErrorEnum.FILE_UPLOAD_FAILED);
@@ -182,7 +183,7 @@ public class FileServiceImpl implements FileService {
 
     private String generateDownloadUrl(FileAttachment file) {
         try {
-            return minioClient.getPresignedObjectUrl(
+            String url = minioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
                             .bucket(ossProperties.getBucketName())
@@ -194,12 +195,25 @@ public class FileServiceImpl implements FileService {
                                             + "; filename=\"" + file.getFileName() + "\""))
                             .build()
             );
+            return toPublicUrl(url);
         } catch (Exception e) {
             log.error("Failed to generate download URL for {}", file.getObjectKey(), e);
             throw new BusinessException(BusinessErrorEnum.FILE_UPLOAD_FAILED);
         }
     }
 
+    /**
+     * 将 presigned URL 中的内部端点替换为外部可访问端点。
+     * 例如 http://minio:9000/bucket/... → http://localhost:9004/bucket/...
+     */
+    private String toPublicUrl(String presignedUrl) {
+        String internal = ossProperties.getEndpoint();
+        String external = ossProperties.getEffectivePublicEndpoint();
+        if (internal == null || external == null || internal.equals(external)) {
+            return presignedUrl;
+        }
+        return presignedUrl.replace(internal, external);
+    }
     private String getContentTypePreview(String mimeType) {
         if (mimeType == null) return "attachment";
         if (mimeType.startsWith("image/") || mimeType.startsWith("video/")

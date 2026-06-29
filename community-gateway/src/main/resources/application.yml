@@ -75,6 +75,10 @@ spring:
           uri: lb://community-message-service
           predicates:
             - Path=/api/v1/channels/*/threads/**
+        - id: message-threads-standalone
+          uri: lb://community-message-service
+          predicates:
+            - Path=/api/v1/threads/**
         - id: message-reactions
           uri: lb://community-message-service
           predicates:
@@ -85,6 +89,10 @@ spring:
           uri: lb://community-file-service
           predicates:
             - Path=/api/v1/upload/**
+        - id: file-download
+          uri: lb://community-file-service
+          predicates:
+            - Path=/api/v1/files/**
 
         # ---- server-service (8082) ----
         # ponytail: /servers/** 在最下面，作为兜底匹配
