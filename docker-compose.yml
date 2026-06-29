@@ -164,11 +164,11 @@ services:
     image: apache/rocketmq:5.1.4
     container_name: community-rocketmq-broker
     environment:
-      JAVA_OPT: "-Xms256m -Xmx512m -server -XX:+UseG1GC"
+      JAVA_OPT: "-Xms256m -Xmx512m -server -XX:+UseG1GC -XX:MaxMetaspaceSize=128m -XX:MaxDirectMemorySize=256m -XX:ReservedCodeCacheSize=64m"
     depends_on:
       - rocketmq-namesrv
     command: sh mqbroker -n rocketmq-namesrv:9876 -c /home/rocketmq/conf/broker.conf
-    mem_limit: 1g
+    mem_limit: 1.5g
     ports:
       - "10919:10909"
       - "10911:10911"
