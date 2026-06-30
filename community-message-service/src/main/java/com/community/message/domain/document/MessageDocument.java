@@ -39,11 +39,13 @@ public class MessageDocument {
     private Integer status;
 
     // ponytail: String over LocalDateTime — ElasticsearchDateConverter writes date-only when
-    // Jackson lacks JavaTimeModule; manual format bypasses the converter chain entirely
-    @Field(type = FieldType.Date, pattern = "uuuu-MM-dd HH:mm:ss")
+    // Jackson lacks JavaTimeModule; manual format bypasses the converter chain entirely.
+    // MUST use ISO 8601 format (T separator) — ES strict_date_optional_time rejects space-separated dates
+    // which causes document_parsing_exception and silently drops messages from the index.
+    @Field(type = FieldType.Date, pattern = "uuuu-MM-dd'T'HH:mm:ss")
     private String createTime;
 
-    private static final DateTimeFormatter ES_DTF = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter ES_DTF = DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss");
 
     public static MessageDocument from(com.community.message.domain.entity.Message msg, Long serverId) {
         MessageDocument doc = new MessageDocument();

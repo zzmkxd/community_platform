@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/servers/{serverId}/search")
 @RequiredArgsConstructor
@@ -30,5 +32,12 @@ public class SearchController {
             @RequestParam(required = false) String to,
             @RequestParam(required = false) Integer page) {
         return ApiResult.success(searchService.search(serverId, q, channelId, from, to, page));
+    }
+
+    @Operation(summary = "重建服务器消息搜索索引（从 MySQL 全量同步到 ES）")
+    @PostMapping("/reindex")
+    public ApiResult<Map<String, Object>> reindex(@PathVariable Long serverId) {
+        int count = searchService.reindex(serverId);
+        return ApiResult.success(Map.of("indexedMessages", count));
     }
 }

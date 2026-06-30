@@ -105,14 +105,15 @@ public class MsgSendConsumer implements RocketMQListener<String> {
         try {
             ChannelVO channel = channelService.getById(channelId);
             if (channel == null) {
-                log.warn("ES index skipped: channel not found, channelId={}, msgId={}", channelId, message.getId());
+                log.error("ES index SKIPPED — channel not found! channelId={}, msgId={}", channelId, message.getId());
                 return;
             }
             MessageDocument doc = MessageDocument.from(message, channel.getServerId());
             esOps.save(doc);
             log.debug("ES indexed: msgId={}, serverId={}", message.getId(), channel.getServerId());
         } catch (Exception e) {
-            log.warn("ES index failed for msgId={}: {}", message.getId(), e.getMessage());
+            log.error("ES index FAILED (async consumer) — search will miss this message! msgId={}, channelId={}, error={}",
+                    message.getId(), channelId, e.toString());
         }
     }
 }

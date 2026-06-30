@@ -107,6 +107,10 @@ public class MessageServiceImpl implements MessageService {
         UserVO user = userService.getUserById(uid);
         MessageVO vo = MessageAdapter.buildMessageVO(saved, user, Collections.emptyList(), thread);
         vo.setAttachments(buildAttachments(saved));
+
+        // 同步写入 ES，保证消息立即可被搜索（不依赖异步 RocketMQ 消费者）
+        syncEsIndex(saved, channel.getServerId());
+
         return vo;
     }
 
@@ -258,7 +262,21 @@ public class MessageServiceImpl implements MessageService {
         return MessageAdapter.buildAttachmentMap(messages, fileMap);
     }
 
-    // ponytail: ES sync wrapped in try-catch — search correctness is secondary to message persistence
+    // ponytail: ES sync wrapped in try-catch — search correctness is secondary to message persistence.
+    // Use ERROR level so operators can see indexing failures in logs and take action (restart ES, rebuild index, etc.)
+
+    /** 同步写入 ES 索引（消息发送时调用，确保消息立即可被搜索） */
+    private void syncEsIndex(Message message, Long serverId) {
+        try {
+            MessageDocument doc = MessageDocument.from(message, serverId);
+            esOps.save(doc);
+            log.info("ES indexed: msgId={}, serverId={}", message.getId(), serverId);
+        } catch (Exception e) {
+            log.error("ES index FAILED — search will miss this message! msgId={}, serverId={}, error={}",
+                    message.getId(), serverId, e.toString());
+        }
+    }
+
     private void syncEsUpdate(Message message) {
         try {
             ChannelVO channel = channelService.getById(message.getChannelId());
@@ -266,7 +284,8 @@ public class MessageServiceImpl implements MessageService {
                 esOps.save(MessageDocument.from(message, channel.getServerId()));
             }
         } catch (Exception e) {
-            log.warn("ES sync update failed for msgId={}: {}", message.getId(), e.getMessage());
+            log.error("ES sync update FAILED for msgId={}, channelId={}, error={}",
+                    message.getId(), message.getChannelId(), e.toString());
         }
     }
 
@@ -276,7 +295,7 @@ public class MessageServiceImpl implements MessageService {
             doc.setId(msgId);
             esOps.delete(doc);
         } catch (Exception e) {
-            log.warn("ES sync delete failed for msgId={}: {}", msgId, e.getMessage());
+            log.error("ES sync delete FAILED for msgId={}, error={}", msgId, e.toString());
         }
     }
 }
