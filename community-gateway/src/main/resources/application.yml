@@ -84,6 +84,17 @@ spring:
           predicates:
             - Path=/api/v1/messages/*/reactions/**
 
+        # ---- server-service (8082) ----
+        # 必须在 file-service 路由之前，否则 Nacos 动态路由会干扰
+        - id: server-api
+          uri: lb://community-server-service
+          predicates:
+            - Path=/api/v1/servers/**
+        - id: server-channel-permissions
+          uri: lb://community-server-service
+          predicates:
+            - Path=/api/v1/channels/*/permissions/**
+
         # ---- file-service (8084) ----
         - id: file-upload
           uri: lb://community-file-service
@@ -93,17 +104,6 @@ spring:
           uri: lb://community-file-service
           predicates:
             - Path=/api/v1/files/**
-
-        # ---- server-service (8082) ----
-        # ponytail: /servers/** 在最下面，作为兜底匹配
-        - id: server-api
-          uri: lb://community-server-service
-          predicates:
-            - Path=/api/v1/servers/**
-        - id: server-channel-permissions
-          uri: lb://community-server-service
-          predicates:
-            - Path=/api/v1/channels/*/permissions/**
 
 springdoc:
   api-docs:

@@ -31,6 +31,12 @@
             <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
         </dependency>
 
+        <!-- MinIO 对象存储（自定义表情上传） -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+        </dependency>
+
         <!-- MySQL（Dao 需要） -->
         <dependency>
             <groupId>mysql</groupId>

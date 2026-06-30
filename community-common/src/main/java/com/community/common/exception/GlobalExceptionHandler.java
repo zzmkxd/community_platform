@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.validation.BindException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -39,6 +40,18 @@ public class GlobalExceptionHandler {
                 errorMsg.append(x.getField()).append(x.getDefaultMessage()).append(","));
         String message = errorMsg.toString();
         log.info("validation parameters error! reason: {}", message);
+        return ApiResult.fail(CommonErrorEnum.PARAM_VALID.getErrorCode(),
+                message.substring(0, message.length() - 1));
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(value = ConstraintViolationException.class)
+    public ApiResult constraintViolationExceptionHandler(ConstraintViolationException e) {
+        StringBuilder errorMsg = new StringBuilder();
+        e.getConstraintViolations().forEach(v ->
+                errorMsg.append(v.getPropertyPath()).append(v.getMessage()).append(","));
+        String message = errorMsg.toString();
+        log.info("constraint violation! reason: {}", message);
         return ApiResult.fail(CommonErrorEnum.PARAM_VALID.getErrorCode(),
                 message.substring(0, message.length() - 1));
     }

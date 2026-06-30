@@ -1,24 +1,31 @@
 package com.community.server.service.impl;
 
+import com.community.common.config.OssProperties;
 import com.community.common.exception.BusinessErrorEnum;
 import com.community.common.exception.BusinessException;
+import com.community.common.exception.CommonErrorEnum;
 import com.community.common.utils.RequestHolder;
 import com.community.server.dao.EmojiDao;
 import com.community.server.dao.MemberDao;
 import com.community.server.domain.entity.Emoji;
 import com.community.server.domain.entity.Server;
-import com.community.server.domain.entity.ServerMember;
 import com.community.server.domain.vo.EmojiVO;
 import com.community.server.dao.ServerDao;
 import com.community.server.service.EmojiService;
 import com.community.server.service.MembershipValidator;
+import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.MinioClient;
+import io.minio.PutObjectArgs;
+import io.minio.http.Method;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayInputStream;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -28,6 +35,8 @@ public class EmojiServiceImpl implements EmojiService {
     private final EmojiDao emojiDao;
     private final ServerDao serverDao;
     private final MemberDao memberDao;
+    private final MinioClient minioClient;
+    private final OssProperties ossProperties;
 
     @Override
     @Transactional
@@ -36,12 +45,28 @@ public class EmojiServiceImpl implements EmojiService {
 
         MembershipValidator.requireMember(memberDao, serverId);
 
+        // 仅存储 objectKey，对外 URL 由 toVO() 动态生成预签名 URL
         String objectKey = "emoji/" + serverId + "/" + UUID.randomUUID().toString().substring(0, 8) + "_" + name;
+
+        try {
+            String contentType = detectContentType(imageBytes);
+            minioClient.putObject(PutObjectArgs.builder()
+                    .bucket(ossProperties.getBucketName())
+                    .object(objectKey)
+                    .stream(new ByteArrayInputStream(imageBytes), imageBytes.length, -1)
+                    .contentType(contentType)
+                    .build());
+            log.info("Emoji image uploaded to MinIO: bucket={}, object={}, size={}",
+                    ossProperties.getBucketName(), objectKey, imageBytes.length);
+        } catch (Exception e) {
+            log.error("Failed to upload emoji image to MinIO: object={}", objectKey, e);
+            throw new BusinessException(CommonErrorEnum.SYSTEM_ERROR);
+        }
 
         Emoji emoji = new Emoji();
         emoji.setServerId(serverId);
         emoji.setName(name);
-        emoji.setUrl(objectKey);
+        emoji.setUrl(objectKey); // 存 objectKey，不是完整 URL
         emoji.setCreatorId(uid);
         emojiDao.save(emoji);
 
@@ -87,8 +112,62 @@ public class EmojiServiceImpl implements EmojiService {
         vo.setId(emoji.getId());
         vo.setServerId(emoji.getServerId());
         vo.setName(emoji.getName());
-        vo.setUrl(emoji.getUrl());
+        vo.setUrl(toPublicUrl(emoji.getUrl()));
         vo.setCreatorId(emoji.getCreatorId());
         return vo;
+    }
+
+    /**
+     * 将 objectKey 转换为浏览器可访问的 URL。
+     * 优先使用预签名 URL（支持私有 bucket），失败时回退到 publicEndpoint 直链。
+     * 并将内部 MinIO 端点（如 http://minio:9000）替换为外部可访问端点（如 http://localhost:9004）。
+     */
+    private String toPublicUrl(String objectKey) {
+        if (objectKey == null) return null;
+        // 已经是完整 HTTP URL 则直接返回（兼容旧数据），但仍需替换端点
+        if (objectKey.startsWith("http://") || objectKey.startsWith("https://")) {
+            return replaceEndpoint(objectKey);
+        }
+        try {
+            String presignedUrl = minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(ossProperties.getBucketName())
+                            .object(objectKey)
+                            .expiry(7, TimeUnit.DAYS)
+                            .build());
+            return replaceEndpoint(presignedUrl);
+        } catch (Exception e) {
+            log.error("Failed to generate presigned URL for object: {}", objectKey, e);
+            // 回退：拼接 publicEndpoint + bucket + objectKey
+            return ossProperties.getEffectivePublicEndpoint()
+                    + "/" + ossProperties.getBucketName() + "/" + objectKey;
+        }
+    }
+
+    /**
+     * 将 URL 中的内部 MinIO 端点替换为外部可访问端点。
+     * 例如 http://minio:9000/bucket/... → http://localhost:9004/bucket/...
+     */
+    private String replaceEndpoint(String url) {
+        String internal = ossProperties.getEndpoint();
+        String external = ossProperties.getEffectivePublicEndpoint();
+        if (internal == null || external == null || internal.equals(external)) {
+            return url;
+        }
+        return url.replace(internal, external);
+    }
+
+    private String detectContentType(byte[] bytes) {
+        if (bytes.length < 4) return "application/octet-stream";
+        int b0 = bytes[0] & 0xFF;
+        int b1 = bytes[1] & 0xFF;
+        int b2 = bytes[2] & 0xFF;
+        int b3 = bytes[3] & 0xFF;
+        if (b0 == 0xFF && b1 == 0xD8) return "image/jpeg";
+        if (b0 == 0x89 && b1 == 0x50 && b2 == 0x4E && b3 == 0x47) return "image/png";
+        if (b0 == 0x47 && b1 == 0x49 && b2 == 0x46) return "image/gif";
+        if (b0 == 0x52 && b1 == 0x49 && b2 == 0x46 && b3 == 0x46) return "image/webp";
+        return "application/octet-stream";
     }
 }
