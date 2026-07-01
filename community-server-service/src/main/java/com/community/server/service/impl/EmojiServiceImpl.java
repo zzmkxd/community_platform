@@ -17,8 +17,8 @@ import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.http.Method;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,14 +29,26 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class EmojiServiceImpl implements EmojiService {
 
     private final EmojiDao emojiDao;
     private final ServerDao serverDao;
     private final MemberDao memberDao;
     private final MinioClient minioClient;
+    private final MinioClient minioPresignedClient;
     private final OssProperties ossProperties;
+
+    public EmojiServiceImpl(EmojiDao emojiDao, ServerDao serverDao, MemberDao memberDao,
+                            MinioClient minioClient,
+                            @Qualifier("minioPresignedClient") MinioClient minioPresignedClient,
+                            OssProperties ossProperties) {
+        this.emojiDao = emojiDao;
+        this.serverDao = serverDao;
+        this.memberDao = memberDao;
+        this.minioClient = minioClient;
+        this.minioPresignedClient = minioPresignedClient;
+        this.ossProperties = ossProperties;
+    }
 
     @Override
     @Transactional
@@ -120,42 +132,27 @@ public class EmojiServiceImpl implements EmojiService {
     /**
      * 将 objectKey 转换为浏览器可访问的 URL。
      * 优先使用预签名 URL（支持私有 bucket），失败时回退到 publicEndpoint 直链。
-     * 并将内部 MinIO 端点（如 http://minio:9000）替换为外部可访问端点（如 http://localhost:9004）。
+     * 预签名 URL 通过外部 endpoint 的 client 直接生成，无需端点替换。
      */
     private String toPublicUrl(String objectKey) {
         if (objectKey == null) return null;
-        // 已经是完整 HTTP URL 则直接返回（兼容旧数据），但仍需替换端点
+        // 已经是完整 HTTP URL 则直接返回（兼容旧数据）
         if (objectKey.startsWith("http://") || objectKey.startsWith("https://")) {
-            return replaceEndpoint(objectKey);
+            return objectKey;
         }
         try {
-            String presignedUrl = minioClient.getPresignedObjectUrl(
+            return minioPresignedClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
                             .bucket(ossProperties.getBucketName())
                             .object(objectKey)
                             .expiry(7, TimeUnit.DAYS)
                             .build());
-            return replaceEndpoint(presignedUrl);
         } catch (Exception e) {
             log.error("Failed to generate presigned URL for object: {}", objectKey, e);
-            // 回退：拼接 publicEndpoint + bucket + objectKey
             return ossProperties.getEffectivePublicEndpoint()
                     + "/" + ossProperties.getBucketName() + "/" + objectKey;
         }
-    }
-
-    /**
-     * 将 URL 中的内部 MinIO 端点替换为外部可访问端点。
-     * 例如 http://minio:9000/bucket/... → http://localhost:9004/bucket/...
-     */
-    private String replaceEndpoint(String url) {
-        String internal = ossProperties.getEndpoint();
-        String external = ossProperties.getEffectivePublicEndpoint();
-        if (internal == null || external == null || internal.equals(external)) {
-            return url;
-        }
-        return url.replace(internal, external);
     }
 
     private String detectContentType(byte[] bytes) {
