@@ -261,8 +261,8 @@ services:
     environment:
       <<: *common-env
       SPRING_PROFILES_ACTIVE: docker
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m"
-    mem_limit: 384m
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m"
+    mem_limit: 512m
     depends_on:
       nacos-init:
         condition: service_completed_successfully
