@@ -62,6 +62,9 @@ public class MessageServiceImpl implements MessageService {
     @Transactional
     public MessageVO sendMessage(Long channelId, Long threadId, String content, Integer msgType,
             Long replyMsgId, List<Long> fileIds) {
+        if (RequestHolder.get() == null) {
+            throw new BusinessException(BusinessErrorEnum.UNAUTHORIZED);
+        }
         Long uid = RequestHolder.get().getUid();
 
         ChannelVO channel = channelService.getById(channelId);
@@ -156,6 +159,9 @@ public class MessageServiceImpl implements MessageService {
     @Override
     @Transactional
     public MessageVO editMessage(Long channelId, Long msgId, String content) {
+        if (RequestHolder.get() == null) {
+            throw new BusinessException(BusinessErrorEnum.UNAUTHORIZED);
+        }
         Long uid = RequestHolder.get().getUid();
 
         Message message = messageDao.lambdaQuery()
@@ -185,6 +191,9 @@ public class MessageServiceImpl implements MessageService {
     @Override
     @Transactional
     public void deleteMessage(Long channelId, Long msgId) {
+        if (RequestHolder.get() == null) {
+            throw new BusinessException(BusinessErrorEnum.UNAUTHORIZED);
+        }
         Long uid = RequestHolder.get().getUid();
 
         Message message = messageDao.lambdaQuery()

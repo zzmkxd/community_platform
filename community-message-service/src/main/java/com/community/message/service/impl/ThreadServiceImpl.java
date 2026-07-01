@@ -50,6 +50,9 @@ public class ThreadServiceImpl implements ThreadService {
     @Override
     @Transactional
     public ThreadVO createThread(Long channelId, Long rootMsgId, String name) {
+        if (RequestHolder.get() == null) {
+            throw new BusinessException(BusinessErrorEnum.UNAUTHORIZED);
+        }
         Long uid = RequestHolder.get().getUid();
 
         ChannelVO channel = channelService.getById(channelId);
