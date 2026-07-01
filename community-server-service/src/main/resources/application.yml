@@ -1,0 +1,27 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: community-server-service
+  profiles:
+    active: local
+  config:
+    import: optional:nacos:community-platform-common.yaml
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        username: nacos
+        password: nacos
+      config:
+        server-addr: localhost:8848
+        username: nacos
+        password: nacos
+        file-extension: yaml
+        shared-configs:
+          - data-id: community-platform-common.yaml
+            group: DEFAULT_GROUP
+            refresh: true
+    openfeign:
+      lazy-attributes-resolution: true

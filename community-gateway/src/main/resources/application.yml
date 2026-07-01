@@ -1,0 +1,122 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: community-gateway
+  profiles:
+    active: local
+  config:
+    import: optional:nacos:community-platform-common.yaml
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        username: nacos
+        password: nacos
+      config:
+        server-addr: localhost:8848
+        username: nacos
+        password: nacos
+        file-extension: yaml
+        shared-configs:
+          - data-id: community-platform-common.yaml
+            group: DEFAULT_GROUP
+            refresh: true
+    gateway:
+      routes:
+        # ---- OpenAPI 文档聚合（代理到各服务 /v3/api-docs） ----
+        - id: user-api-docs
+          uri: lb://community-user-service
+          predicates:
+            - Path=/v3/api-docs/user-service
+          filters:
+            - RewritePath=/v3/api-docs/user-service, /v3/api-docs
+        - id: server-api-docs
+          uri: lb://community-server-service
+          predicates:
+            - Path=/v3/api-docs/server-service
+          filters:
+            - RewritePath=/v3/api-docs/server-service, /v3/api-docs
+        - id: message-api-docs
+          uri: lb://community-message-service
+          predicates:
+            - Path=/v3/api-docs/message-service
+          filters:
+            - RewritePath=/v3/api-docs/message-service, /v3/api-docs
+        - id: file-api-docs
+          uri: lb://community-file-service
+          predicates:
+            - Path=/v3/api-docs/file-service
+          filters:
+            - RewritePath=/v3/api-docs/file-service, /v3/api-docs
+
+        # ---- user-service (8081) ----
+        - id: user-auth
+          uri: lb://community-user-service
+          predicates:
+            - Path=/api/v1/auth/**
+        - id: user-users
+          uri: lb://community-user-service
+          predicates:
+            - Path=/api/v1/users/**
+
+        # ---- message-service (8083) ----
+        # ponytail: /servers/*/search 必须排在 /servers/** 之前，否则被 server-service 吞掉
+        - id: message-search
+          uri: lb://community-message-service
+          predicates:
+            - Path=/api/v1/servers/*/search/**
+        - id: message-channels
+          uri: lb://community-message-service
+          predicates:
+            - Path=/api/v1/channels/*/messages/**
+        - id: message-threads
+          uri: lb://community-message-service
+          predicates:
+            - Path=/api/v1/channels/*/threads/**
+        - id: message-threads-standalone
+          uri: lb://community-message-service
+          predicates:
+            - Path=/api/v1/threads/**
+        - id: message-reactions
+          uri: lb://community-message-service
+          predicates:
+            - Path=/api/v1/messages/*/reactions/**
+
+        # ---- server-service (8082) ----
+        # 必须在 file-service 路由之前，否则 Nacos 动态路由会干扰
+        - id: server-api
+          uri: lb://community-server-service
+          predicates:
+            - Path=/api/v1/servers/**
+        - id: server-channel-permissions
+          uri: lb://community-server-service
+          predicates:
+            - Path=/api/v1/channels/*/permissions/**
+
+        # ---- file-service (8084) ----
+        - id: file-upload
+          uri: lb://community-file-service
+          predicates:
+            - Path=/api/v1/upload/**
+        - id: file-download
+          uri: lb://community-file-service
+          predicates:
+            - Path=/api/v1/files/**
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    use-root-path: true
+    urls:
+      - name: User Service (鉴权 + 用户)
+        url: /v3/api-docs/user-service
+      - name: Server Service (服务器/频道/角色/成员/表情/邀请/权限)
+        url: /v3/api-docs/server-service
+      - name: Message Service (消息/Reaction/搜索/话题)
+        url: /v3/api-docs/message-service
+      - name: File Service (文件上传/下载)
+        url: /v3/api-docs/file-service

@@ -109,7 +109,7 @@
 <!-- ============ TABS ============ -->
 <div class="tabs">
   <div class="tab active" onclick="switchTab('flows')">业务流程 (11 条)</div>
-  <div class="tab" onclick="switchTab('er')">实体关系 (15 表)</div>
+  <div class="tab" onclick="switchTab('er')">实体关系 (17 表)</div>
   <div class="tab" onclick="switchTab('api')">接口映射 (40+ 端点)</div>
   <div class="tab" onclick="switchTab('ws')">WebSocket 协议</div>
 </div>
@@ -270,7 +270,7 @@
 <div class="rel-item"><span class="from">Channel</span> <span class="arrow">1──N</span> <span class="to">ChannelReadState</span> <span class="cardinality">channel_id FK</span></div>
 </div>
 
-<h2>15 张表详情（+2 补充表：sensitive_word、wx_msg）</h2>
+<h2>17 张表详情</h2>
 <div class="er-grid">
 
 <div class="er-card user">
@@ -487,6 +487,31 @@
 <li><span class="col">use_count</span> INT DEFAULT 0</li>
 <li><span class="col">expire_time</span> DATETIME</li>
 <li><span class="col">create_time</span> DATETIME</li>
+</ul>
+</div>
+
+
+<div class="er-card">
+<h4>🔤 SensitiveWord</h4>
+<div class="table-name">sensitive_word</div>
+<ul>
+<li><span class="col">word</span> VARCHAR(64) PK — 敏感词</li>
+</ul>
+</div>
+
+<div class="er-card">
+<h4>🔐 SecureInvokeRecord</h4>
+<div class="table-name">secure_invoke_record</div>
+<ul>
+<li><span class="col">id</span> BIGINT PK</li>
+<li><span class="col">secure_invoke_json</span> TEXT — 方法调用快照</li>
+<li><span class="col">status</span> TINYINT DEFAULT 1 — 1=待执行 2=已失败</li>
+<li><span class="col">next_retry_time</span> DATETIME — 下次重试时间</li>
+<li><span class="col">retry_times</span> INT DEFAULT 0</li>
+<li><span class="col">max_retry_times</span> INT DEFAULT 3</li>
+<li><span class="col">fail_reason</span> VARCHAR(500)</li>
+<li><span class="col">create_time / update_time</span></li>
+<li class="idx">INDEX: (status, next_retry_time)</li>
 </ul>
 </div>
 
